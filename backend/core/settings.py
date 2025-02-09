@@ -13,12 +13,22 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import sys
 import os
+import os
+from dotenv import load_dotenv
+
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv()
+
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET")
+AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -50,6 +60,7 @@ INSTALLED_APPS = [
     'accounts',
     'api',
     'clubs',
+    "auth_app",
 ]
 
 MIDDLEWARE = [
