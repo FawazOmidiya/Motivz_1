@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-
+// #TODO: Create a script that will hold the auth token for session retrieval when authenticated with auth0
 // ✅ Store token securely
 export const storeToken = async (token: string) => {
   try {

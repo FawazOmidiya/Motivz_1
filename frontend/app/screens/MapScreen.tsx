@@ -1,12 +1,35 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Alert, ActivityIndicator, Text } from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
+import {
+  View,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Text,
+  Image,
+} from "react-native";
+import MapView, {
+  Marker,
+  Callout,
+  PROVIDER_GOOGLE,
+  Region,
+} from "react-native-maps";
 import * as Location from "expo-location";
-import { getAddressFromCoordinates } from "../utils/geocodingAPI"; // ✅ Import Geocoding Service
+import { fetchClubs } from "../utils/supabaseService"; // ✅ Fetch clubs from Supabase
+import { getAddressFromCoordinates } from "../utils/geocodingAPI";
 
 type LocationCoords = {
   latitude: number;
   longitude: number;
+};
+
+type Club = {
+  id: number;
+  Name: string;
+  latitude: number;
+  longitude: number;
+  Rating: number;
+  Image: string;
+  tags: string[]; // Example: ["Live Music", "Cocktails", "Dance"]
 };
 
 export default function MapScreen() {
@@ -14,6 +37,7 @@ export default function MapScreen() {
   const [address, setAddress] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [region, setRegion] = useState<Region | null>(null);
+  const [clubs, setClubs] = useState<Club[]>([]); // ✅ Store clubs from Supabase
 
   useEffect(() => {
     const getLocation = async () => {
@@ -33,7 +57,7 @@ export default function MapScreen() {
         };
         setLocation(coords);
 
-        // ✅ Set map region with correct typing
+        // ✅ Set map region to user's location
         setRegion({
           latitude: coords.latitude,
           longitude: coords.longitude,
@@ -46,8 +70,11 @@ export default function MapScreen() {
           coords.latitude,
           coords.longitude
         );
-
         setAddress(formattedAddress || "Unknown Location");
+
+        // ✅ Fetch nearby clubs from Supabase
+        const fetchedClubs = await fetchClubs();
+        setClubs(fetchedClubs);
       } catch (error) {
         console.error("Error getting location:", error);
       } finally {
@@ -68,8 +95,7 @@ export default function MapScreen() {
             style={styles.map}
             region={
               region ?? {
-                // ✅ Fallback to default region if `null`
-                latitude: 37.7749, // Default San Francisco
+                latitude: 37.7749,
                 longitude: -122.4194,
                 latitudeDelta: 0.01,
                 longitudeDelta: 0.01,
@@ -78,17 +104,44 @@ export default function MapScreen() {
             showsUserLocation={true}
             showsMyLocationButton={true}
           >
-            {location && (
+            {/* ✅ Show user's marker #TODO
+            I may choose to change this later with a personalized icon, similar to snapmaps
+            */}
+            {/* {location && (
               <Marker
                 coordinate={location}
                 title="You are here"
                 description={address}
               />
-            )}
+            )} */}
+
+            {/* ✅ Display all clubs from Supabase */}
+            {clubs.map((club) => (
+              <Marker
+                key={club.id}
+                coordinate={{
+                  latitude: club.latitude,
+                  longitude: club.longitude,
+                }}
+              >
+                <View style={styles.markerContainer}>
+                  <Image
+                    source={{ uri: club.Image }}
+                    style={styles.markerImage}
+                  />
+                  <Text style={styles.markerText}>{club.Name}</Text>
+                </View>
+                <Callout>
+                  <View style={styles.calloutContainer}>
+                    <Text style={styles.calloutTitle}>{club.Name}</Text>
+                    <Text style={styles.calloutText}>
+                      ⭐ {club.Rating} | {club.tags}
+                    </Text>
+                  </View>
+                </Callout>
+              </Marker>
+            ))}
           </MapView>
-          <View style={styles.addressContainer}>
-            <Text style={styles.addressText}>📍 {address}</Text>
-          </View>
         </>
       )}
     </View>
@@ -96,12 +149,8 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
+  container: { flex: 1 },
+  map: { ...StyleSheet.absoluteFillObject },
   addressContainer: {
     position: "absolute",
     bottom: 20,
@@ -113,8 +162,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 3,
   },
-  addressText: {
-    fontSize: 16,
-    fontWeight: "bold",
+  addressText: { fontSize: 16, fontWeight: "bold" },
+  markerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 50,
+    maxWidth: 200, // ✅ Limit width to prevent line wrapping
   },
+  markerImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20, // ✅ Circular Image
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  markerText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    textAlign: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    maxWidth: 180, // ✅ Prevents text from overflowing
+  },
+  calloutContainer: { alignItems: "center", padding: 5, width: 100 },
+  calloutTitle: { fontWeight: "bold", fontSize: 14 },
+  calloutText: { fontSize: 12 },
 });
