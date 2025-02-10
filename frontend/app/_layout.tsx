@@ -4,6 +4,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import MapScreen from "./screens/MapScreen"; // Add Map Screen
 import { Ionicons } from "@expo/vector-icons"; // For tab icons
 
 // Create Bottom Tab Navigator
@@ -13,6 +14,7 @@ export type RootTabParamList = {
   Home: undefined;
   Explore: undefined;
   Profile: undefined;
+  Map: undefined; // ✅ Add Map Screen
 };
 
 export default function RootLayout() {
@@ -28,6 +30,8 @@ export default function RootLayout() {
             iconName = "search-outline";
           } else if (route.name === "Profile") {
             iconName = "person-outline";
+          } else if (route.name === "Map") {
+            iconName = "map-outline"; // ✅ Add Map Screen
           }
 
           return <Ionicons name={iconName as any} size={size} color={color} />;
@@ -40,6 +44,7 @@ export default function RootLayout() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Map" component={MapScreen} />
     </Tab.Navigator>
   );
 }
