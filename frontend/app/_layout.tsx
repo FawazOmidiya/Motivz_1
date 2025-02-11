@@ -4,7 +4,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import MapScreen from "./screens/MapScreen"; // Add Map Screen
+// import MapScreen from "./screens/MapScreen"; // Add Map Screen
 import { Ionicons } from "@expo/vector-icons"; // For tab icons
 
 // Create Bottom Tab Navigator
@@ -44,7 +44,7 @@ export default function RootLayout() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen name="Map" component={MapScreen} />
+      {/* <Tab.Screen name="Map" component={MapScreen} /> */}
     </Tab.Navigator>
   );
 }

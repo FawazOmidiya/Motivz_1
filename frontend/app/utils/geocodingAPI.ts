@@ -1,7 +1,7 @@
 import axios from "axios";
 import Constants from "expo-constants";
 
-const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_API_KEY = "AIzaSyCJPh0xQdW7gkD2Zr275Bq8R8hmE758M80";
 
 /**
  * Reverse Geocoding: Converts coordinates into a readable address.
