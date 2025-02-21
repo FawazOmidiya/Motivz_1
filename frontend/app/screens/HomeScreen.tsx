@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  TouchableOpacity,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import React, { useState, useEffect } from "react";
 
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -38,6 +40,7 @@ export default function HomeScreen() {
     };
     loadClubs();
   }, []);
+  const navigation = useNavigation(); // ✅ Use correct navigation type
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -52,15 +55,24 @@ export default function HomeScreen() {
             data={clubs}
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => (
-              <View style={styles.clubCard}>
-                <Image source={{ uri: item.Image }} style={styles.clubImage} />
-                <View style={styles.clubInfo}>
-                  <Text style={styles.clubName}>{item.Name}</Text>
-                  <Text style={styles.clubDetails}>
-                    ⭐ {item.Rating} | {item.Tags}
-                  </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate("ClubDetail", { club: item })
+                }
+              >
+                <View style={styles.clubCard}>
+                  <Image
+                    source={{ uri: item.Image }}
+                    style={styles.clubImage}
+                  />
+                  <View style={styles.clubInfo}>
+                    <Text style={styles.clubName}>{item.Name}</Text>
+                    <Text style={styles.clubDetails}>
+                      ⭐ {item.Rating} | {item.Tags?.join(", ")}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             )}
           />
         )}
