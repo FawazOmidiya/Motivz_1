@@ -18,15 +18,24 @@ export type RootTabParamList = {
   Explore: undefined;
   Profile: undefined;
   Map: undefined; // ✅ Add Map Screen
-  Map2: undefined; // Add Map Screen
 };
 const HomeStack = createStackNavigator();
+const MapStack = createStackNavigator();
 
 function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeMain" component={HomeScreen} />
       <HomeStack.Screen name="ClubDetail" component={ClubDetailScreen} />
+    </HomeStack.Navigator>
+  );
+}
+
+function MapStackNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <MapStack.Screen name="Map" component={MapScreen} />
+      <MapStack.Screen name="ClubDetail" component={ClubDetailScreen} />
     </HomeStack.Navigator>
   );
 }
@@ -74,7 +83,7 @@ export default function RootLayout() {
         <Tab.Screen name="Home" component={HomeStackNavigator} />
         <Tab.Screen name="Explore" component={ExploreScreen} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
-        <Tab.Screen name="Map" component={MapScreen} />
+        <Tab.Screen name="Map" component={MapStackNavigator} />
       </Tab.Navigator>
     </SafeAreaView>
   );

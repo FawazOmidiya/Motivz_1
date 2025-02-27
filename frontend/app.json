@@ -2,22 +2,27 @@
   "expo": {
     "name": "frontend",
     "slug": "frontend",
-    "version": "1.0.0",
-    "extra": {
-      "SUPABASE_URL": "https://htercrqcpdnpiifpufuo.supabase.co",
-      "SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0ZXJjcnFjcGRucGlpZnB1ZnVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTkzNTcyNjcsImV4cCI6MjAzNDkzMzI2N30.XtB1qfAzrIMWC3N1GaGDb8_vJ8br8EbC3gRLTxK0eRY",
-      "GOOGLE_MAPS_API_KEY": "AIzaSyCJPh0xQdW7gkD2Zr275Bq8R8hmE758M80",
-      "AUTH0_DOMAIN": "your_auth0_domain",
-      "AUTH0_CLIENT_ID": "your_auth0_client_id",
-      "AUTH0_CLIENT_SECRET": "your_auth0_client_secret"
-    },
+    "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Mobile-Application-Blue-Icon-Transparent-PNG.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "jsEngine": "jsc", // Switch from Hermes to JSC
+    "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fomidiya.frontend",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
+        "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background."
+      },
+      "entitlements": {
+        "aps-environment": "development"
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyCJPh0xQdW7gkD2Zr275Bq8R8hmE758M80"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -41,10 +46,19 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "66836f2a-6d2a-490d-ad14-7624483fff56"
+      }
     }
   }
 }
