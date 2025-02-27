@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import HomeScreen from "./screens/HomeScreen";
 import { createStackNavigator } from "@react-navigation/stack";
@@ -6,10 +6,10 @@ import ExploreScreen from "./screens/ExploreScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import ClubDetailScreen from "./screens/ClubDetail";
 import MapScreen from "./screens/MapScreen"; // Add Map Screen
-import EventMap from "./screens/Map2";
+import { getToken } from "./utils/tokens"; // Import the token utility
 import { SafeAreaView, StyleSheet, StatusBar } from "react-native";
 import { Ionicons } from "@expo/vector-icons"; // For tab icons
-
+import AuthScreen from "./screens/AuthScreen";
 // Create Bottom Tab Navigator
 const Tab = createBottomTabNavigator<RootTabParamList>();
 // Define type-safe navigation routes
@@ -32,6 +32,19 @@ function HomeStackNavigator() {
 }
 
 export default function RootLayout() {
+  const [isAuthenticated, setIsAuthenticated] = useState<any>(false);
+
+  // useEffect(() => {
+  //   const checkAuth = async () => {
+  //     const token = await getToken();
+  //     setIsAuthenticated(!!token);
+  //   };
+  //   checkAuth();
+  // }, []);
+  // if (!isAuthenticated) {
+  //   return <AuthScreen />;
+  // }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -47,8 +60,6 @@ export default function RootLayout() {
               iconName = "person-outline";
             } else if (route.name === "Map") {
               iconName = "map-outline"; // ✅ Add Map Screen
-            } else if (route.name === "Map2") {
-              iconName = "map-outline"; // Add Map Screen
             }
 
             return (
@@ -63,8 +74,7 @@ export default function RootLayout() {
         <Tab.Screen name="Home" component={HomeStackNavigator} />
         <Tab.Screen name="Explore" component={ExploreScreen} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
-        {/* <Tab.Screen name="Map" component={MapScreen} />
-      <Tab.Screen name="Map2" component={EventMap} /> */}
+        <Tab.Screen name="Map" component={MapScreen} />
       </Tab.Navigator>
     </SafeAreaView>
   );

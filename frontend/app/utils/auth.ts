@@ -1,35 +1,8 @@
-import * as SecureStore from "expo-secure-store";
-// #TODO: Create a script that will hold the auth token for session retrieval when authenticated with auth0
-// ✅ Store token securely
-export const storeToken = async (token: string) => {
-  try {
-    await SecureStore.setItemAsync("access_token", token);
-  } catch (error) {
-    console.error("Failed to save token:", error);
-  }
-};
+import Auth0 from "react-native-auth0";
 
-// ✅ Retrieve token
-export const getToken = async () => {
-  try {
-    return await SecureStore.getItemAsync("access_token");
-  } catch (error) {
-    console.error("Failed to retrieve token:", error);
-    return null;
-  }
-};
+const auth0 = new Auth0({
+  domain: process.env.EXPO_PUBLIC_AUTH0_DOMAIN as string,
+  clientId: process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID as string,
+});
 
-// ❌ Skip token validation for now
-export const isAuthenticated = async () => {
-  const token = await getToken();
-  return !!token; // ✅ If token exists, consider user logged in (MVP approach)
-};
-
-// ✅ Remove token (Logout)
-export const removeToken = async () => {
-  try {
-    await SecureStore.deleteItemAsync("access_token");
-  } catch (error) {
-    console.error("Failed to remove token:", error);
-  }
-};
+export default auth0;
