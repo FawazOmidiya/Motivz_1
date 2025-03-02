@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import Constants from "expo-constants";
 
-const SUPABASE_URL = Constants.expoConfig?.extra?.SUPABASE_URL;
-const SUPABASE_KEY = Constants.expoConfig?.extra?.SUPABASE_KEY;
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
+const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY as string;
 
 // ✅ Initialize Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -24,3 +23,17 @@ export const fetchClubs = async () => {
     return [];
   }
 };
+
+export async function fetchEventsByClub(clubId: string) {
+  const { data, error } = await supabase
+    .from("Events")
+    .select("*")
+    .eq("club_id", clubId);
+
+  if (error) {
+    console.error("Error fetching events:", error);
+    return [];
+  }
+
+  return data;
+}
