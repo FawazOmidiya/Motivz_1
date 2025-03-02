@@ -1,12 +1,16 @@
 import requests
 import time
+import os
+from dotenv import load_dotenv
 from supabase import create_client, Client
 
+load_dotenv()
+
 # Configuration
-GOOGLE_MAPS_API_KEY = "AIzaSyCJPh0xQdW7gkD2Zr275Bq8R8hmE758M80"  # Replace with your Google API key
-GOOGLE_PLACES_API_KEY = "AIzaSyABpe3jczV_UkLredPyrOFZLxk0Pc1aVP4"
-SUPABASE_URL = "https://htercrqcpdnpiifpufuo.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0ZXJjcnFjcGRucGlpZnB1ZnVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTkzNTcyNjcsImV4cCI6MjAzNDkzMzI2N30.XtB1qfAzrIMWC3N1GaGDb8_vJ8br8EbC3gRLTxK0eRY"
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")  # Replace with your Google API key
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -18,7 +22,7 @@ def fetch_nightclubs(next_page_token=None):
     # Toronto coordinates and a radius of 30 km
     params = {
         "query": "nightclubs in Toronto",  
-        "key": GOOGLE_API_KEY,
+        "key": GOOGLE_MAPS_API_KEY,
         "location": "43.6532,-79.3832",  
         "radius": "30000"
     }
@@ -52,7 +56,7 @@ def insert_club(club_data):
 
 def main():
     next_page_token = None
-    response = requests.get("https://maps.googleapis.com/maps/api/place/textsearch/json?query=nightclubs%20in%20Toronto&key=AIzaSyABpe3jczV_UkLredPyrOFZLxk0Pc1aVP4")
+    response = requests.get("https://maps.googleapis.com/maps/api/place/textsearch/json?query=nightclubs%20in%20Toronto&key=" + GOOGLE_MAPS_API_KEY)
     data = response.json()
     if not data:
         return
@@ -66,4 +70,3 @@ def main():
 if __name__ == "__main__":
     main()
     
-"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=AUy1YQ3Xke8yD44EXl3u_fakmk8FxeMR2oWaH85as4wxmR3RdPBmPr7XTtEURwkEG0LXht045u1LYMV2y-0jvH6GWu-EwdkJeHOfDGeBZTC-_ubOlazAqyvx0sghj4iZRiywjmS0-byHMOPKh9N6TzLapNcq3MQODg7p_pCmiTSGxMbqV8mhi-usu8GT&key=AIzaSyABpe3jczV_UkLredPyrOFZLxk0Pc1aVP4"
