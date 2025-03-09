@@ -1,115 +1,104 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Button,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
-import auth0 from "../utils/auth";
-import { storeToken } from "../utils/tokens";
-import { useNavigation } from "@react-navigation/native";
-import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import { RootTabParamList } from "../_layout"; // Import your navigation type
+import { Alert, StyleSheet, View, AppState } from "react-native";
+import { supabaseAuth } from "../utils/supabaseAuth";
+import { Button, Input } from "@rneui/themed";
 
-type AuthScreenNavigationProp = BottomTabNavigationProp<
-  RootTabParamList,
-  "Home"
->;
+// Tells Supabase Auth to continuously refresh the session automatically if
+// the app is in the foreground. When this is added, you will continue to receive
+// `onAuthStateChange` events with the `TOKEN_REFRESHED` or `SIGNED_OUT` event
+// if the user's session is terminated. This should only be registered once.
+AppState.addEventListener("change", (state) => {
+  if (state === "active") {
+    supabaseAuth.auth.startAutoRefresh();
+  } else {
+    supabaseAuth.auth.stopAutoRefresh();
+  }
+});
 
-export default function AuthScreen() {
+export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigation = useNavigation<AuthScreenNavigationProp>();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter your email and password.");
-      return;
-    }
-
+  async function signInWithEmail() {
     setLoading(true);
-    try {
-      const response = await auth0.auth.passwordRealm({
-        username: email,
-        password,
-        realm: "Username-Password-Authentication",
-      });
+    const { error } = await supabaseAuth.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
 
-      await storeToken(response.accessToken);
-      Alert.alert("Success", "Logged in successfully!");
-      navigation.navigate("Home");
-    } catch (error: any) {
-      console.error("Login Error:", error);
-      Alert.alert("Error", error.message || "Failed to log in.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) Alert.alert(error.message);
+    setLoading(false);
+  }
 
-  const handleSignUp = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter your email and password.");
-      return;
-    }
-
+  async function signUpWithEmail() {
     setLoading(true);
-    try {
-      await auth0.auth.createUser({
-        email,
-        password,
-        connection: "Username-Password-Authentication",
-      });
+    const {
+      data: { session },
+      error,
+    } = await supabaseAuth.auth.signUp({
+      email: email,
+      password: password,
+    });
 
-      Alert.alert("Success", "Account created! Please log in.");
-    } catch (error: any) {
-      console.error("Sign-Up Error:", error);
-      Alert.alert("Error", error.message || "Failed to sign up.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) Alert.alert(error.message);
+    if (!session)
+      Alert.alert("Please check your inbox for email verification!");
+    setLoading(false);
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Auth0 Login</Text>
-
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
-      ) : (
-        <>
-          <Button title="Login" onPress={handleLogin} />
-          <Button title="Sign Up" onPress={handleSignUp} />
-        </>
-      )}
+      <View style={[styles.verticallySpaced, styles.mt20]}>
+        <Input
+          label="Email"
+          leftIcon={{ type: "font-awesome", name: "envelope" }}
+          onChangeText={(text) => setEmail(text)}
+          value={email}
+          placeholder="email@address.com"
+          autoCapitalize={"none"}
+        />
+      </View>
+      <View style={styles.verticallySpaced}>
+        <Input
+          label="Password"
+          leftIcon={{ type: "font-awesome", name: "lock" }}
+          onChangeText={(text) => setPassword(text)}
+          value={password}
+          secureTextEntry={true}
+          placeholder="Password"
+          autoCapitalize={"none"}
+        />
+      </View>
+      <View style={[styles.verticallySpaced, styles.mt20]}>
+        <Button
+          title="Sign in"
+          disabled={loading}
+          onPress={() => signInWithEmail()}
+        />
+      </View>
+      <View style={styles.verticallySpaced}>
+        <Button
+          title="Sign up"
+          disabled={loading}
+          onPress={() => signUpWithEmail()}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20 },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
+  container: {
+    marginTop: 40,
+    padding: 12,
   },
-  input: { borderBottomWidth: 1, marginBottom: 10, padding: 8 },
+  verticallySpaced: {
+    paddingTop: 4,
+    paddingBottom: 4,
+    alignSelf: "stretch",
+  },
+  mt20: {
+    marginTop: 20,
+  },
 });
