@@ -1,54 +1,95 @@
+import React, { useState, useEffect } from "react";
 import {
+  StyleSheet,
   View,
   Text,
-  StyleSheet,
   FlatList,
   ScrollView,
   Image,
   Alert,
+  TouchableOpacity,
 } from "react-native";
-import { useRoute } from "@react-navigation/native";
-import React, { useState, useEffect } from "react";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import { fetchEventsByClub } from "../utils/supabaseService";
 import { Button } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
+import {
+  queryUserFavouriteExists,
+  addClubToFavourites,
+  removeClubFromFavourites,
+  Club,
+} from "../utils/supabaseService";
 
 export default function ClubDetailScreen() {
   const route = useRoute();
-  const { club } = route.params;
+  const { club } = route.params as { club: Club };
   const [events, setEvents] = useState<any>([]);
   const [adding, setAdding] = useState(false);
+  const [isFavourite, setIsFavourite] = useState(false);
   const session = useSession();
+  const navigation = useNavigation();
 
   useEffect(() => {
     const loadEvents = async () => {
-      const eventData = await fetchEventsByClub(club.id);
+      const eventData = await fetchEventsByClub(club.club_id);
       setEvents(eventData);
     };
     loadEvents();
-  }, []);
+  }, [club.club_id]);
 
-  async function addToFavourites() {
+  // Check whether the club is already in favourites when the screen loads or when session/club changes.
+  useEffect(() => {
+    async function checkFavourite() {
+      if (session && club) {
+        try {
+          const exists = await queryUserFavouriteExists(
+            session.user.id,
+            club.club_id
+          );
+          setIsFavourite(exists);
+        } catch (error) {
+          console.error("Error checking favourite:", error);
+        }
+      }
+    }
+    checkFavourite();
+  }, [session, club]);
+
+  async function handleAddToFavourites() {
     setAdding(true);
-    // Get current user session
-    const user = session?.user;
-    if (!user) {
-      Alert.alert("Not Signed In", "Please sign in to add favourites.");
+    try {
+      const added = await addClubToFavourites(session, club);
+      if (added) {
+        Alert.alert("Success", "Club added to your favourites!");
+        setIsFavourite(true);
+      } else {
+        Alert.alert("Info", "This club is already in your favourites.");
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert("Error", error.message);
+      }
+    } finally {
       setAdding(false);
-      return;
     }
-    // Insert the favourite relation
-    const { error } = await supabaseAuth.from("profile_favourites").insert({
-      profile_id: user.id,
-      club_id: club.id,
-    });
-    if (error) {
-      Alert.alert("Error", error.message);
-    } else {
-      Alert.alert("Success", "Club added to your favourites!");
+  }
+
+  async function handleRemoveFromFavourites() {
+    setAdding(true);
+    try {
+      const removed = await removeClubFromFavourites(session, club);
+      if (removed) {
+        Alert.alert("Success", "Club removed from your favourites.");
+        setIsFavourite(false);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert("Error", error.message);
+      }
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   }
 
   return (
@@ -66,13 +107,22 @@ export default function ClubDetailScreen() {
         ))}
       </View>
 
-      {/* Add to Favourites Button */}
-      <Button
-        title="Add to Favourites"
-        onPress={addToFavourites}
-        loading={adding}
-        containerStyle={styles.buttonContainer}
-      />
+      {/* Add/Remove Favourites Button */}
+      {isFavourite ? (
+        <Button
+          title="Remove from Favourites"
+          onPress={handleRemoveFromFavourites}
+          loading={adding}
+          containerStyle={styles.buttonContainer}
+        />
+      ) : (
+        <Button
+          title="Add to Favourites"
+          onPress={handleAddToFavourites}
+          loading={adding}
+          containerStyle={styles.buttonContainer}
+        />
+      )}
 
       {/* Upcoming Events */}
       <Text style={styles.sectionTitle}>Upcoming Events:</Text>

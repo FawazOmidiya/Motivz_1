@@ -7,25 +7,25 @@ import {
   Image,
   Dimensions,
   TouchableHighlight,
+  RefreshControl,
+  ScrollView,
 } from "react-native";
 import { Button, Text } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
-// Import your function to fetch user favourites
-import { fetchUserFavourites, fetchSingleClub } from "../utils/supabaseService";
+import { fetchUserFavourites } from "../utils/supabaseService";
 
 type Club = {
-  id: number;
+  club_id: string;
   Name: string;
-  latitude: number;
-  longitude: number;
-  Rating: number;
-  Image: string;
-  tags: string[]; // Example: ["Live Music", "Cocktails", "Dance"]
+  Image?: string;
+  // other fields as needed
 };
+
 export default function Account() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [username, setUsername] = useState("");
   const [website, setWebsite] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -44,7 +44,6 @@ export default function Account() {
     try {
       setLoading(true);
       if (!session?.user) throw new Error("No user on the session!");
-
       const { data, error, status } = await supabaseAuth
         .from("profiles")
         .select(`username, website, avatar_url`)
@@ -71,14 +70,11 @@ export default function Account() {
     try {
       setLoading(true);
       if (!session?.user) throw new Error("No user on the session!");
-
-      // Call the function to fetch favourites using the current profile id
       const data = await fetchUserFavourites(session.user.id);
       if (data) {
-        // Assuming each returned row has a `club` object with club details:
+        // Map each row's club object into our Club type.
         const mappedFavourites = data.map((favourite: any) => {
-          const club = favourite.club;
-          return club;
+          return favourite.club;
         });
         setFavourites(mappedFavourites);
       }
@@ -91,40 +87,11 @@ export default function Account() {
     }
   }
 
-  async function updateProfile({
-    username,
-    website,
-    avatar_url,
-  }: {
-    username: string;
-    website: string;
-    avatar_url: string;
-  }) {
-    try {
-      setLoading(true);
-      if (!session?.user) throw new Error("No user on the session!");
-
-      const updates = {
-        id: session.user.id,
-        username,
-        website,
-        avatar_url,
-        updated_at: new Date(),
-      };
-
-      const { error } = await supabaseAuth.from("profiles").upsert(updates);
-      if (error) {
-        throw error;
-      } else {
-        Alert.alert("Success", "Profile updated successfully.");
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        Alert.alert("Update Error", error.message);
-      }
-    } finally {
-      setLoading(false);
-    }
+  async function handleRefresh() {
+    setRefreshing(true);
+    await getProfile();
+    await getFavourites();
+    setRefreshing(false);
   }
 
   async function handleSignOut() {
@@ -141,20 +108,26 @@ export default function Account() {
   const renderFavourite = ({
     item,
   }: {
-    item: { id: string; title: string; imageUrl: string };
+    item: { club_id: string; Name: string; Image?: string };
   }) => (
     <TouchableHighlight
       onPress={() => navigation.navigate("ClubDetail", { club: item })}
+      activeOpacity={0.7}
     >
       <View style={styles.favouriteItem}>
-        <Image source={{ uri: item.Image }} style={styles.favouriteImage} />
-        <Text style={styles.favouriteTitle}>{item.Name}</Text>
+        <Image source={{ uri: item?.Image }} style={styles.favouriteImage} />
+        <Text style={styles.favouriteTitle}>{item?.Name}</Text>
       </View>
     </TouchableHighlight>
   );
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+    >
       {/* Profile Header */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
@@ -175,6 +148,11 @@ export default function Account() {
           buttonStyle={styles.signOutButton}
           containerStyle={styles.signOutContainer}
         />
+        <Button
+          title="Edit Profile"
+          onPress={() => navigation.navigate("ProfileSettings")}
+          containerStyle={styles.signOutContainer}
+        />
       </View>
 
       {/* Favourites Section */}
@@ -182,19 +160,19 @@ export default function Account() {
         <Text style={styles.sectionTitle}>Favourites</Text>
         <FlatList
           data={favourites}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item?.club_id}
           renderItem={renderFavourite}
           numColumns={2}
           columnWrapperStyle={styles.favouritesRow}
           contentContainerStyle={styles.favouritesList}
         />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const screenWidth = Dimensions.get("window").width;
-const imageSize = (screenWidth - 60) / 2; // Adjust spacing based on container margins
+const imageSize = (screenWidth - 60) / 2;
 
 const styles = StyleSheet.create({
   container: {
@@ -270,10 +248,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     flex: 1,
     marginHorizontal: 5,
+    width: 180,
   },
   favouriteImage: {
-    width: imageSize,
-    height: imageSize,
+    width: 160,
+    height: 120,
+    resizeMode: "cover",
     borderRadius: 12,
     marginBottom: 5,
   },

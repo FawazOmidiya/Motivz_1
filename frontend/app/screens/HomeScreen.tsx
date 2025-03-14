@@ -19,7 +19,7 @@ import { fetchClubs } from "../utils/supabaseService";
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 type Club = {
-  id: number;
+  club_id: number;
   Name: string;
   latitude: number;
   longitude: number;
@@ -53,7 +53,7 @@ export default function HomeScreen() {
         ) : (
           <FlatList
             data={clubs}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => item.club_id.toString()}
             renderItem={({ item }) => (
               <TouchableOpacity
                 onPress={() =>
