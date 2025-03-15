@@ -1,23 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAuth } from "./supabaseAuth";
 import type { Session } from "@supabase/supabase-js";
+import * as types from "./types";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY as string;
 
 // ✅ Initialize Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-export type Club = {
-  club_id: string;
-  Name: string;
-  latitude: number;
-  longitude: number;
-  Rating: number;
-  Image: string;
-  Tags: string[];
-};
-
 /**
  * Fetches all clubs from the Supabase database.
  */
@@ -189,7 +179,7 @@ export const updateUserProfile = async (
  */
 export async function addClubToFavourites(
   session: Session | null,
-  club: Club
+  club: types.Club
 ): Promise<boolean> {
   if (!session?.user) {
     throw new Error("Not signed in. Please sign in to add favourites.");
@@ -201,7 +191,7 @@ export async function addClubToFavourites(
     .from("profile_favourites")
     .select("*")
     .eq("profile_id", session.user.id)
-    .eq("club_id", club.club_id)
+    .eq("club_id", club.id)
     .maybeSingle();
 
   if (checkError) {
@@ -216,7 +206,7 @@ export async function addClubToFavourites(
   // Insert the new favourite
   const { error } = await supabaseAuth.from("profile_favourites").insert({
     profile_id: session.user.id,
-    club_id: club.club_id,
+    club_id: club.id,
   });
 
   if (error) {
@@ -236,7 +226,7 @@ export async function addClubToFavourites(
  */
 export async function removeClubFromFavourites(
   session: Session | null,
-  club: Club
+  club: types.Club
 ): Promise<boolean> {
   if (!session?.user) {
     throw new Error("Not signed in. Please sign in to remove favourites.");
@@ -246,7 +236,7 @@ export async function removeClubFromFavourites(
     .from("profile_favourites")
     .delete()
     .eq("profile_id", session.user.id)
-    .eq("club_id", club.club_id);
+    .eq("club_id", club.id);
 
   if (error) {
     throw new Error(error.message);
@@ -254,3 +244,30 @@ export async function removeClubFromFavourites(
 
   return true;
 }
+
+/**
+ * Searches for users in the "profiles" table by username, first_name, or last_name.
+ *
+ * @param searchTerm - The term to search for.
+ * @returns An array of user profiles matching the search criteria.
+ */
+export const searchUsersByName = async (
+  searchTerm: string
+): Promise<types.UserProfile[]> => {
+  try {
+    // Build an "or" clause: Supabase expects a comma-separated list.
+    const query = `username.ilike.%${searchTerm}%, first_name.ilike.%${searchTerm}%, last_name.ilike.%${searchTerm}%`;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .or(query);
+    if (error) {
+      throw new Error(error.message);
+    }
+    console.log("Fetched users:", data);
+    return data || [];
+  } catch (err) {
+    console.error("Error searching users:", err);
+    return [];
+  }
+};
