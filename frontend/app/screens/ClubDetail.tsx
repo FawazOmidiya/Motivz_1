@@ -14,16 +14,16 @@ import { fetchEventsByClub } from "../utils/supabaseService";
 import { Button } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
+import * as types from "@/app/utils/types";
 import {
   queryUserFavouriteExists,
   addClubToFavourites,
   removeClubFromFavourites,
-  Club,
 } from "../utils/supabaseService";
 
 export default function ClubDetailScreen() {
   const route = useRoute();
-  const { club } = route.params as { club: Club };
+  const { club } = route.params as { club: types.Club };
   const [events, setEvents] = useState<any>([]);
   const [adding, setAdding] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
@@ -32,11 +32,11 @@ export default function ClubDetailScreen() {
 
   useEffect(() => {
     const loadEvents = async () => {
-      const eventData = await fetchEventsByClub(club.club_id);
+      const eventData = await fetchEventsByClub(club.id);
       setEvents(eventData);
     };
     loadEvents();
-  }, [club.club_id]);
+  }, [club.id]);
 
   // Check whether the club is already in favourites when the screen loads or when session/club changes.
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function ClubDetailScreen() {
         try {
           const exists = await queryUserFavouriteExists(
             session.user.id,
-            club.club_id
+            club.id
           );
           setIsFavourite(exists);
         } catch (error) {
