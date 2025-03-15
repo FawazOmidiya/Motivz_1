@@ -18,3 +18,19 @@ export type UserProfile = {
   avatar_url?: string;
   // add any additional fields you need
 };
+
+// Define the bottom tab param list:
+export type RootTabParamList = {
+  Home: undefined;
+  Explore: undefined;
+  Profile: undefined;
+  Map: undefined;
+};
+
+// Define type-safe navigation routes for the root stack:
+export type RootStackParamList = {
+  Main: undefined;
+  ClubDetail: { club: Club };
+  ProfileSettings: undefined;
+  UserProfile: { profile: UserProfile };
+};

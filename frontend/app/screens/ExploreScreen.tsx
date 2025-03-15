@@ -9,30 +9,20 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Text, Button } from "@rneui/themed";
-import { supabase, searchClubsByName } from "../utils/supabaseService"; // or supabaseAuth
+import {
+  supabase,
+  searchClubsByName,
+  searchUsersByName,
+} from "../utils/supabaseService"; // or supabaseAuth
 import { useNavigation } from "@react-navigation/native";
-
-type Club = {
-  id: number;
-  Name: string;
-  latitude: number;
-  longitude: number;
-  Rating: number;
-  Image: string;
-  Tags: string[]; // Example: ["Live Music", "Cocktails", "Dance"]
-};
-
-interface UserProfile {
-  id: string;
-  username: string;
-  avatar_url?: string;
-  // any other fields
-}
+import * as types from "@/app/utils/types";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState<"clubs" | "users">("clubs");
-  const [results, setResults] = useState<(Club | UserProfile)[]>([]);
+  const [results, setResults] = useState<(types.Club | types.UserProfile)[]>(
+    []
+  );
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
@@ -49,17 +39,12 @@ export default function SearchScreen() {
     try {
       if (searchType === "clubs") {
         // Query the "Clubs" table
-        const clubs: Club[] = await searchClubsByName(query);
+        const clubs: types.Club[] = await searchClubsByName(query);
         setResults(clubs);
       } else {
         // Query the "profiles" table
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .like("username", `%${query}%`);
-
-        if (error) throw error;
-        if (data) setResults(data);
+        const users: types.UserProfile[] = await searchUsersByName(query);
+        setResults(users);
       }
     } catch (err) {
       console.error("Search error:", err);
@@ -68,9 +53,9 @@ export default function SearchScreen() {
     }
   }
 
-  function renderItem({ item }: { item: Club | UserProfile }) {
+  function renderItem({ item }: { item: types.Club | types.UserProfile }) {
     if (searchType === "clubs") {
-      const club = item as Club;
+      const club = item as types.Club;
       return (
         <TouchableOpacity
           style={styles.resultItem}
@@ -80,11 +65,11 @@ export default function SearchScreen() {
         </TouchableOpacity>
       );
     } else {
-      const user = item as UserProfile;
+      const user = item as types.UserProfile;
       return (
         <TouchableOpacity
           style={styles.resultItem}
-          onPress={() => navigation.navigate("ProfileScreen", { user })}
+          onPress={() => navigation.navigate("UserProfile", { user })}
         >
           <Text style={styles.resultTitle}>{user.username}</Text>
         </TouchableOpacity>

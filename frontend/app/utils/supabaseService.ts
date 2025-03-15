@@ -26,6 +26,7 @@ export const fetchClubs = async () => {
   }
 };
 
+// Clubs
 export const fetchSingleClub = async (clubId: string) => {
   try {
     const { data, error } = await supabase
@@ -39,6 +40,29 @@ export const fetchSingleClub = async (clubId: string) => {
     return data;
   } catch (error) {
     console.error("Error fetching clubs:", error);
+    return [];
+  }
+};
+
+export const searchClubsByName = async (ClubName: string) => {
+  /**
+   * Searches for clubs in the "clubs" table with a Name similar to the provided input.
+   *
+   * @param {string} searchTerm - The term to search for.
+   * @returns {Promise<Array>} Array of clubs matching the search criteria, or an empty array on error.
+   */
+  try {
+    const { data, error } = await supabase
+      .from("Clubs")
+      .select("*")
+      .ilike("Name", `%${ClubName}%`);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data;
+  } catch (error) {
+    console.error("Error searching clubs:", error);
     return [];
   }
 };
@@ -111,38 +135,16 @@ export const queryUserFavouriteExists = async (
   }
 };
 
-/**
- * Searches for clubs in the "clubs" table with a Name similar to the provided input.
- *
- * @param {string} searchTerm - The term to search for.
- * @returns {Promise<Array>} Array of clubs matching the search criteria, or an empty array on error.
- */
-export const searchClubsByName = async (ClubName: string) => {
-  try {
-    const { data, error } = await supabase
-      .from("Clubs")
-      .select("*")
-      .ilike("Name", `%${ClubName}%`);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-    return data;
-  } catch (error) {
-    console.error("Error searching clubs:", error);
-    return [];
-  }
-};
-
-/**
- * Updates a user's profile information in the "profiles" table.
- *
- * @param userId - The ID of the user.
- * @param updates - An object containing the updated profile fields.
- * @returns A boolean indicating success.
- * @throws An error if the update fails.
- */
 export const updateUserProfile = async (
+  /**
+   * Updates a user's profile information in the "profiles" table.
+   *
+   * @param userId - The ID of the user.
+   * @param updates - An object containing the updated profile fields.
+   * @returns A boolean indicating success.
+   * @throws An error if the update fails.
+   */
+
   userId: string,
   updates: {
     username: string;
@@ -168,16 +170,17 @@ export const updateUserProfile = async (
   }
 };
 
-/**
- * Adds a club to the user's favourites if the user-club pair doesn't already exist.
- *
- * @param session - The current Supabase session.
- * @param club - The club object to add to favourites.
- * @returns A promise that resolves to true if the club was added,
- *          or false if the favourite already exists.
- * @throws An error if the user is not signed in or if the insert fails.
- */
 export async function addClubToFavourites(
+  /**
+   * Adds a club to the user's favourites if the user-club pair doesn't already exist.
+   *
+   * @param session - The current Supabase session.
+   * @param club - The club object to add to favourites.
+   * @returns A promise that resolves to true if the club was added,
+   *          or false if the favourite already exists.
+   * @throws An error if the user is not signed in or if the insert fails.
+   */
+
   session: Session | null,
   club: types.Club
 ): Promise<boolean> {
@@ -216,15 +219,16 @@ export async function addClubToFavourites(
   return true;
 }
 
-/**
- * Removes a club from the user's favourites.
- *
- * @param session - The current Supabase session.
- * @param club - The club object to remove from favourites.
- * @returns A promise that resolves to true if the club was removed.
- * @throws An error if the user is not signed in or if the deletion fails.
- */
 export async function removeClubFromFavourites(
+  /**
+   * Removes a club from the user's favourites.
+   *
+   * @param session - The current Supabase session.
+   * @param club - The club object to remove from favourites.
+   * @returns A promise that resolves to true if the club was removed.
+   * @throws An error if the user is not signed in or if the deletion fails.
+   */
+
   session: Session | null,
   club: types.Club
 ): Promise<boolean> {
@@ -245,13 +249,14 @@ export async function removeClubFromFavourites(
   return true;
 }
 
-/**
- * Searches for users in the "profiles" table by username, first_name, or last_name.
- *
- * @param searchTerm - The term to search for.
- * @returns An array of user profiles matching the search criteria.
- */
 export const searchUsersByName = async (
+  /**
+   * Searches for users in the "profiles" table by username, first_name, or last_name.
+   *
+   * @param searchTerm - The term to search for.
+   * @returns An array of user profiles matching the search criteria.
+   */
+
   searchTerm: string
 ): Promise<types.UserProfile[]> => {
   try {
@@ -270,4 +275,26 @@ export const searchUsersByName = async (
     console.error("Error searching users:", err);
     return [];
   }
+};
+
+export const fetchUserProfile = async (userId: string): Promise<any> => {
+  /**
+   * Fetches the profile for the given user ID.
+   *
+   * @param userId - The ID of the user whose profile to fetch.
+   * @returns A promise that resolves to the user's profile data.
+   * @throws An error if the query fails.
+   */
+
+  const { data, error, status } = await supabaseAuth
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (error && status !== 406) {
+    throw new Error(error.message);
+  }
+
+  return data;
 };
