@@ -1,81 +1,75 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Button,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
-import auth0 from "../utils/auth";
-import { storeToken } from "../utils/tokens"; // Utility to store tokens securely
+import { View, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { supabaseAuth } from "../utils/supabaseAuth";
+import { Button, Input, Text } from "@rneui/themed";
+import { useNavigation } from "@react-navigation/native";
 
-export default function SignInScreen({ navigation }) {
+export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter your email and password.");
-      return;
-    }
-
+  const navigation = useNavigation();
+  async function signInWithEmail() {
     setLoading(true);
+    const { error } = await supabaseAuth.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+    if (error) Alert.alert("Sign In Failed", error.message);
 
-    try {
-      const response = await auth0.auth.passwordRealm({
-        username: email,
-        password,
-        realm: "Username-Password-Authentication",
-      });
-
-      await storeToken(response.accessToken);
-      Alert.alert("Success", "You are now logged in!");
-      navigation.replace("Home");
-    } catch (error: any) {
-      console.error("Sign-In Error:", error);
-      Alert.alert("Error", error.message || "Failed to sign in.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setLoading(false);
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign In</Text>
+      <Text h3 style={styles.title}>
+        Motivz
+      </Text>
 
-      <TextInput
-        placeholder="Email"
-        value={email}
+      <Input
+        label="Email"
+        leftIcon={{ type: "font-awesome", name: "envelope" }}
         onChangeText={setEmail}
-        style={styles.input}
+        value={email}
+        placeholder="email@address.com"
+        autoCapitalize="none"
       />
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        value={password}
+
+      <Input
+        label="Password"
+        leftIcon={{ type: "font-awesome", name: "lock" }}
         onChangeText={setPassword}
-        style={styles.input}
+        value={password}
+        secureTextEntry
+        placeholder="Password"
+        autoCapitalize="none"
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" />
       ) : (
-        <Button title="Sign In" onPress={handleSignIn} />
+        <>
+          <Button title="Sign In" onPress={signInWithEmail} />
+          <Button
+            title="Create Account"
+            type="clear"
+            onPress={() => navigation.navigate("SignUp")}
+          />
+        </>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20 },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 20,
   },
-  input: { borderBottomWidth: 1, marginBottom: 10, padding: 8 },
+  title: {
+    textAlign: "center",
+    marginBottom: 20,
+  },
 });

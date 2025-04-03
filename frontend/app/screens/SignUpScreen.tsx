@@ -1,78 +1,115 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Button,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
-import auth0 from "../utils/auth";
+import { View, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { supabaseAuth } from "../utils/supabaseAuth";
+import { Button, Input, Text } from "@rneui/themed";
+import { useNavigation } from "@react-navigation/native";
+import BackButton from "@/components/BackButton";
+import { supabase } from "../utils/supabaseService";
 
 export default function SignUpScreen() {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSignUp = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter your email and password.");
+  const navigation = useNavigation();
+
+  async function checkUsernameExists(username: string) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", username)
+      .single();
+    return data !== null;
+  }
+
+  async function signUpWithEmail() {
+    setLoading(true);
+    if (!username || !email || !password) {
+      Alert.alert("Missing Fields", "Please fill in all fields.");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const response = await auth0.auth.createUser({
-        email,
-        password,
-        connection: "Username-Password-Authentication",
-      });
-
-      Alert.alert("Success", "Account created! Please log in.");
-    } catch (error: any) {
-      console.error("Sign-Up Error:", error);
-      Alert.alert("Error", error.message || "Failed to sign up.");
-    } finally {
+    const usernameTaken = await checkUsernameExists(username);
+    if (usernameTaken) {
+      Alert.alert("Username Taken", "Please choose another username.");
       setLoading(false);
+      return;
     }
-  };
+
+    const { data, error } = await supabaseAuth.auth.signUp({ email, password });
+    if (error) {
+      Alert.alert("Sign Up Failed", error.message);
+    }
+    console.log("HERES THE NEW USER: " + data);
+    if (data?.user) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          username: username,
+        })
+        .eq("id", data.user.id);
+      if (profileError) {
+        Alert.alert(
+          "Profile Error",
+          "Account created, but profile update failed."
+        );
+        console.log(profileError);
+      } else {
+        Alert.alert("Success! Account created successfully.");
+      }
+    }
+
+    setLoading(false);
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign Up</Text>
-
-      <TextInput
-        placeholder="Email"
-        value={email}
+      <BackButton />
+      <Text h3 style={styles.title}>
+        Create an Account
+      </Text>
+      <Input
+        label="Username"
+        onChangeText={setUsername}
+        value={username}
+        placeholder="johndoe"
+        autoCapitalize="none"
+      />
+      <Input
+        label="Email"
         onChangeText={setEmail}
-        style={styles.input}
+        value={email}
+        placeholder="email@address.com"
+        autoCapitalize="none"
       />
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        value={password}
+      <Input
+        label="Password"
         onChangeText={setPassword}
-        style={styles.input}
+        value={password}
+        secureTextEntry
+        placeholder="Password"
+        autoCapitalize="none"
       />
-
       {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" />
       ) : (
-        <Button title="Sign Up" onPress={handleSignUp} />
+        <Button title="Sign Up" onPress={signUpWithEmail} />
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20 },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 20,
   },
-  input: { borderBottomWidth: 1, marginBottom: 10, padding: 8 },
+  title: {
+    textAlign: "center",
+    marginBottom: 20,
+  },
 });

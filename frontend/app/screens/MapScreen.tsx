@@ -158,8 +158,9 @@ const styles = StyleSheet.create({
   markerContainer: {
     alignItems: "center",
     justifyContent: "center",
-    width: 50,
+    width: 70,
     maxWidth: 200,
+    flex: 1,
   },
   markerImage: {
     width: 40,
@@ -176,6 +177,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderRadius: 4,
     maxWidth: 180,
+    flexWrap: "wrap",
   },
   calloutContainer: {
     alignItems: "center",

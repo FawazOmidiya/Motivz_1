@@ -20,6 +20,7 @@ import {
   addClubToFavourites,
   removeClubFromFavourites,
 } from "../utils/supabaseService";
+import BackButton from "@/components/BackButton";
 
 export default function ClubDetailScreen() {
   const route = useRoute();
@@ -94,9 +95,12 @@ export default function ClubDetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <BackButton color="white" />
+        <Text style={styles.clubName}>{club.Name}</Text>
+        <Text> </Text>
+      </View>
       <Image source={{ uri: club.Image }} style={styles.clubBanner} />
-      <Text style={styles.clubName}>{club.Name}</Text>
-
       {/* Tags */}
       <Text style={styles.sectionTitle}>Tags:</Text>
       <View style={styles.tagsContainer}>
@@ -123,7 +127,7 @@ export default function ClubDetailScreen() {
           containerStyle={styles.buttonContainer}
         />
       )}
-
+      <Text>{club.address}</Text>
       {/* Upcoming Events */}
       <Text style={styles.sectionTitle}>Upcoming Events:</Text>
       {events.length === 0 ? (
@@ -149,7 +153,13 @@ export default function ClubDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 20 },
+  container: { flex: 1, backgroundColor: "#060d29", padding: 20 },
+  header: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   clubBanner: {
     width: "100%",
     height: 200,
@@ -161,8 +171,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 10,
+    color: "#fff",
   },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", marginTop: 15 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 15,
+    color: "#fff",
+  },
   tagsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",

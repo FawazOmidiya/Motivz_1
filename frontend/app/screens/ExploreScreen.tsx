@@ -19,7 +19,6 @@ import * as types from "@/app/utils/types";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
-  const [searchType, setSearchType] = useState<"clubs" | "users">("clubs");
   const [results, setResults] = useState<(types.Club | types.UserProfile)[]>(
     []
   );
@@ -29,7 +28,7 @@ export default function SearchScreen() {
   useEffect(() => {
     // Optionally, you can trigger a search on component mount or whenever `searchType` changes
     // searchItems();
-  }, [searchType]);
+  }, []);
 
   async function searchItems() {
     // Hide keyboard once search starts
@@ -37,15 +36,9 @@ export default function SearchScreen() {
     setLoading(true);
 
     try {
-      if (searchType === "clubs") {
-        // Query the "Clubs" table
-        const clubs: types.Club[] = await searchClubsByName(query);
-        setResults(clubs);
-      } else {
-        // Query the "profiles" table
-        const users: types.UserProfile[] = await searchUsersByName(query);
-        setResults(users);
-      }
+      // Query the "profiles" table
+      const users: types.UserProfile[] = await searchUsersByName(query);
+      setResults(users);
     } catch (err) {
       console.error("Search error:", err);
     } finally {
@@ -54,17 +47,7 @@ export default function SearchScreen() {
   }
 
   function renderItem({ item }: { item: types.Club | types.UserProfile }) {
-    if (searchType === "clubs") {
-      const club = item as types.Club;
-      return (
-        <TouchableOpacity
-          style={styles.resultItem}
-          onPress={() => navigation.navigate("ClubDetail", { club })}
-        >
-          <Text style={styles.resultTitle}>{club.Name}</Text>
-        </TouchableOpacity>
-      );
-    } else {
+    {
       const user = item as types.UserProfile;
       return (
         <TouchableOpacity
@@ -83,9 +66,7 @@ export default function SearchScreen() {
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
-          placeholder={
-            searchType === "clubs" ? "Search Clubs..." : "Search Users..."
-          }
+          placeholder={"Search Users..."}
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={searchItems}
@@ -99,20 +80,6 @@ export default function SearchScreen() {
       </View>
 
       {/* Segmented Control (toggle clubs/users) */}
-      <View style={styles.toggleContainer}>
-        <Button
-          title="Clubs"
-          type={searchType === "clubs" ? "solid" : "outline"}
-          onPress={() => setSearchType("clubs")}
-          containerStyle={styles.toggleButton}
-        />
-        <Button
-          title="Users"
-          type={searchType === "users" ? "solid" : "outline"}
-          onPress={() => setSearchType("users")}
-          containerStyle={styles.toggleButton}
-        />
-      </View>
 
       {/* Results List */}
       {loading ? (
@@ -133,6 +100,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: "#060d29",
   },
   searchBar: {
     flexDirection: "row",

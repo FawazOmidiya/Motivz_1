@@ -8,36 +8,21 @@ import ProfileScreen from "./screens/ProfileScreen";
 import MapScreen from "./screens/MapScreen";
 import ClubDetailScreen from "./screens/ClubDetail";
 import AuthScreen from "./screens/AuthScreen";
+import ProfileSettings from "./screens/ProfileSettings";
+import UserProfileScreen from "./screens/UserProfileScreen";
 import { supabaseAuth } from "./utils/supabaseAuth";
 import { Session } from "@supabase/supabase-js";
 import { Ionicons } from "@expo/vector-icons";
 import { SessionProvider } from "../components/SessionContext";
-import ProfileSettings from "./screens/ProfileSettings";
-// Define your club type
-export type Club = {
-  id: string;
-  Name: string;
-  Image?: string;
-  // any other fields...
-};
+import * as Constants from "@/constants/Constants";
+import GlobalStackNavigator from "@/components/GlobalStackNavigator";
+import AuthNavigator from "./navigation/AuthNavigator";
+import { NavigationContainer } from "@react-navigation/native";
 
-// Define type-safe navigation routes for the root stack:
-export type RootStackParamList = {
-  Main: undefined;
-  ClubDetail: { club: Club };
-  ProfileSettings: undefined;
-};
+import * as types from "@/app/utils/types";
 
-// Define the bottom tab param list:
-export type RootTabParamList = {
-  Home: undefined;
-  Explore: undefined;
-  Profile: undefined;
-  Map: undefined;
-};
-
-const Tab = createBottomTabNavigator<RootTabParamList>();
-const Stack = createStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<types.RootTabParamList>();
+const Stack = createStackNavigator<types.RootStackParamList>();
 
 // Bottom Tab Navigator
 function MainTabs() {
@@ -52,9 +37,15 @@ function MainTabs() {
           else if (route.name === "Map") iconName = "map-outline";
           return <Ionicons name={iconName as any} size={size} color={color} />;
         },
-        tabBarActiveTintColor: "#007AFF",
-        tabBarInactiveTintColor: "gray",
+        tabBarActiveTintColor: Constants.tabCOLOR_ACTIVE,
+        tabBarInactiveTintColor: Constants.tabCOLOR_INACTIVE,
         headerShown: false,
+        tabBarStyle: {
+          height: 55, // ↓ Custom height (default is ~80)
+          paddingBottom: 0, // ↓ Lower the padding
+          paddingTop: 5,
+          backgroundColor: Constants.blackCOLOR,
+        },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -79,41 +70,48 @@ function RootLayout() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      {session && session.user ? (
-        <SessionProvider>
-          <Stack.Navigator>
-            {/* MainTabs is our bottom tab navigator */}
-            <Stack.Screen
-              name="Main"
-              component={MainTabs}
-              options={{ headerShown: false }}
-            />
-            {/* ClubDetail is declared only once here */}
-            <Stack.Screen
-              name="ClubDetail"
-              component={ClubDetailScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ProfileSettings"
-              component={ProfileSettings}
-              options={{ headerShown: false }}
-            />
-          </Stack.Navigator>
-        </SessionProvider>
-      ) : (
-        <AuthScreen />
-      )}
-    </SafeAreaView>
+    <NavigationContainer>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" />
+        {session && session.user ? (
+          <SessionProvider>
+            <Stack.Navigator>
+              {/* MainTabs is our bottom tab navigator */}
+              <Stack.Screen
+                name="Main"
+                component={MainTabs}
+                options={{ headerShown: false }}
+              />
+              {/* ClubDetail is declared only once here */}
+              <Stack.Screen
+                name="ClubDetail"
+                component={ClubDetailScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="ProfileSettings"
+                component={ProfileSettings}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="UserProfile"
+                component={UserProfileScreen}
+                options={{ headerShown: false }}
+              />
+            </Stack.Navigator>
+          </SessionProvider>
+        ) : (
+          <AuthNavigator />
+        )}
+      </SafeAreaView>
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Constants.backgroundCOLOR,
     paddingTop: StatusBar.currentHeight || 0,
   },
 });

@@ -14,14 +14,12 @@ import { Button, Text } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
-import { fetchUserFavourites } from "../utils/supabaseService";
-
-type Club = {
-  club_id: string;
-  Name: string;
-  Image?: string;
-  // other fields as needed
-};
+import {
+  fetchUserFavourites,
+  fetchUserProfile,
+} from "../utils/supabaseService";
+import FavouriteClub from "@/components/ClubFavourite";
+import * as types from "@/app/utils/types";
 
 export default function Account() {
   const [loading, setLoading] = useState(true);
@@ -29,7 +27,8 @@ export default function Account() {
   const [username, setUsername] = useState("");
   const [website, setWebsite] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [favourites, setFavourites] = useState<Club[]>([]);
+  const [favourites, setFavourites] = useState<types.Club[]>([]);
+  const [profile, setProfile] = useState<types.UserProfile | null>(null);
   const session = useSession();
   const navigation = useNavigation();
 
@@ -44,18 +43,10 @@ export default function Account() {
     try {
       setLoading(true);
       if (!session?.user) throw new Error("No user on the session!");
-      const { data, error, status } = await supabaseAuth
-        .from("profiles")
-        .select(`username, website, avatar_url`)
-        .eq("id", session.user.id)
-        .single();
-      if (error && status !== 406) {
-        throw error;
-      }
+
+      const data = await fetchUserProfile(session.user.id);
       if (data) {
-        setUsername(data.username);
-        setWebsite(data.website);
-        setAvatarUrl(data.avatar_url);
+        setProfile(data);
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -65,7 +56,7 @@ export default function Account() {
       setLoading(false);
     }
   }
-
+  // Pull user Favourites
   async function getFavourites() {
     try {
       setLoading(true);
@@ -105,21 +96,14 @@ export default function Account() {
     }
   }
 
-  const renderFavourite = ({
-    item,
-  }: {
-    item: { club_id: string; Name: string; Image?: string };
-  }) => (
-    <TouchableHighlight
-      onPress={() => navigation.navigate("ClubDetail", { club: item })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.favouriteItem}>
-        <Image source={{ uri: item?.Image }} style={styles.favouriteImage} />
-        <Text style={styles.favouriteTitle}>{item?.Name}</Text>
-      </View>
-    </TouchableHighlight>
-  );
+  // const renderFavourite = ({
+  //   item,
+  // }: {
+  //   item: { club_id: string; Name: string; Image?: string };
+  // }) => (
+  //   <ClubFavourite
+  //     club={item}
+  // );
 
   return (
     <ScrollView
@@ -131,17 +115,17 @@ export default function Account() {
       {/* Profile Header */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={styles.placeholderAvatar}>
               <Text style={styles.avatarInitial}>
-                {session?.user?.email?.charAt(0).toUpperCase()}
+                {profile?.first_name?.charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
         </View>
-        <Text style={styles.username}>{username || session?.user.email}</Text>
+        <Text style={styles.username}>{profile?.username}</Text>
         <Button
           title="Sign Out"
           onPress={handleSignOut}
@@ -160,8 +144,8 @@ export default function Account() {
         <Text style={styles.sectionTitle}>Favourites</Text>
         <FlatList
           data={favourites}
-          keyExtractor={(item) => item?.club_id}
-          renderItem={renderFavourite}
+          keyExtractor={(item) => item?.id}
+          renderItem={({ item }) => <FavouriteClub club={item} />}
           numColumns={2}
           columnWrapperStyle={styles.favouritesRow}
           contentContainerStyle={styles.favouritesList}
@@ -177,13 +161,13 @@ const imageSize = (screenWidth - 60) / 2;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#060d29",
   },
   // Header styles
   header: {
     paddingVertical: 20,
     paddingHorizontal: 20,
-    backgroundColor: "#f8f8f8",
+    backgroundColor: "#060d29",
     alignItems: "center",
     borderBottomWidth: 1,
     borderColor: "#ddd",
@@ -213,6 +197,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "600",
     marginBottom: 10,
+    color: "#fff",
   },
   signOutButton: {
     backgroundColor: "#ff4d4d",
@@ -231,6 +216,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     marginBottom: 10,
+    color: "#fff",
   },
   favouritesList: {
     justifyContent: "space-between",

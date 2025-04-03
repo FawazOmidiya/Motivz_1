@@ -63,7 +63,7 @@ export default function ProfileSettings() {
       allowsEditing: true,
       quality: 0.5,
     });
-    if (!result.cancelled) {
+    if (!result.canceled) {
       // For a real app, upload the image to Supabase Storage and retrieve the public URL.
       // Here we assume the returned URI can serve as the avatar URL.
       setAvatarUrl(result.uri);

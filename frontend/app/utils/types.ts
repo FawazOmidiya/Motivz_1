@@ -8,6 +8,7 @@ export type Club = {
   longitude: number;
   Rating: number;
   Tags: string[];
+  Address: string;
 };
 
 export type UserProfile = {
@@ -25,6 +26,10 @@ export type RootTabParamList = {
   Explore: undefined;
   Profile: undefined;
   Map: undefined;
+  Global: undefined;
+  ClubDetail: { club: Club };
+  ProfileSettings: undefined;
+  UserProfile: { user: UserProfile };
 };
 
 // Define type-safe navigation routes for the root stack:
@@ -33,4 +38,10 @@ export type RootStackParamList = {
   ClubDetail: { club: Club };
   ProfileSettings: undefined;
   UserProfile: { profile: UserProfile };
+};
+
+export type GlobalStackParamList = {
+  ClubDetail: { club: Club };
+  ProfileSettings: undefined;
+  UserProfile: { user: UserProfile };
 };
