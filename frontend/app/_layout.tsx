@@ -1,30 +1,74 @@
-import React, { useState, useEffect } from "react";
-import { SafeAreaView, StyleSheet, StatusBar } from "react-native";
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
+import { Ionicons } from "@expo/vector-icons";
+
 import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
-import ProfileScreen from "./screens/ProfileScreen";
 import MapScreen from "./screens/MapScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 import ClubDetailScreen from "./screens/ClubDetail";
-import AuthScreen from "./screens/AuthScreen";
 import ProfileSettings from "./screens/ProfileSettings";
 import UserProfileScreen from "./screens/UserProfileScreen";
+import AuthNavigator from "./navigation/AuthNavigator";
 import { supabaseAuth } from "./utils/supabaseAuth";
 import { Session } from "@supabase/supabase-js";
-import { Ionicons } from "@expo/vector-icons";
 import { SessionProvider } from "../components/SessionContext";
 import * as Constants from "@/constants/Constants";
-import GlobalStackNavigator from "@/components/GlobalStackNavigator";
-import AuthNavigator from "./navigation/AuthNavigator";
-import { NavigationContainer } from "@react-navigation/native";
-
 import * as types from "@/app/utils/types";
+import { SafeAreaView, StatusBar, StyleSheet } from "react-native";
 
+// Create a Bottom Tab Navigator
 const Tab = createBottomTabNavigator<types.RootTabParamList>();
-const Stack = createStackNavigator<types.RootStackParamList>();
 
-// Bottom Tab Navigator
+// Create individual Stack Navigators for each tab.
+const HomeStack = createStackNavigator();
+const ExploreStack = createStackNavigator();
+const MapStack = createStackNavigator();
+const ProfileStack = createStackNavigator();
+
+function HomeStackScreen() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="HomeMain" component={HomeScreen} />
+      <HomeStack.Screen name="ClubDetail" component={ClubDetailScreen} />
+      <HomeStack.Screen name="UserProfile" component={UserProfileScreen} />
+    </HomeStack.Navigator>
+  );
+}
+
+function ExploreStackScreen() {
+  return (
+    <ExploreStack.Navigator screenOptions={{ headerShown: false }}>
+      <ExploreStack.Screen name="ExploreMain" component={ExploreScreen} />
+      <ExploreStack.Screen name="ClubDetail" component={ClubDetailScreen} />
+      <ExploreStack.Screen name="UserProfile" component={UserProfileScreen} />
+    </ExploreStack.Navigator>
+  );
+}
+
+function MapStackScreen() {
+  return (
+    <MapStack.Navigator screenOptions={{ headerShown: false }}>
+      <MapStack.Screen name="MapMain" component={MapScreen} />
+      <MapStack.Screen name="ClubDetail" component={ClubDetailScreen} />
+      <MapStack.Screen name="UserProfile" component={UserProfileScreen} />
+    </MapStack.Navigator>
+  );
+}
+
+function ProfileStackScreen() {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="ProfileSettings" component={ProfileSettings} />
+      <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} />
+      <ProfileStack.Screen name="ClubDetail" component={ClubDetailScreen} />
+    </ProfileStack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -33,34 +77,33 @@ function MainTabs() {
           let iconName = "";
           if (route.name === "Home") iconName = "home-outline";
           else if (route.name === "Explore") iconName = "search-outline";
-          else if (route.name === "Profile") iconName = "person-outline";
           else if (route.name === "Map") iconName = "map-outline";
+          else if (route.name === "Profile") iconName = "person-outline";
           return <Ionicons name={iconName as any} size={size} color={color} />;
         },
         tabBarActiveTintColor: Constants.tabCOLOR_ACTIVE,
         tabBarInactiveTintColor: Constants.tabCOLOR_INACTIVE,
         headerShown: false,
         tabBarStyle: {
-          height: 55, // ↓ Custom height (default is ~80)
-          paddingBottom: 0, // ↓ Lower the padding
+          height: 55,
+          paddingBottom: 0,
           paddingTop: 5,
           backgroundColor: Constants.blackCOLOR,
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Explore" component={ExploreScreen} />
-      <Tab.Screen name="Map" component={MapScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Home" component={HomeStackScreen} />
+      <Tab.Screen name="Explore" component={ExploreStackScreen} />
+      <Tab.Screen name="Map" component={MapStackScreen} />
+      <Tab.Screen name="Profile" component={ProfileStackScreen} />
     </Tab.Navigator>
   );
 }
 
-// Root Stack Navigator: Contains the MainTabs and the ClubDetail screen.
-function RootLayout() {
-  const [session, setSession] = useState<Session | null>(null);
+export default function RootLayout() {
+  const [session, setSession] = React.useState<Session | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     supabaseAuth.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -71,39 +114,16 @@ function RootLayout() {
 
   return (
     <NavigationContainer>
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" />
-        {session && session.user ? (
-          <SessionProvider>
-            <Stack.Navigator>
-              {/* MainTabs is our bottom tab navigator */}
-              <Stack.Screen
-                name="Main"
-                component={MainTabs}
-                options={{ headerShown: false }}
-              />
-              {/* ClubDetail is declared only once here */}
-              <Stack.Screen
-                name="ClubDetail"
-                component={ClubDetailScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ProfileSettings"
-                component={ProfileSettings}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="UserProfile"
-                component={UserProfileScreen}
-                options={{ headerShown: false }}
-              />
-            </Stack.Navigator>
-          </SessionProvider>
-        ) : (
-          <AuthNavigator />
-        )}
-      </SafeAreaView>
+      {session && session.user ? (
+        <SessionProvider>
+          <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="light-content" />
+            <MainTabs />
+          </SafeAreaView>
+        </SessionProvider>
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   );
 }
@@ -115,5 +135,3 @@ const styles = StyleSheet.create({
     paddingTop: StatusBar.currentHeight || 0,
   },
 });
-
-export default RootLayout;

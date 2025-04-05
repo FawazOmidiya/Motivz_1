@@ -15,11 +15,14 @@ import { fetchUserFavourites } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import FavouriteClub from "@/components/ClubFavourite";
 import BackButton from "@/components/BackButton";
+import FriendButton from "@/components/FriendButton"; // Import your FriendButton component
+import { useSession } from "@/components/SessionContext";
+
 export default function UserProfileScreen() {
   // Assume the user profile is passed via route params:
   const route = useRoute();
   const { user } = route.params as { user: types.UserProfile };
-
+  const session = useSession();
   const [favourites, setFavourites] = useState<types.Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,6 +84,10 @@ export default function UserProfileScreen() {
           )}
         </View>
         <Text style={styles.username}>{user.username}</Text>
+        {/* Only show friend button if current user is not viewing their own profile */}
+        {session?.user.id && session.user.id !== user.id && (
+          <FriendButton targetUserId={user.id} />
+        )}
       </View>
 
       {/* Favourites Section */}

@@ -9,6 +9,7 @@ export type Club = {
   Rating: number;
   Tags: string[];
   Address: string;
+  hours: RegularOpeningHours;
 };
 
 export type UserProfile = {
@@ -45,3 +46,19 @@ export type GlobalStackParamList = {
   ProfileSettings: undefined;
   UserProfile: { user: UserProfile };
 };
+
+export type FriendStatus =
+  | "none"
+  | "pending_sent"
+  | "pending_received"
+  | "friends";
+
+export interface RegularOpeningHours {
+  openNow?: boolean; // Provided flag (we won't rely on it for dynamic computation)
+  periods?: {
+    open: { day: number; hour: number; minute: number };
+    close: { day: number; hour: number; minute: number };
+  }[];
+  weekdayDescriptions?: string[];
+  nextCloseTime?: string;
+}

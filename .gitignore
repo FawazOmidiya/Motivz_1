@@ -40,6 +40,7 @@ backend/.venv/
 backend/.env
 backend/.mypy_cache/
 backend/.pytest_cache/
+backend/test.py
 
 # Environment & Secrets
 .env

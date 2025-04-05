@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { fetchEventsByClub } from "../utils/supabaseService";
+import { fetchEventsByClub, getTodaysHours } from "../utils/supabaseService";
 import { Button } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
@@ -21,6 +21,8 @@ import {
   removeClubFromFavourites,
 } from "../utils/supabaseService";
 import BackButton from "@/components/BackButton";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Constants from "@/constants/Constants";
 
 export default function ClubDetailScreen() {
   const route = useRoute();
@@ -62,7 +64,6 @@ export default function ClubDetailScreen() {
     try {
       const added = await addClubToFavourites(session, club);
       if (added) {
-        Alert.alert("Success", "Club added to your favourites!");
         setIsFavourite(true);
       } else {
         Alert.alert("Info", "This club is already in your favourites.");
@@ -81,7 +82,6 @@ export default function ClubDetailScreen() {
     try {
       const removed = await removeClubFromFavourites(session, club);
       if (removed) {
-        Alert.alert("Success", "Club removed from your favourites.");
         setIsFavourite(false);
       }
     } catch (error) {
@@ -98,7 +98,21 @@ export default function ClubDetailScreen() {
       <View style={styles.header}>
         <BackButton color="white" />
         <Text style={styles.clubName}>{club.Name}</Text>
-        <Text> </Text>
+        {isFavourite ? (
+          <FontAwesome
+            name="heart"
+            size={24}
+            color={Constants.purpleCOLOR}
+            onPress={handleRemoveFromFavourites}
+          />
+        ) : (
+          <FontAwesome
+            name="heart-o"
+            size={24}
+            color="white"
+            onPress={handleAddToFavourites}
+          />
+        )}
       </View>
       <Image source={{ uri: club.Image }} style={styles.clubBanner} />
       {/* Tags */}
@@ -110,24 +124,10 @@ export default function ClubDetailScreen() {
           </View>
         ))}
       </View>
-
-      {/* Add/Remove Favourites Button */}
-      {isFavourite ? (
-        <Button
-          title="Remove from Favourites"
-          onPress={handleRemoveFromFavourites}
-          loading={adding}
-          containerStyle={styles.buttonContainer}
-        />
-      ) : (
-        <Button
-          title="Add to Favourites"
-          onPress={handleAddToFavourites}
-          loading={adding}
-          containerStyle={styles.buttonContainer}
-        />
+      {/* Operating Hours */}
+      {club.hours && (
+        <Text style={styles.hoursText}>{getTodaysHours(club.hours)}</Text>
       )}
-      <Text>{club.address}</Text>
       {/* Upcoming Events */}
       <Text style={styles.sectionTitle}>Upcoming Events:</Text>
       {events.length === 0 ? (
@@ -153,7 +153,11 @@ export default function ClubDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#060d29", padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: Constants.backgroundCOLOR,
+    padding: 20,
+  },
   header: {
     flex: 1,
     flexDirection: "row",
@@ -209,5 +213,10 @@ const styles = StyleSheet.create({
   eventDate: { fontSize: 14, color: "gray" },
   buttonContainer: {
     marginVertical: 15,
+  },
+  hoursText: {
+    fontSize: 14,
+    color: "#fff",
+    marginVertical: 5,
   },
 });

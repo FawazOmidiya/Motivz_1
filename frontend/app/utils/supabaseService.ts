@@ -298,3 +298,174 @@ export const fetchUserProfile = async (userId: string): Promise<any> => {
 
   return data;
 };
+
+// Friend Functions
+
+// 1. Send Friend Request
+export async function sendFriendRequest(
+  currentUserId: string,
+  targetUserId: string
+) {
+  const { data, error } = await supabase.from("friendships").insert([
+    {
+      requester_id: currentUserId,
+      receiver_id: targetUserId,
+      status: "friends",
+    },
+  ]);
+  return { data, error };
+}
+
+// 2. Cancel Friend Request (or decline a received request)
+// This deletes the friendship record regardless of direction.
+export async function cancelFriendRequest(
+  currentUserId: string,
+  targetUserId: string
+) {
+  const { data, error } = await supabase
+    .from("friendships")
+    .delete()
+    .or(
+      `(requester_id.eq.${currentUserId} and receiver_id.eq.${targetUserId}),(requester_id.eq.${targetUserId} and receiver_id.eq.${currentUserId})`
+    );
+  return { data, error };
+}
+
+// 3. Accept Friend Request
+// This assumes the current user is the receiver of the friend request.
+export async function acceptFriendRequest(
+  currentUserId: string,
+  targetUserId: string
+) {
+  const { data, error } = await supabase
+    .from("friendships")
+    .update({ status: "friends" })
+    .match({ requester_id: targetUserId, receiver_id: currentUserId });
+  return { data, error };
+}
+
+// 4. Unfriend (delete the friendship)
+export async function unfriend(currentUserId: string, targetUserId: string) {
+  // Try to delete the friendship where currentUserId is the requester
+  let { data, error } = await supabase
+    .from("friendships")
+    .delete()
+    .match({ requester_id: currentUserId, receiver_id: targetUserId });
+
+  // If no row was affected, try the reverse direction.
+  if (!data && !error) {
+    const res = await supabase
+      .from("friendships")
+      .delete()
+      .match({ requester_id: targetUserId, receiver_id: currentUserId });
+    data = res.data;
+    error = res.error;
+  }
+  return { data, error };
+}
+
+// supabaseService.ts
+
+export async function fetchFriendshipStatus(
+  currentUserId: string,
+  targetUserId: string
+): Promise<types.FriendStatus> {
+  // Query 1: Check if currentUser sent a friend request to targetUser
+  const { data: sentData, error: sentError } = await supabase
+    .from("friendships")
+    .select("*")
+    .eq("requester_id", currentUserId)
+    .eq("receiver_id", targetUserId);
+  if (sentError) throw sentError;
+
+  // Query 2: Check if currentUser received a friend request from targetUser
+  const { data: receivedData, error: receivedError } = await supabase
+    .from("friendships")
+    .select("*")
+    .eq("requester_id", targetUserId)
+    .eq("receiver_id", currentUserId);
+  if (receivedError) throw receivedError;
+
+  // Combine the results from both queries
+  const combined = [...(sentData || []), ...(receivedData || [])];
+
+  // Assuming there is only one friendship row for a pair of users
+  const friendship = combined[0];
+
+  if (friendship.status === "friends") return "friends";
+  if (friendship.status === "pending") {
+    // If the current user is the one who sent the request, status is pending_sent.
+    if (friendship.requester_id === currentUserId) {
+      return "pending_sent";
+    } else {
+      return "pending_received";
+    }
+  }
+  return "none";
+}
+
+/**
+ * Dynamically calculates whether the club is open based on its operating periods.
+ * It converts the open and close times into "absolute minutes" relative to the start of the week.
+ */
+export function isClubOpenDynamic(hours: types.RegularOpeningHours): boolean {
+  if (!hours.periods || hours.periods.length === 0) return false;
+
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 (Sun) to 6 (Sat)
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Convert a period's time into absolute minutes.
+  const convertToAbsolute = (day: number, hour: number, minute: number) =>
+    day * 1440 + hour * 60 + minute;
+
+  // Check each period to see if current time falls within.
+  for (let period of hours.periods) {
+    let openAbs = convertToAbsolute(
+      period.open.day,
+      period.open.hour,
+      period.open.minute
+    );
+    let closeAbs = convertToAbsolute(
+      period.close.day,
+      period.close.hour,
+      period.close.minute
+    );
+
+    // If period spans midnight (or wraps to the next week), adjust closeAbs.
+    if (closeAbs <= openAbs) {
+      closeAbs += 7 * 1440;
+    }
+
+    // Convert current time to absolute minutes.
+    let currentAbs = convertToAbsolute(
+      currentDay,
+      now.getHours(),
+      now.getMinutes()
+    );
+    // If current time is before openAbs and the period spans midnight, add one week.
+    if (currentAbs < openAbs) {
+      currentAbs += 7 * 1440;
+    }
+
+    if (currentAbs >= openAbs && currentAbs < closeAbs) {
+      return true;
+    }
+  }
+
+  return false;
+}
+/**
+ * Returns the operating hours string for today.
+ * Assumes weekdayDescriptions is an array of 7 strings ordered as:
+ * [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday].
+ * JavaScript's getDay() returns 0 for Sunday, 1 for Monday, etc.
+ */
+export function getTodaysHours(hours: types.RegularOpeningHours): string {
+  if (hours.weekdayDescriptions && hours.weekdayDescriptions.length === 7) {
+    const currentDay = new Date().getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+    const index = currentDay === 0 ? 6 : currentDay - 1; // Map Sunday (0) to index 6
+    return hours.weekdayDescriptions[index];
+  }
+  return "";
+}

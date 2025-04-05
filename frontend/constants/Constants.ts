@@ -4,6 +4,7 @@ export const deepBLUE = "#E0E0E0";
 export const blackCOLOR = "#000000";
 export const whiteCOLOR = "#FFFFFF";
 export const purpleCOLOR = "#6C3BAA";
+export const greyCOLOR = "#808080";
 
 export const backgroundCOLOR = blackCOLOR;
 export const tabCOLOR_ACTIVE = purpleCOLOR;

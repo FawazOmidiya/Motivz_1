@@ -13,18 +13,30 @@ import {
   TextInput,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import React, { useState, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import * as types from "@/app/utils/types";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation"; // Import the types
 import { fetchClubs, searchClubsByName } from "../utils/supabaseService";
 import * as Constants from "@/constants/Constants";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import BottomSheet, {
+  BottomSheetView,
+  BottomSheetBackdrop,
+} from "@gorhom/bottom-sheet";
+import ClubHours from "@/components/ClubHours"; // Import the ClubHours component
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen() {
-  const [clubs, setClubs] = useState<types.Club[]>([]); // ✅ Store clubs from Supabase
+  const [clubs, setClubs] = useState<types.Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -37,14 +49,11 @@ export default function HomeScreen() {
     };
     loadClubs();
   }, []);
-  const navigation = useNavigation(); // ✅ Use correct navigation type
+  const navigation = useNavigation();
   async function searchItems() {
-    // Hide keyboard once search starts
     Keyboard.dismiss();
     setLoading(true);
-
     try {
-      // Query the "Clubs" table
       const clubs: types.Club[] = await searchClubsByName(query);
       setClubs(clubs);
       console.log("Clubs:", clubs);
@@ -54,7 +63,6 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -67,19 +75,37 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const snapPoints = useMemo(() => ["50%"], []);
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const handleOpen = useCallback(() => {
+    bottomSheetRef.current?.expand();
+  }, []);
+  const handleClose = useCallback(() => {
+    bottomSheetRef.current?.close();
+  }, []);
+  const handleSheetChanges = useCallback((index: number) => {
+    console.log("handleSheetChanges", index);
+  }, []);
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+      <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
           placeholder={"Search Clubs..."}
+          placeholderTextColor="#fff"
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={searchItems}
@@ -89,9 +115,10 @@ export default function HomeScreen() {
           name="filter-sharp"
           size={24}
           color="white"
-          onPress={() => console.log("pressed")}
+          onPress={() => handleOpen()}
         />
       </View>
+
       <Text style={styles.title}>
         Tonights <Text style={styles.Motivz}>Motivz</Text>
       </Text>
@@ -102,7 +129,6 @@ export default function HomeScreen() {
         <FlatList
           data={clubs}
           extraData={clubs}
-          // keyExtractor={(item) => item.club_id.toString()}
           renderItem={({ item }) => (
             <TouchableOpacity
               onPress={() => navigation.navigate("ClubDetail", { club: item })}
@@ -114,6 +140,8 @@ export default function HomeScreen() {
                   <Text style={styles.clubDetails}>
                     ⭐ {item.Rating} | {item.Tags?.join(", ")}
                   </Text>
+                  {/* Render dynamic operating hours using the 'hours' property */}
+                  {item.hours && <ClubHours hours={item.hours} />}
                 </View>
               </View>
             </TouchableOpacity>
@@ -123,20 +151,58 @@ export default function HomeScreen() {
           }
         />
       )}
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={-1}
+        snapPoints={snapPoints}
+        onChange={handleSheetChanges}
+        enablePanDownToClose={true}
+        backdropComponent={renderBackdrop}
+        handleIndicatorStyle={{
+          backgroundColor: Constants.whiteCOLOR,
+        }}
+        backgroundStyle={{
+          backgroundColor: Constants.backgroundCOLOR,
+        }}
+      >
+        <BottomSheetView style={styles.modalSheet}>
+          <Text style={styles.sheetTitle}>Filters</Text>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => {
+              // Example: Apply filter logic
+              bottomSheetRef.current?.close();
+            }}
+          >
+            <Text style={styles.filterText}>⭐ Show 4.5+ Rated Clubs</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleClose} style={{ marginTop: 20 }}>
+            <Text style={{ color: "white", textAlign: "center" }}>Close</Text>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </BottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: StatusBar.currentHeight || 0,
-  },
   container: {
     flex: 1,
     paddingHorizontal: 20,
     backgroundColor: Constants.backgroundCOLOR,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 20,
+  },
+  searchInput: {
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 40,
+    width: "70%",
   },
   title: {
     fontSize: 24,
@@ -154,18 +220,32 @@ const styles = StyleSheet.create({
   clubImage: { width: 60, height: 60, borderRadius: 10, marginRight: 10 },
   clubInfo: { justifyContent: "center" },
   clubName: { fontSize: 18, fontWeight: "bold", color: "#fff" },
-  clubDetails: { fontSize: 14, color: "gray" },
-  searchInput: {
-    backgroundColor: "#f2f2f2",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    height: 40,
-    width: "70%",
-  },
+  clubDetails: { fontSize: 14, color: Constants.whiteCOLOR },
   Motivz: {
     color: Constants.purpleCOLOR,
     fontSize: 30,
     textTransform: "uppercase",
     fontFamily: "PlayfairDisplay_700Bold",
+  },
+  modalSheet: {
+    flex: 1,
+    backgroundColor: Constants.backgroundCOLOR,
+    padding: 20,
+  },
+  sheetTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+  },
+  filterButton: {
+    backgroundColor: Constants.greyCOLOR,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  filterText: {
+    color: "#fff",
+    fontSize: 16,
   },
 });
