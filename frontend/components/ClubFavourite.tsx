@@ -9,6 +9,7 @@ import {
 import { Text } from "@rneui/themed";
 import { useNavigation } from "@react-navigation/native";
 import type { Club } from "../app/utils/types";
+import * as Constants from "@/constants/Constants";
 
 type FavouriteClubProps = {
   club: Club;
@@ -36,7 +37,7 @@ const imageSize = (screenWidth - 60) / 2;
 
 const styles = StyleSheet.create({
   favouriteItem: {
-    backgroundColor: "#212f66",
+    backgroundColor: Constants.purpleCOLOR,
     borderRadius: 12,
     padding: 10,
     alignItems: "center",

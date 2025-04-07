@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet, Alert, Image, TouchableOpacity } from "react-native";
 import { Button, Input, Text } from "@rneui/themed";
-import { supabaseAuth } from "../utils/supabaseAuth";
+import { storage, supabase } from "../utils/supabaseService";
 import * as ImagePicker from "expo-image-picker";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
-
+import { supabaseAuth } from "../utils/supabaseAuth";
+import { decode } from "base64-arraybuffer";
 export default function ProfileSettings() {
   const session = useSession();
   const navigation = useNavigation();
@@ -14,6 +15,7 @@ export default function ProfileSettings() {
   const [lastName, setLastName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Fetch profile info when screen mounts
   useEffect(() => {
@@ -27,7 +29,7 @@ export default function ProfileSettings() {
       setLoading(true);
       if (!session?.user) throw new Error("No user on the session!");
 
-      const { data, error, status } = await supabaseAuth
+      const { data, error, status } = await supabase
         .from("profiles")
         .select(`username, first_name, last_name, avatar_url`)
         .eq("id", session.user.id)
@@ -48,43 +50,70 @@ export default function ProfileSettings() {
     }
   }
 
-  async function pickImage() {
-    // Request permission to access the media library
+  async function pickAndUploadImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Denied",
-        "Permission to access media library is required!"
-      );
-      return;
+      return Alert.alert("Permission Denied", "Media access is required.");
     }
+    console.log("Picking image...");
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images", "videos"], // updated line
       allowsEditing: true,
-      quality: 0.5,
+      quality: 0.8,
+      base64: true, //Add this line
     });
-    if (!result.canceled) {
-      // For a real app, upload the image to Supabase Storage and retrieve the public URL.
-      // Here we assume the returned URI can serve as the avatar URL.
-      setAvatarUrl(result.uri);
+    if (result.canceled) return;
+    setUploading(true);
+    const asset = result.assets[0];
+    if (!asset.base64) {
+      return Alert.alert("Error", "Failed to get image data.");
+    }
+
+    setUploading(true);
+    try {
+      // 3. Decode Base64 to ArrayBuffer
+      const buffer = decode(asset.base64);
+
+      // 4. Generate filename & path
+      const ext = asset.uri.split(".").pop()!;
+      const timestamp = Date.now();
+      const fileName = `${session!.user.id}_${timestamp}.${ext}`;
+      const filePath = `avatars/${fileName}`;
+
+      // 5. Upload using ArrayBuffer
+      const { error: uploadError } = await storage.upload(filePath, buffer, {
+        upsert: true,
+        contentType: `image/${ext}`,
+        metadata: { user_id: session!.user.id },
+      });
+
+      const { data } = storage.getPublicUrl(filePath);
+      // after getting publicURL:
+      setAvatarUrl(data.publicUrl);
+    } catch (e) {
+      Alert.alert("Upload Error", (e as Error).message);
+    } finally {
+      setUploading(false);
     }
   }
-
   async function updateProfile() {
+    console.log("Updating profile...");
     try {
       setLoading(true);
       if (!session?.user) throw new Error("No user on the session!");
 
       const updates = {
         id: session.user.id,
-        username,
+        username: username,
         first_name: firstName,
         last_name: lastName,
         avatar_url: avatarUrl,
         updated_at: new Date(),
       };
-
-      const { error } = await supabaseAuth.from("profiles").upsert(updates);
+      const { data, error } = await supabase
+        .from("profiles")
+        .upsert(updates)
+        .select();
       if (error) throw error;
       Alert.alert("Success", "Profile updated successfully.");
       navigation.goBack();
@@ -103,7 +132,7 @@ export default function ProfileSettings() {
         Edit Profile
       </Text>
 
-      <TouchableOpacity onPress={pickImage}>
+      <TouchableOpacity onPress={pickAndUploadImage}>
         {avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={styles.avatar} />
         ) : (

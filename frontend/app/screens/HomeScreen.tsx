@@ -11,6 +11,7 @@ import {
   Keyboard,
   TouchableOpacity,
   TextInput,
+  Switch,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import React, {
@@ -23,7 +24,11 @@ import React, {
 import * as types from "@/app/utils/types";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation"; // Import the types
-import { fetchClubs, searchClubsByName } from "../utils/supabaseService";
+import {
+  fetchClubs,
+  searchClubsByName,
+  isClubOpenDynamic,
+} from "../utils/supabaseService";
 import * as Constants from "@/constants/Constants";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -41,14 +46,18 @@ export default function HomeScreen() {
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
+  // Filters
+  const [filterOpen, setFilterOpen] = useState(false);
+
   useEffect(() => {
-    const loadClubs = async () => {
-      const clubData = await fetchClubs();
-      setClubs(clubData);
-      setLoading(false);
-    };
     loadClubs();
   }, []);
+
+  const loadClubs = async () => {
+    const clubData = await fetchClubs();
+    setClubs(clubData);
+    setLoading(false);
+  };
   const navigation = useNavigation();
   async function searchItems() {
     Keyboard.dismiss();
@@ -83,9 +92,6 @@ export default function HomeScreen() {
   const handleClose = useCallback(() => {
     bottomSheetRef.current?.close();
   }, []);
-  const handleSheetChanges = useCallback((index: number) => {
-    console.log("handleSheetChanges", index);
-  }, []);
   const renderBackdrop = useCallback(
     (props: any) => (
       <BottomSheetBackdrop
@@ -97,6 +103,15 @@ export default function HomeScreen() {
     ),
     []
   );
+
+  // Apply filters
+  const filteredClubs = useMemo(() => {
+    return clubs.filter((club) => {
+      if (!club.hours) return false; // No hours data, include club
+      else if (filterOpen && !isClubOpenDynamic(club.hours)) return false;
+      return true;
+    });
+  }, [clubs, filterOpen]);
 
   return (
     <View style={styles.container}>
@@ -127,7 +142,7 @@ export default function HomeScreen() {
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
         <FlatList
-          data={clubs}
+          data={filteredClubs}
           extraData={clubs}
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -155,7 +170,6 @@ export default function HomeScreen() {
         ref={bottomSheetRef}
         index={-1}
         snapPoints={snapPoints}
-        onChange={handleSheetChanges}
         enablePanDownToClose={true}
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={{
@@ -176,6 +190,15 @@ export default function HomeScreen() {
           >
             <Text style={styles.filterText}>⭐ Show 4.5+ Rated Clubs</Text>
           </TouchableOpacity>
+          <View style={styles.filterRow}>
+            <Text style={styles.filterLabel}>Open Now</Text>
+            <Switch
+              value={filterOpen}
+              onValueChange={setFilterOpen}
+              thumbColor={filterOpen ? "#007AFF" : "#ccc"}
+            />
+          </View>
+
           <TouchableOpacity onPress={handleClose} style={{ marginTop: 20 }}>
             <Text style={{ color: "white", textAlign: "center" }}>Close</Text>
           </TouchableOpacity>
@@ -213,7 +236,7 @@ const styles = StyleSheet.create({
   clubCard: {
     flexDirection: "row",
     padding: 10,
-    backgroundColor: "#212f66",
+    backgroundColor: Constants.greyCOLOR,
     borderRadius: 10,
     marginBottom: 10,
   },
@@ -248,4 +271,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
   },
+  filterRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  filterLabel: { flex: 1, color: "#fff", fontSize: 16 },
 });

@@ -16,6 +16,7 @@ import {
 } from "../utils/supabaseService"; // or supabaseAuth
 import { useNavigation } from "@react-navigation/native";
 import * as types from "@/app/utils/types";
+import * as Constants from "@/constants/Constants";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
@@ -76,6 +77,7 @@ export default function SearchScreen() {
           title="Search"
           onPress={searchItems}
           containerStyle={styles.btn}
+          color={Constants.purpleCOLOR}
         />
       </View>
 
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#060d29",
+    backgroundColor: Constants.backgroundCOLOR,
   },
   searchBar: {
     flexDirection: "row",
@@ -115,6 +117,7 @@ const styles = StyleSheet.create({
   },
   btn: {
     marginLeft: 10,
+    backgroundColor: Constants.purpleCOLOR,
   },
   toggleContainer: {
     flexDirection: "row",
@@ -128,7 +131,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   resultItem: {
-    backgroundColor: "#fff",
+    backgroundColor: Constants.greyCOLOR,
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",

@@ -17,7 +17,7 @@ export type UserProfile = {
   username: string;
   first_name: string;
   last_name: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   // add any additional fields you need
 };
 
@@ -61,4 +61,23 @@ export interface RegularOpeningHours {
   }[];
   weekdayDescriptions?: string[];
   nextCloseTime?: string;
+}
+export interface GoogleReview {
+  review_id: string;
+  club_id: string;
+  rating: number;
+  text: string;
+  relative_publish_time_description: string;
+  author_display_name: string | null;
+  author_photo_uri: string | null;
+  publish_time: string; // ISO timestamp
+  google_maps_uri: string | null;
+}
+export interface AppReview {
+  id: string;
+  club_id: string;
+  user_id: string;
+  rating: number;
+  text: string;
+  created_at: string;
 }

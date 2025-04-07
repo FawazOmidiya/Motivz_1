@@ -8,6 +8,8 @@ import {
   Image,
   Alert,
   TouchableOpacity,
+  Modal,
+  Pressable,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { fetchEventsByClub, getTodaysHours } from "../utils/supabaseService";
@@ -23,6 +25,9 @@ import {
 import BackButton from "@/components/BackButton";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Constants from "@/constants/Constants";
+import ClubGoogleReviews from "@/components/ClubGoogleReviews";
+import ClubAppReviews from "@/components/ClubAppReviews";
+import ReviewForm from "@/components/ReviewForm";
 
 export default function ClubDetailScreen() {
   const route = useRoute();
@@ -32,6 +37,9 @@ export default function ClubDetailScreen() {
   const [isFavourite, setIsFavourite] = useState(false);
   const session = useSession();
   const navigation = useNavigation();
+  const [activeTab, setActiveTab] = useState<"google" | "app">("google");
+  const [refreshFlag, setRefreshFlag] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -116,7 +124,7 @@ export default function ClubDetailScreen() {
       </View>
       <Image source={{ uri: club.Image }} style={styles.clubBanner} />
       {/* Tags */}
-      <Text style={styles.sectionTitle}>Tags:</Text>
+      <Text style={styles.sectionTitle}>Vibes:</Text>
       <View style={styles.tagsContainer}>
         {club.Tags?.map((tag: any, index: number) => (
           <View key={index} style={styles.tag}>
@@ -127,6 +135,49 @@ export default function ClubDetailScreen() {
       {/* Operating Hours */}
       {club.hours && (
         <Text style={styles.hoursText}>{getTodaysHours(club.hours)}</Text>
+      )}
+      {/* Toggle Tabs */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === "google" && styles.tabActive]}
+          onPress={() => setActiveTab("google")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "google" && styles.tabTextActive,
+            ]}
+          >
+            Google Reviews
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === "app" && styles.tabActive]}
+          onPress={() => setActiveTab("app")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "app" && styles.tabTextActive,
+            ]}
+          >
+            App Reviews
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {/* Rate this club button */}
+      <TouchableOpacity
+        style={styles.rateButton}
+        onPress={() => setShowModal(true)}
+      >
+        <Text style={styles.rateButtonText}>Rate this club</Text>
+      </TouchableOpacity>
+
+      {/* Reviews Section */}
+      {activeTab === "google" ? (
+        <ClubGoogleReviews clubId={club.id} />
+      ) : (
+        <ClubAppReviews clubId={club.id} />
       )}
       {/* Upcoming Events */}
       <Text style={styles.sectionTitle}>Upcoming Events:</Text>
@@ -148,6 +199,32 @@ export default function ClubDetailScreen() {
           showsHorizontalScrollIndicator={false}
         />
       )}
+      {/* Review Form Modal */}
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Write a Review</Text>
+            <ReviewForm
+              clubId={club.id}
+              onSuccess={() => {
+                setShowModal(false);
+                setRefreshFlag((f) => !f);
+              }}
+            />
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => setShowModal(false)}
+            >
+              <Text style={styles.closeText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -189,7 +266,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   tag: {
-    backgroundColor: "#007AFF",
+    backgroundColor: Constants.purpleCOLOR,
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 15,
@@ -218,5 +295,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#fff",
     marginVertical: 5,
+  },
+  toggleContainer: {
+    flexDirection: "row",
+    backgroundColor: "#333",
+    borderRadius: 8,
+    overflow: "hidden",
+    marginVertical: 15,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  tabActive: {
+    backgroundColor: Constants.purpleCOLOR,
+  },
+  tabText: {
+    color: "#ccc",
+    fontSize: 16,
+  },
+  tabTextActive: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  rateButton: {
+    backgroundColor: Constants.purpleCOLOR,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginVertical: 10,
+  },
+  rateButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  closeButton: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+  closeText: {
+    color: "#007AFF",
+    fontSize: 16,
   },
 });

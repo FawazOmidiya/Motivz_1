@@ -1,13 +1,24 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAuth } from "./supabaseAuth";
 import type { Session } from "@supabase/supabase-js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import * as types from "./types";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY as string;
 
 // ✅ Initialize Supabase client
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
+// Storage for image handling
+export const storage = supabase.storage.from("avatars");
 /**
  * Fetches all clubs from the Supabase database.
  */
@@ -132,41 +143,6 @@ export const queryUserFavouriteExists = async (
   } catch (error) {
     console.error("Error fetching user favourites:", error);
     return false;
-  }
-};
-
-export const updateUserProfile = async (
-  /**
-   * Updates a user's profile information in the "profiles" table.
-   *
-   * @param userId - The ID of the user.
-   * @param updates - An object containing the updated profile fields.
-   * @returns A boolean indicating success.
-   * @throws An error if the update fails.
-   */
-
-  userId: string,
-  updates: {
-    username: string;
-    first_name: string;
-    last_name: string;
-    avatar_url: string;
-  }
-) => {
-  try {
-    const payload = {
-      id: userId,
-      ...updates,
-      updated_at: new Date(),
-    };
-    const { error } = await supabase.from("profiles").upsert(payload);
-    if (error) {
-      throw new Error(error.message);
-    }
-    return true;
-  } catch (error) {
-    console.error("Error updating user profile:", error);
-    throw error;
   }
 };
 
@@ -468,4 +444,95 @@ export function getTodaysHours(hours: types.RegularOpeningHours): string {
     return hours.weekdayDescriptions[index];
   }
   return "";
+}
+
+export async function fetchClubGoogleReviews(
+  clubId: string
+): Promise<types.GoogleReview[]> {
+  const { data, error } = await supabase
+    .from("google_reviews")
+    .select("*")
+    .eq("club_id", clubId)
+    .order("publish_time", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching Google reviews:", error);
+    return [];
+  }
+  return data || [];
+}
+export async function fetchClubAppReviews(
+  clubId: string
+): Promise<types.AppReview[]> {
+  const { data, error } = await supabase
+    .from("club_reviews")
+    .select(
+      `
+      *,
+      user:users (
+        username
+      )
+    `
+    )
+    .eq("club_id", clubId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+/**
+ * Inserts a new app review for a club.
+ */
+export async function addAppReview(
+  clubId: string,
+  userId: string,
+  rating: number,
+  musicGenre: string,
+  text: string
+) {
+  const { data, error } = await supabase.from("club_reviews").insert([
+    {
+      club_id: clubId,
+      user_id: userId,
+      rating,
+      text,
+    },
+  ]);
+  return { data, error };
+}
+export async function addAppReviewSimple(
+  clubId: string,
+  userId: string,
+  rating: number,
+  musicGenre: string
+) {
+  const { data, error } = await supabase
+    .from("app_reviews")
+    .insert([
+      {
+        club_id: clubId,
+        user_id: userId,
+        rating,
+        music_genre: musicGenre,
+        text: null, // no comment
+      },
+    ])
+    .select();
+  return { data, error };
+}
+
+/**
+ * Updates the user profile in the "profiles" table.
+ * @param userId - The ID of the user.
+ * @param updates - The fields to update.
+ * @returns The updated data and any error that occurred.
+ */
+export async function updateUserProfile(
+  userId: string,
+  updates: { avatar_url?: string; username?: string; website?: string }
+) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("id", userId);
+  return { data, error };
 }

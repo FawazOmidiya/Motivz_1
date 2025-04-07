@@ -17,6 +17,7 @@ import FavouriteClub from "@/components/ClubFavourite";
 import BackButton from "@/components/BackButton";
 import FriendButton from "@/components/FriendButton"; // Import your FriendButton component
 import { useSession } from "@/components/SessionContext";
+import * as Constants from "@/constants/Constants";
 
 export default function UserProfileScreen() {
   // Assume the user profile is passed via route params:
@@ -71,7 +72,16 @@ export default function UserProfileScreen() {
     >
       {/* Profile Header */}
       <View style={styles.header}>
-        <BackButton />
+        <View
+          style={{
+            position: "absolute",
+            top: 20,
+            left: 20,
+            zIndex: 1,
+          }}
+        >
+          <BackButton />
+        </View>
         <View style={styles.avatarContainer}>
           {user.avatar_url ? (
             <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
@@ -116,13 +126,13 @@ const imageSize = (screenWidth - 60) / 2; // Adjust based on margins
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Constants.backgroundCOLOR,
   },
   // Header styles
   header: {
     paddingVertical: 20,
     paddingHorizontal: 20,
-    backgroundColor: "#f8f8f8",
+    backgroundColor: Constants.backgroundCOLOR,
     alignItems: "center",
     borderBottomWidth: 1,
     borderColor: "#ddd",
