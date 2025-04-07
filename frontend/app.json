@@ -7,7 +7,7 @@
     "icon": "./assets/images/Mobile-Application-Blue-Icon-Transparent-PNG.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "jsEngine": "jsc", // Switch from Hermes to JSC
+    "jsEngine": "jsc",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
@@ -25,7 +25,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.fomidiya.frontend"
     },
     "web": {
       "bundler": "metro",
@@ -44,7 +45,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-build-properties"
+      "expo-build-properties",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
