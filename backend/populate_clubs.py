@@ -52,6 +52,15 @@ def insert_club(club_data):
         res = supabase.table("Clubs").upsert(club).execute()
     except Exception as e:
         print("Error inserting record:", e)
+        
+    # Now, fetch detailed data (including reviews) for the club:
+    details = fetch_place_details(club_data.get("id"))
+    if details and "reviews" in details:
+        reviews = details.get("reviews")
+        result = populate_club_google_reviews(club_data.get("id"), reviews)
+        print("Result of review insertion:", result)
+    else:
+        print("No reviews found in the details.")
 
 def search_clubs():
     """
@@ -64,17 +73,16 @@ def search_clubs():
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.regularOpeningHours,places.photos,nextPageToken",
     }
-    
+    searchInput = "Nightclubs, nightlife, and Lounges in Toronto"
     # Initial payload using the text query.
     payload = {
-        "textQuery": "nightclubs in Toronto",
+        "textQuery": searchInput,
     }
     
     all_clubs = []
     
     while True:
         response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()  # Raise exception if there's an HTTP error
         data = response.json()
         
         places = data.get("places", [])
@@ -87,7 +95,7 @@ def search_clubs():
             print("Next page token found, waiting 2 seconds to fetch the next page...")
             time.sleep(2)  # Wait before using the token
             payload = {
-                "textQuery": "nightclubs in Toronto",
+                "textQuery": searchInput,
                 "pageToken": next_page_token
             }        
         else:
@@ -127,6 +135,51 @@ def fetch_place_details(place_id):
     response.raise_for_status()
     print(response.json())
     return response.json()
+
+def populate_club_google_reviews(club_id: str, reviews: list) -> dict:
+    """
+    Inserts an array of Google reviews for a given club into the 'google_reviews' table.
+    
+    Parameters:
+      - club_id: The ID of the club for which the reviews are associated.
+      - reviews: An array of review objects from the Google Places API.
+      
+    Returns:
+      - A dictionary containing the result of the insertion (data and error).
+    """
+    if not reviews or len(reviews) == 0:
+        print("No reviews to insert.")
+        return {"data": None, "error": None}
+
+    # Map each review to the row format expected by the google_reviews table.
+    rows = []
+    for review in reviews:
+        row = {
+            "review_id": review.get("name"),  # Unique identifier (e.g. "places/CLUB_ID/reviews/REVIEW_ID")
+            "club_id": club_id,
+            "rating": review.get("rating"),
+            # Prefer originalText if available; fallback to text.
+            "text": review.get("originalText", {}).get("text") or review.get("text", {}).get("text"),
+            "relative_publish_time_description": review.get("relativePublishTimeDescription"),
+            "author_display_name": review.get("authorAttribution", {}).get("displayName"),
+            "author_photo_uri": review.get("authorAttribution", {}).get("photoUri"),
+            "publish_time": review.get("publishTime"),  # Ensure your DB can parse this timestamp
+            "google_maps_uri": review.get("googleMapsUri")
+        }
+        rows.append(row)
+    
+    # Insert all rows into the google_reviews table
+    try:
+        result = supabase.table("google_reviews").insert(rows).execute()
+        if result.error:
+            print("Error inserting Google reviews:", result.error)
+        else:
+            print("Successfully inserted Google reviews:", result.data)
+        return {"data": result.data, "error": result.error}
+    except Exception as e:
+        print("Exception during insertion:", e)
+        return {"data": None, "error": e}
+
 
 def main():
     clubs = search_clubs()
