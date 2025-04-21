@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Keyboard,
   ActivityIndicator,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { Text, Button } from "@rneui/themed";
 import {
@@ -20,11 +21,26 @@ import * as Constants from "@/constants/Constants";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<(types.Club | types.UserProfile)[]>(
-    []
-  );
+  const [results, setResults] = useState<types.UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
+
+  async function handleTextChange(text: string) {
+    setQuery(text);
+    if (text.length !== 0) {
+      setLoading(true);
+      try {
+        const users = await searchUsersByName(text);
+        setResults(users);
+      } catch (error) {
+        console.error("Error searching users:", error);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setResults([]);
+    }
+  }
 
   useEffect(() => {
     // Optionally, you can trigger a search on component mount or whenever `searchType` changes
@@ -60,41 +76,74 @@ export default function SearchScreen() {
       );
     }
   }
+  async function handleFocus() {
+    setLoading(true);
+
+    try {
+      // Query the "profiles" table
+      const users: types.UserProfile[] = await searchUsersByName(query);
+      setResults(users);
+    } catch (err) {
+      console.error("Search error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <View style={styles.container}>
-      {/* Search Input */}
-      <View style={styles.searchBar}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder={"Search Users..."}
-          value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={searchItems}
-          returnKeyType="search"
-        />
-        <Button
-          title="Search"
-          onPress={searchItems}
-          containerStyle={styles.btn}
-          color={Constants.purpleCOLOR}
-        />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.container}>
+        {/* Search Input */}
+        <View style={styles.searchBar}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={"Search Users..."}
+            value={query}
+            onChangeText={handleTextChange}
+            onSubmitEditing={searchItems}
+            returnKeyType="search"
+            clearButtonMode="always"
+            onFocus={handleFocus}
+          />
+          {results.length > 0 && (
+            <Button
+              title="Cancel"
+              onPress={() => {
+                setQuery("");
+                setResults([]);
+                Keyboard.dismiss();
+              }}
+              containerStyle={styles.btn}
+              color={Constants.purpleCOLOR}
+            />
+          )}
+          {results.length === 0 && (
+            <Button
+              title="Search"
+              onPress={searchItems}
+              containerStyle={styles.btn}
+              color={Constants.purpleCOLOR}
+            />
+          )}
+        </View>
+        {/* Segmented Control (toggle clubs/users) */}
+        {/* Results List */}
+        {results.length === 0 ? (
+          <Text style={{ marginTop: 20, color: Constants.whiteCOLOR }}>
+            Coming Soon
+          </Text>
+        ) : loading ? (
+          <ActivityIndicator size="large" style={{ marginTop: 20 }} />
+        ) : (
+          <FlatList
+            data={results}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
       </View>
-
-      {/* Segmented Control (toggle clubs/users) */}
-
-      {/* Results List */}
-      {loading ? (
-        <ActivityIndicator size="large" style={{ marginTop: 20 }} />
-      ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
-    </View>
+    </TouchableWithoutFeedback>
   );
 }
 
