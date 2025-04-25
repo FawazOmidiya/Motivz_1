@@ -5,7 +5,6 @@ import {
   Alert,
   FlatList,
   Image,
-  Dimensions,
   RefreshControl,
   ScrollView,
 } from "react-native";
@@ -63,14 +62,8 @@ export default function UserProfileScreen() {
     </View>
   );
 
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Profile Header */}
+  const ListHeaderComponent = () => (
+    <View>
       <View style={styles.header}>
         <View
           style={{
@@ -80,7 +73,7 @@ export default function UserProfileScreen() {
             zIndex: 1,
           }}
         >
-          <BackButton />
+          <BackButton color="white" />
         </View>
         <View style={styles.avatarContainer}>
           {user.avatar_url ? (
@@ -99,29 +92,29 @@ export default function UserProfileScreen() {
           <FriendButton targetUserId={user.id} />
         )}
       </View>
-
+      <Text style={styles.sectionTitle}>Favourites</Text>
+    </View>
+  );
+  return (
+    <View style={styles.container}>
       {/* Favourites Section */}
-      <View style={styles.favouritesContainer}>
-        <Text style={styles.sectionTitle}>Favourites</Text>
-        {loading ? (
-          <Text style={styles.loadingText}>Loading favourites...</Text>
-        ) : (
-          <FlatList
-            data={favourites}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <FavouriteClub club={item} />}
-            numColumns={2}
-            columnWrapperStyle={styles.favouritesRow}
-            contentContainerStyle={styles.favouritesList}
-          />
-        )}
-      </View>
-    </ScrollView>
+      <FlatList
+        data={favourites}
+        keyExtractor={(item) => item?.id}
+        renderItem={({ item }) => <FavouriteClub club={item} />}
+        numColumns={2}
+        columnWrapperStyle={styles.favouritesRow}
+        contentContainerStyle={styles.favouritesList}
+        ListHeaderComponent={ListHeaderComponent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      />
+    </View>
   );
 }
 
-const screenWidth = Dimensions.get("window").width;
-const imageSize = (screenWidth - 60) / 2; // Adjust based on margins
+const imageSize = (Constants.screenWidth - 60) / 2; // Adjust based on margins
 
 const styles = StyleSheet.create({
   container: {
@@ -162,15 +155,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "600",
     marginBottom: 10,
+    color: "#fff",
   },
   // Favourites styles
   favouritesContainer: {
-    padding: 20,
+    padding: 10,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "600",
     marginBottom: 10,
+    color: Constants.whiteCOLOR,
+    paddingHorizontal: 20,
   },
   favouritesList: {
     justifyContent: "space-between",
@@ -178,6 +174,7 @@ const styles = StyleSheet.create({
   favouritesRow: {
     justifyContent: "space-between",
     marginBottom: 10,
+    paddingHorizontal: 20,
   },
   favouriteItem: {
     backgroundColor: "#f0f0f0",

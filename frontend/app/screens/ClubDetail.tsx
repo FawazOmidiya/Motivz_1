@@ -12,16 +12,19 @@ import {
   Pressable,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { fetchEventsByClub, getTodaysHours } from "../utils/supabaseService";
-import { Button } from "@rneui/themed";
-import { supabaseAuth } from "../utils/supabaseAuth";
-import { useSession } from "@/components/SessionContext";
-import * as types from "@/app/utils/types";
 import {
+  fetchEventsByClub,
+  getTodaysHours,
   queryUserFavouriteExists,
   addClubToFavourites,
   removeClubFromFavourites,
+  fetchClubMusicSchedules,
+  updateUserActiveClub,
 } from "../utils/supabaseService";
+import { Button } from "@rneui/themed";
+import { useSession, useProfile } from "@/components/SessionContext";
+import * as types from "@/app/utils/types";
+import * as Location from "expo-location";
 import BackButton from "@/components/BackButton";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Constants from "@/constants/Constants";
@@ -36,18 +39,40 @@ export default function ClubDetailScreen() {
   const [adding, setAdding] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
   const session = useSession();
+  const profile = useProfile();
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<"google" | "app">("google");
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [userLocation, setUserLocation] = useState<types.LocationCoords | null>(
+    null
+  );
+  const [isGoing, setIsGoing] = useState(false);
 
   useEffect(() => {
     const loadEvents = async () => {
       const eventData = await fetchEventsByClub(club.id);
       setEvents(eventData);
     };
+    const getLocation = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Location permission is required for full Club functionality."
+        );
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({});
+      const coords = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+    };
+    getLocation();
     loadEvents();
-  }, [club.id]);
+    setIsGoing(profile?.active_club_id === club.id);
+  }, [club.id, profile]);
 
   // Check whether the club is already in favourites when the screen loads or when session/club changes.
   useEffect(() => {
@@ -66,6 +91,13 @@ export default function ClubDetailScreen() {
     }
     checkFavourite();
   }, [session, club]);
+
+  useEffect(() => {
+    // Check if this is the user's active club
+    if (profile?.active_club_id === club.id) {
+      setIsGoing(true);
+    }
+  }, [session, club.id]);
 
   async function handleAddToFavourites() {
     setAdding(true);
@@ -101,6 +133,25 @@ export default function ClubDetailScreen() {
     }
   }
 
+  const setActiveClub = async (club_id: string | null) => {
+    if (!session?.user) return;
+    setIsGoing(!isGoing);
+    await updateUserActiveClub(session.user.id, club_id);
+  };
+  const getMusicSchedule = async () => {
+    const todayNumber = new Date().getDay();
+
+    const musicData = await fetchClubMusicSchedules(club.id, todayNumber);
+    if (musicData === null) return; // Explicit null check to narrow the type
+
+    const entries = Object.entries(musicData);
+    const genreEntries = Object.entries(musicData).filter(
+      ([key, value]) => typeof value === "number"
+    );
+    genreEntries.sort((a, b) => Number(b[1]) - Number(a[1]));
+
+    console.log("Music schedule:", genreEntries.slice(0, 3));
+  };
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -123,6 +174,32 @@ export default function ClubDetailScreen() {
         )}
       </View>
       <Image source={{ uri: club.Image }} style={styles.clubBanner} />
+      {/* <Button
+        title="Get Music Schedule"
+        buttonStyle={{
+          backgroundColor: Constants.purpleCOLOR,
+        }}
+        containerStyle={styles.buttonContainer}
+        onPress={getMusicSchedule}
+      /> */}
+      <View style={styles.buttonContainer}>
+        {/* Rate this club button */}
+        <TouchableOpacity
+          style={styles.rateButton}
+          onPress={() => setShowModal(true)}
+        >
+          <Text style={styles.rateButtonText}>Rate this club</Text>
+        </TouchableOpacity>
+        {/* Location Based Button */}
+        <TouchableOpacity
+          style={styles.rateButton}
+          onPress={() => setActiveClub(isGoing ? null : club.id)}
+        >
+          <Text style={styles.rateButtonText}>
+            {isGoing ? "I'm not going" : "I'm Going"}
+          </Text>
+        </TouchableOpacity>
+      </View>
       {/* Tags */}
       <Text style={styles.sectionTitle}>Vibes:</Text>
       <View style={styles.tagsContainer}>
@@ -161,18 +238,10 @@ export default function ClubDetailScreen() {
               activeTab === "app" && styles.tabTextActive,
             ]}
           >
-            App Reviews
+            Live Reviews
           </Text>
         </TouchableOpacity>
       </View>
-      {/* Rate this club button */}
-      <TouchableOpacity
-        style={styles.rateButton}
-        onPress={() => setShowModal(true)}
-      >
-        <Text style={styles.rateButtonText}>Rate this club</Text>
-      </TouchableOpacity>
-
       {/* Reviews Section */}
       {activeTab === "google" ? (
         <ClubGoogleReviews clubId={club.id} />
@@ -289,7 +358,8 @@ const styles = StyleSheet.create({
   eventName: { fontSize: 16, fontWeight: "bold" },
   eventDate: { fontSize: 14, color: "gray" },
   buttonContainer: {
-    marginVertical: 15,
+    flexDirection: "row",
+    justifyContent: "space-around",
   },
   hoursText: {
     fontSize: 14,
@@ -348,7 +418,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 10,
+    marginBottom: 5,
     textAlign: "center",
   },
   closeButton: {

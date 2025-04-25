@@ -18,7 +18,7 @@ import { SessionProvider } from "../components/SessionContext";
 import * as Constants from "@/constants/Constants";
 import * as types from "@/app/utils/types";
 import { SafeAreaView, StatusBar, StyleSheet } from "react-native";
-
+import FriendsList from "./screens/FriendsList";
 // Create a Bottom Tab Navigator
 const Tab = createBottomTabNavigator<types.RootTabParamList>();
 
@@ -65,6 +65,7 @@ function ProfileStackScreen() {
       <ProfileStack.Screen name="ProfileSettings" component={ProfileSettings} />
       <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ProfileStack.Screen name="ClubDetail" component={ClubDetailScreen} />
+      <ProfileStack.Screen name="FriendsList" component={FriendsList} />
     </ProfileStack.Navigator>
   );
 }

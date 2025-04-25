@@ -8,6 +8,7 @@ import {
   Keyboard,
   ActivityIndicator,
   TouchableWithoutFeedback,
+  Image,
 } from "react-native";
 import { Text, Button } from "@rneui/themed";
 import {
@@ -18,6 +19,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
+import defaultAvatar from "../../assets/images/default-avatar.png";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
@@ -63,26 +65,33 @@ export default function SearchScreen() {
     }
   }
 
-  function renderItem({ item }: { item: types.Club | types.UserProfile }) {
-    {
-      const user = item as types.UserProfile;
-      return (
-        <TouchableOpacity
-          style={styles.resultItem}
-          onPress={() => navigation.navigate("UserProfile", { user })}
-        >
-          <Text style={styles.resultTitle}>{user.username}</Text>
-        </TouchableOpacity>
-      );
-    }
+  function renderItem({ item }: { item: types.UserProfile }) {
+    const getInitials = (name: string) => {
+      return name.charAt(0).toUpperCase();
+    };
+
+    return (
+      <TouchableOpacity
+        style={styles.resultItem}
+        onPress={() => navigation.navigate("UserProfile", { user: item })}
+      >
+        <View style={styles.userInfoContainer}>
+          {item.avatar_url ? (
+            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          ) : (
+            <Image source={defaultAvatar} style={styles.avatar} />
+          )}
+          <Text style={styles.resultTitle}>{item.username}</Text>
+        </View>
+      </TouchableOpacity>
+    );
   }
+
   async function handleFocus() {
     setLoading(true);
 
     try {
-      // Query the "profiles" table
-      const users: types.UserProfile[] = await searchUsersByName(query);
-      setResults(users);
+      setResults(await searchUsersByName(query));
     } catch (err) {
       console.error("Search error:", err);
     } finally {
@@ -129,9 +138,9 @@ export default function SearchScreen() {
         {/* Segmented Control (toggle clubs/users) */}
         {/* Results List */}
         {results.length === 0 ? (
-          <Text style={{ marginTop: 20, color: Constants.whiteCOLOR }}>
-            Coming Soon
-          </Text>
+          <View style={styles.centeredContainer}>
+            <Text style={styles.centeredText}>Coming Soon...</Text>
+          </View>
         ) : loading ? (
           <ActivityIndicator size="large" style={{ marginTop: 20 }} />
         ) : (
@@ -159,7 +168,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    backgroundColor: "#f2f2f2",
+    backgroundColor: Constants.greyCOLOR,
     borderRadius: 8,
     paddingHorizontal: 10,
     height: 40,
@@ -179,13 +188,46 @@ const styles = StyleSheet.create({
   listContent: {
     paddingVertical: 10,
   },
+  userInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  placeholderAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#ccc",
+    marginRight: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarInitial: {
+    fontSize: 16,
+    color: "#fff",
+  },
   resultItem: {
     backgroundColor: Constants.greyCOLOR,
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    marginBottom: 10,
+    borderRadius: 8,
   },
   resultTitle: {
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+  },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  centeredText: {
+    color: Constants.whiteCOLOR,
     fontSize: 16,
   },
 });

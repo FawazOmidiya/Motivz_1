@@ -1,5 +1,4 @@
-"use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -7,6 +6,7 @@ import {
   ActivityIndicator,
   Text,
   Image,
+  TouchableOpacity,
 } from "react-native";
 import MapView, {
   Marker,
@@ -40,19 +40,14 @@ export default function MapScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [region, setRegion] = useState<Region | null>(null);
   const [clubs, setClubs] = useState<Club[]>([]);
-
   const navigation = useNavigation();
+  const mapRef = useRef<MapView>(null);
+  // Create a ref to store the debounce timeout ID
+  const regionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const getLocation = async () => {
       try {
-        // Request location permission
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          Alert.alert("Permission Denied", "Please allow location access.");
-          return;
-        }
-
         // Get user's current location
         const userLocation = await Location.getCurrentPositionAsync({});
         const coords: LocationCoords = {
@@ -89,12 +84,32 @@ export default function MapScreen() {
     getLocation();
   }, []);
 
+  const recenterMap = async () => {
+    const locationData = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = locationData.coords;
+    const zoomedRegion: Region = {
+      latitude,
+      longitude,
+      latitudeDelta: 0.005, // Closer zoom
+      longitudeDelta: 0.005,
+    };
+
+    // Animate to the zoomed region over 1000 ms.
+    mapRef.current?.animateToRegion(zoomedRegion, 1000);
+
+    // Delay updating state until after the animation.
+    setTimeout(() => {
+      setRegion(zoomedRegion);
+    }, 1000);
+  };
+
   return (
     <View style={styles.container}>
       {loading ? (
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
         <MapView
+          ref={mapRef}
           style={styles.map}
           region={
             region ?? {
@@ -136,6 +151,9 @@ export default function MapScreen() {
           ))}
         </MapView>
       )}
+      <TouchableOpacity style={styles.button} onPress={recenterMap}>
+        <Text style={styles.buttonText}>Recenter</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -143,18 +161,6 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { ...StyleSheet.absoluteFillObject },
-  addressContainer: {
-    position: "absolute",
-    bottom: 20,
-    left: 10,
-    right: 10,
-    backgroundColor: "white",
-    padding: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    elevation: 3,
-  },
-  addressText: { fontSize: 16, fontWeight: "bold" },
   markerContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -186,10 +192,14 @@ const styles = StyleSheet.create({
   },
   calloutTitle: { fontWeight: "bold", fontSize: 14 },
   calloutText: { fontSize: 12 },
-  calloutButton: {
-    fontSize: 12,
-    color: "#007AFF",
-    marginTop: 5,
-    textDecorationLine: "underline",
+  button: {
+    position: "absolute",
+    bottom: 40,
+    right: 20,
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 25,
+    elevation: 2,
   },
+  buttonText: { color: "#fff", fontWeight: "bold" },
 });

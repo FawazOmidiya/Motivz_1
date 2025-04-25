@@ -4,6 +4,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import HomeScreen from "../screens/HomeScreen";
 import ExploreScreen from "../screens/ExploreScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import * as types from "@/app/utils/types";
 
 const Stack = createStackNavigator();
 
@@ -24,4 +25,8 @@ export type RootStackParamList = {
   Home: undefined;
   Explore: undefined;
   Profile: undefined;
+  FriendsList: undefined;
+  UserProfile: { user: types.UserProfile };
+  ClubDetail: { club: types.Club };
+  ProfileSettings: undefined;
 };

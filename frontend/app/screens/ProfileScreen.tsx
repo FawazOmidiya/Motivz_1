@@ -14,13 +14,22 @@ import { Button, Text } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../navigation/Navigation";
 import {
   fetchUserFavourites,
   fetchUserProfile,
+  fetchUserFriends,
 } from "../utils/supabaseService";
 import FavouriteClub from "@/components/ClubFavourite";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
+import { Ionicons } from "@expo/vector-icons";
+
+type ProfileScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "Profile"
+>;
 
 export default function Account() {
   const [loading, setLoading] = useState(true);
@@ -30,13 +39,15 @@ export default function Account() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [favourites, setFavourites] = useState<types.Club[]>([]);
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
+  const [friends, setFriends] = useState<types.UserProfile[]>([]);
   const session = useSession();
-  const navigation = useNavigation();
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
 
   useEffect(() => {
     if (session) {
       getProfile();
       getFavourites();
+      getFriends();
     }
   }, [session]);
 
@@ -55,6 +66,22 @@ export default function Account() {
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function getFriends() {
+    try {
+      setLoading(true);
+      if (!session?.user) throw new Error("No user on the session!");
+      const data = await fetchUserFriends(session.user.id);
+      if (data) {
+        setFriends(data);
+        console.log("friends", data);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert("Friends Error", error.message);
+      }
     }
   }
   // Pull user Favourites
@@ -111,17 +138,52 @@ export default function Account() {
           )}
         </View>
         <Text style={styles.username}>{profile?.username}</Text>
-        <Button
-          title="Sign Out"
-          onPress={handleSignOut}
-          buttonStyle={styles.signOutButton}
-          containerStyle={styles.signOutContainer}
-        />
-        <Button
-          title="Edit Profile"
-          onPress={() => navigation.navigate("ProfileSettings")}
-          containerStyle={styles.signOutContainer}
-        />
+        <View style={styles.profileButtonsContainer}>
+          <View style={styles.nameAndButtonsRow}>
+            <View style={styles.nameContainer}>
+              <Text style={styles.firstName}>{profile?.first_name}</Text>
+              <Text style={styles.lastName}>{profile?.last_name}</Text>
+            </View>
+            <View style={styles.buttonsRow}>
+              <Button
+                icon={
+                  <Ionicons
+                    name="log-out-outline"
+                    size={24}
+                    color={Constants.whiteCOLOR}
+                  />
+                }
+                onPress={handleSignOut}
+                buttonStyle={styles.signOutButton}
+                type="clear"
+              />
+              <Button
+                icon={
+                  <Ionicons
+                    name="settings-outline"
+                    size={24}
+                    color={Constants.whiteCOLOR}
+                  />
+                }
+                onPress={() => navigation.navigate("ProfileSettings")}
+                buttonStyle={styles.editProfileButton}
+                type="clear"
+              />
+              <Button
+                icon={
+                  <Ionicons
+                    name="people-outline"
+                    size={24}
+                    color={Constants.whiteCOLOR}
+                  />
+                }
+                onPress={() => navigation.navigate("FriendsList")}
+                buttonStyle={styles.followersBtn}
+                type="clear"
+              />
+            </View>
+          </View>
+        </View>
       </View>
       <Text style={styles.sectionTitle}>Favourites</Text>
     </View>
@@ -158,7 +220,7 @@ const styles = StyleSheet.create({
     backgroundColor: Constants.backgroundCOLOR,
     alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: "#ddd",
+    borderColor: Constants.greyCOLOR,
   },
   avatarContainer: {
     width: 100,
@@ -188,12 +250,20 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   signOutButton: {
-    backgroundColor: "#ff4d4d",
+    backgroundColor: Constants.purpleCOLOR,
     borderRadius: 8,
+    height: 40,
+    padding: 0,
   },
   signOutContainer: {
     marginTop: 10,
     width: 120,
+  },
+  editProfileButton: {
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 8,
+    height: 40,
+    padding: 0,
   },
   // Favourites styles
 
@@ -232,5 +302,38 @@ const styles = StyleSheet.create({
   },
   favouriteTitle: {
     fontSize: 14,
+  },
+  profileButtonsContainer: {
+    width: "100%",
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
+  nameAndButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  nameContainer: {
+    flex: 1,
+  },
+  firstName: {
+    color: Constants.whiteCOLOR,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  lastName: {
+    color: Constants.whiteCOLOR,
+    fontSize: 16,
+    opacity: 0.8,
+  },
+  buttonsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  followersBtn: {
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 8,
+    height: 40,
+    padding: 0,
   },
 });

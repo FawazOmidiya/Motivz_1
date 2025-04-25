@@ -72,6 +72,30 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }
+  async function handleTextChange(text: string) {
+    setQuery(text);
+    if (text.length !== 0) {
+      setLoading(true);
+      try {
+        const clubData = await searchClubsByName(text);
+        setClubs(clubData);
+      } catch (error) {
+        console.error("Error fetching clubs:", error);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setLoading(true);
+      try {
+        const clubData = await fetchClubs();
+        setClubs(clubData);
+      } catch (error) {
+        console.error("Error fetching clubs:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+  }
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -122,9 +146,10 @@ export default function HomeScreen() {
           placeholder={"Search Clubs..."}
           placeholderTextColor="#fff"
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(text) => handleTextChange(text)}
           onSubmitEditing={searchItems}
           returnKeyType="search"
+          clearButtonMode="always"
         />
         <Ionicons
           name="filter-sharp"

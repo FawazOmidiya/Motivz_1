@@ -17,7 +17,6 @@ export default function SignInScreen() {
       password: password,
     });
     if (error) Alert.alert("Sign In Failed", error.message);
-
     setLoading(false);
   }
 
@@ -52,7 +51,7 @@ export default function SignInScreen() {
         <>
           <Button title="Sign In" onPress={signInWithEmail} />
           <Button
-            title="Create Account"
+            title="Create an account here!"
             type="clear"
             onPress={() => navigation.navigate("SignUp")}
           />
