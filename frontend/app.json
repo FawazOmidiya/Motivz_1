@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Motivz",
+    "slug": "motivz",
     "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/Mobile-Application-Blue-Icon-Transparent-PNG.png",

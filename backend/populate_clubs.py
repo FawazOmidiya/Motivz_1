@@ -29,7 +29,6 @@ def insert_club(club_data):
             photo_name = club_data["photos"][0].get("name")
             if photo_name:
                 image_url = fetch_photo_url(photo_name)
-                print(f"Fetched photo URL: {image_url}")
         except Exception as e:
             print("Error fetching photo URL:", e)
             
@@ -58,7 +57,6 @@ def insert_club(club_data):
     if details and "reviews" in details:
         reviews = details.get("reviews")
         result = populate_club_google_reviews(club_data.get("id"), reviews)
-        print("Result of review insertion:", result)
     else:
         print("No reviews found in the details.")
 
@@ -73,7 +71,7 @@ def search_clubs():
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.regularOpeningHours,places.photos,nextPageToken",
     }
-    searchInput = "Nightclubs, nightlife, and Lounges in Toronto"
+    searchInput = "Nightclubs, nightlife, and Lounges in Calgary"
     # Initial payload using the text query.
     payload = {
         "textQuery": searchInput,
@@ -133,7 +131,6 @@ def fetch_place_details(place_id):
     }
     response = requests.get(url, headers=headers)
     response.raise_for_status()
-    print(response.json())
     return response.json()
 
 def populate_club_google_reviews(club_id: str, reviews: list) -> dict:
@@ -174,7 +171,7 @@ def populate_club_google_reviews(club_id: str, reviews: list) -> dict:
         if result.error:
             print("Error inserting Google reviews:", result.error)
         else:
-            print("Successfully inserted Google reviews:", result.data)
+            print("Successfully inserted Google reviews")
         return {"data": result.data, "error": result.error}
     except Exception as e:
         print("Exception during insertion:", e)
