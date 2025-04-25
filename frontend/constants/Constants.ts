@@ -1,4 +1,7 @@
+import { Dimensions } from "react-native";
 // Constants for the app
+export const screenWidth = Dimensions.get("window").width;
+export const screenHeight = Dimensions.get("window").height;
 
 export const deepBLUE = "#E0E0E0";
 export const blackCOLOR = "#000000";

@@ -18,6 +18,7 @@ export type UserProfile = {
   first_name: string;
   last_name: string;
   avatar_url?: string | null;
+  active_club_id?: string | null;
   // add any additional fields you need
 };
 
@@ -81,3 +82,24 @@ export interface AppReview {
   text: string;
   created_at: string;
 }
+
+export interface musicGenres {
+  HipHop?: number;
+  Rock?: number;
+  Pop?: number;
+  Jazz?: number;
+  Classical?: number;
+  EDM?: number;
+  Country?: number;
+  Reggae?: number;
+  Blues?: number;
+  RnB?: number;
+  Soul?: number;
+  Latin?: number;
+  Afrobeats?: number;
+}
+
+export type LocationCoords = {
+  latitude: number;
+  longitude: number;
+};

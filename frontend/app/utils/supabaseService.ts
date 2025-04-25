@@ -38,20 +38,26 @@ export const fetchClubs = async () => {
 };
 
 // Clubs
-export const fetchSingleClub = async (clubId: string) => {
+export const fetchSingleClub = async (clubId: string): Promise<types.Club> => {
   try {
     const { data, error } = await supabase
       .from("Clubs")
       .select("*")
-      .eq("club_id", clubId);
+      .eq("id", clubId)
+      .single();
 
     if (error) {
       throw new Error(error.message);
     }
-    return data;
+
+    if (!data) {
+      throw new Error("Club not found");
+    }
+
+    return data as types.Club;
   } catch (error) {
-    console.error("Error fetching clubs:", error);
-    return [];
+    console.error("Error fetching club:", error);
+    throw error;
   }
 };
 
@@ -226,15 +232,14 @@ export async function removeClubFromFavourites(
 }
 
 export const searchUsersByName = async (
+  searchTerm: string
+): Promise<types.UserProfile[]> => {
   /**
    * Searches for users in the "profiles" table by username, first_name, or last_name.
    *
    * @param searchTerm - The term to search for.
    * @returns An array of user profiles matching the search criteria.
    */
-
-  searchTerm: string
-): Promise<types.UserProfile[]> => {
   try {
     // Build an "or" clause: Supabase expects a comma-separated list.
     const query = `username.ilike.%${searchTerm}%, first_name.ilike.%${searchTerm}%, last_name.ilike.%${searchTerm}%`;
@@ -469,7 +474,7 @@ export async function fetchClubAppReviews(
     .select(
       `
       *,
-      user:users (
+      user_id:profiles (
         username
       )
     `
@@ -535,4 +540,155 @@ export async function updateUserProfile(
     .update(updates)
     .eq("id", userId);
   return { data, error };
+}
+
+// Live Music
+
+export async function fetchClubMusicSchedules(
+  clubId: string,
+  dayNumber: number
+): Promise<types.musicGenres | null> {
+  const { data, error } = await supabase
+    .from("ClubMusicSchedules")
+    .select("*") // etc.
+    .eq("club_id", clubId)
+    .eq("day_of_week", dayNumber)
+    .single();
+
+  if (error) {
+    console.error("Error fetching music counts:", error);
+    return null;
+  }
+
+  return data;
+}
+
+type FriendshipResponse = {
+  receiver: types.UserProfile;
+  requester: types.UserProfile;
+};
+
+export async function fetchUserFriends(
+  userId: string
+): Promise<types.UserProfile[]> {
+  try {
+    // Fetch friends where user is the requester
+    const { data: requesterData, error: requesterError } = await supabase
+      .from("friendships")
+      .select(
+        `
+        receiver:profiles!receiver_id (
+          id,
+          username,
+          avatar_url,
+          first_name,
+          last_name
+        )
+      `
+      )
+      .eq("requester_id", userId)
+      .eq("status", "friends");
+
+    if (requesterError) {
+      throw new Error(requesterError.message);
+    }
+
+    // Fetch friends where user is the receiver
+    const { data: receiverData, error: receiverError } = await supabase
+      .from("friendships")
+      .select(
+        `
+        requester:profiles!requester_id (
+          id,
+          username,
+          avatar_url,
+          first_name,
+          last_name, 
+          active_club_id,
+          active_club:Clubs!active_club_id (
+            id,
+            Name,
+            Image
+          ) 
+        )
+      `
+      )
+      .eq("receiver_id", userId)
+      .eq("status", "friends");
+
+    if (receiverError) {
+      throw new Error(receiverError.message);
+    }
+
+    // Combine and map the friends data
+    const allFriends: types.UserProfile[] = [
+      ...(requesterData as unknown as FriendshipResponse[]).map(
+        (item) => item.receiver
+      ),
+      ...(receiverData as unknown as FriendshipResponse[]).map(
+        (item) => item.requester
+      ),
+    ];
+
+    return allFriends;
+  } catch (error) {
+    console.error("Error fetching user friends:", error);
+    return [];
+  }
+}
+export async function updateUserActiveClub(
+  userId: string,
+  clubId: string | null
+) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ active_club_id: clubId })
+    .eq("id", userId);
+
+  if (!error) {
+    // Broadcast the profile update
+    await supabase.channel("profile_changes").send({
+      type: "broadcast",
+      event: "profile_update",
+      payload: { new: data?.[0] },
+    });
+  }
+
+  return { data, error };
+}
+
+export async function fetchFriendsActiveClubs(userId: string) {
+  try {
+    // First get all friends
+    const friends = await fetchUserFriends(userId);
+
+    // Then get their profiles with active club information
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(
+        `
+        id,
+        username,
+        avatar_url,
+        first_name,
+        last_name,
+        active_club_id,
+        active_club:Clubs!active_club_id (
+          id,
+          Name,
+          Image
+        )
+      `
+      )
+      .in(
+        "id",
+        friends.map((friend) => friend.id)
+      );
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error fetching friends active clubs:", error);
+    return [];
+  }
 }
