@@ -45,10 +45,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     flex: 1,
     marginHorizontal: 5,
-    width: 180,
+    width: imageSize,
   },
   favouriteImage: {
-    width: 160,
+    width: imageSize - 20,
     height: 120,
     resizeMode: "cover",
     borderRadius: 12,
