@@ -13,7 +13,11 @@ import * as types from "@/app/utils/types";
 
 type FriendStatus = "none" | "pending_sent" | "pending_received" | "friends";
 
-const FriendButton: React.FC<{ targetUserId: string }> = ({ targetUserId }) => {
+export default function FriendButton({
+  targetUserId,
+}: {
+  targetUserId: string;
+}) {
   const session = useSession();
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
   const [friendStatus, setFriendStatus] = useState<FriendStatus>("none");
@@ -55,11 +59,8 @@ const FriendButton: React.FC<{ targetUserId: string }> = ({ targetUserId }) => {
         currentUserId,
         targetUserId
       );
-      console.log("Friendship status:", status);
       setFriendStatus(status);
-    } catch (error) {
-      console.error("Error checking friendship status:", error);
-    }
+    } catch (error) {}
   }
 
   const handleSend = async () => {
@@ -132,6 +133,4 @@ const FriendButton: React.FC<{ targetUserId: string }> = ({ targetUserId }) => {
   };
 
   return <View>{renderButton()}</View>;
-};
-
-export default FriendButton;
+}

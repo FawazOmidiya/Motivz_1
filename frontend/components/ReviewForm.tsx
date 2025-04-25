@@ -6,13 +6,33 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Alert,
 } from "react-native";
 import { useSession } from "@/components/SessionContext";
 import { addAppReview, addAppReviewSimple } from "@/app/utils/supabaseService";
 import { useNavigation } from "@react-navigation/native";
 
-const GENRES = ["EDM", "Hip-Hop", "Rock", "Pop", "House", "Other"];
+const GENRES = [
+  "EDM",
+  "HipHop",
+  "Rock",
+  "Pop",
+  "House",
+  "Jazz",
+  "R&B",
+  "Latin",
+  "Top40",
+  "90's",
+  "2000's",
+  "2010's",
+  "Afrobeats",
+  "Reggae",
+  "Blues",
+  "Soul",
+  "Amapiano",
+  "Country",
+];
 
 interface Props {
   clubId: string;
@@ -22,34 +42,54 @@ interface Props {
 const ReviewForm: React.FC<Props> = ({ clubId, onSuccess }) => {
   const session = useSession();
   const [rating, setRating] = useState(0);
-  const [genre, setGenre] = useState(GENRES[0]);
+  // Replace single selection with multiselect state
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const navigation = useNavigation();
+
+  // Toggle genre in multiselect state:
+  const toggleGenre = (genre: string) => {
+    setSelectedGenres((prevSelected) =>
+      prevSelected.includes(genre)
+        ? prevSelected.filter((g) => g !== genre)
+        : [...prevSelected, genre]
+    );
+  };
 
   const submit = async () => {
-    if (!session?.user.id)
+    if (!session?.user.id) {
       return Alert.alert("Error", "You must be logged in.");
-    if (rating < 1 || rating > 5)
+    }
+    if (rating < 1 || rating > 5) {
       return Alert.alert("Validation", "Please select a rating 1–5.");
+    }
+    if (selectedGenres.length === 0) {
+      return Alert.alert("Validation", "Please select at least one genre.");
+    }
 
     setSubmitting(true);
 
+    // If your API expects a string, you can join the genres with a delimiter.
+    const genresString = selectedGenres.join(", ");
+
     let result;
     if (text.trim().length === 0) {
-      // No comment
-      result = await addAppReviewSimple(
-        clubId,
-        session?.user.id,
-        rating,
-        genre
-      );
-    } else {
-      // With comment
+      // No comment provided.
       result = await addAppReview(
         clubId,
-        session?.user.id,
+        session.user.id,
         rating,
-        genre,
+        genresString,
+        text
+      );
+    } else {
+      // With comment provided.
+      result = await addAppReview(
+        clubId,
+        session.user.id,
+        rating,
+        genresString,
         text
       );
     }
@@ -63,6 +103,7 @@ const ReviewForm: React.FC<Props> = ({ clubId, onSuccess }) => {
       onSuccess();
     }
   };
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Rating:</Text>
@@ -74,20 +115,31 @@ const ReviewForm: React.FC<Props> = ({ clubId, onSuccess }) => {
         ))}
       </View>
 
-      <Text style={styles.label}>Genre:</Text>
-      <View style={styles.genreRow}>
+      <Text style={styles.label}>What kind of music is being played?</Text>
+      <ScrollView
+        style={styles.genreScrollContainer}
+        contentContainerStyle={styles.genreContainer}
+      >
         {GENRES.map((g) => (
           <TouchableOpacity
             key={g}
-            style={[styles.genreBtn, genre === g && styles.genreSel]}
-            onPress={() => setGenre(g)}
+            style={[
+              styles.genreBtn,
+              selectedGenres.includes(g) && styles.genreSel,
+            ]}
+            onPress={() => toggleGenre(g)}
           >
-            <Text style={[styles.genreTxt, genre === g && styles.genreTxtSel]}>
+            <Text
+              style={[
+                styles.genreTxt,
+                selectedGenres.includes(g) && styles.genreTxtSel,
+              ]}
+            >
               {g}
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       <Text style={styles.label}>Review (optional):</Text>
       <TextInput
@@ -113,14 +165,25 @@ const ReviewForm: React.FC<Props> = ({ clubId, onSuccess }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { marginVertical: 20 },
+  container: { marginVertical: 10 },
   label: { color: "#fff", marginBottom: 5 },
   ratingRow: { flexDirection: "row", marginBottom: 15 },
   star: { fontSize: 30, color: "#555", marginHorizontal: 5 },
   starSel: { color: "#FFD700" },
-  genreRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 15 },
+  // ScrollView that holds all genre buttons and enables vertical scrolling if needed.
+  genreScrollContainer: {
+    maxHeight: 100, // Adjust this height as needed to show approximately 2 rows.
+    marginBottom: 15,
+  },
+  // Content container that lays out the buttons with flexWrap.
+  genreContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+  },
   genreBtn: {
-    padding: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: "#333",
     borderRadius: 12,
     margin: 4,
