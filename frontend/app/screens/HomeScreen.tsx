@@ -45,6 +45,10 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [searchMode, setSearchMode] = useState(false);
 
   // Filters
   const [filterOpen, setFilterOpen] = useState(false);
@@ -53,60 +57,77 @@ export default function HomeScreen() {
     loadClubs();
   }, []);
 
-  const loadClubs = async () => {
-    const clubData = await fetchClubs();
-    setClubs(clubData);
-    setLoading(false);
+  const loadClubs = async (pageNum = 1) => {
+    try {
+      const clubData = await fetchClubs(pageNum);
+      if (pageNum === 1) {
+        setClubs(clubData);
+      } else {
+        setClubs((prevClubs) => [...prevClubs, ...clubData]);
+      }
+      setHasMore(clubData.length === 10); // Assuming pageSize is 10
+    } catch (error) {
+      console.error("Error loading clubs:", error);
+    } finally {
+      setLoading(false);
+      setIsLoadingMore(false);
+    }
   };
+
+  const loadMoreClubs = () => {
+    if (!hasMore || isLoadingMore || searchMode) return;
+    setIsLoadingMore(true);
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadClubs(nextPage);
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setPage(1);
+    setSearchMode(false);
+    await loadClubs(1);
+    setRefreshing(false);
+  }, []);
+
   const navigation = useNavigation();
+
   async function searchItems() {
     Keyboard.dismiss();
     setLoading(true);
+    setSearchMode(true);
     try {
       const clubs: types.Club[] = await searchClubsByName(query);
       setClubs(clubs);
-      console.log("Clubs:", clubs);
+      setHasMore(false); // Disable infinite scroll in search mode
     } catch (err) {
       console.error("Search error:", err);
     } finally {
       setLoading(false);
     }
   }
+
   async function handleTextChange(text: string) {
     setQuery(text);
-    if (text.length !== 0) {
-      setLoading(true);
-      try {
-        const clubData = await searchClubsByName(text);
-        setClubs(clubData);
-      } catch (error) {
-        console.error("Error fetching clubs:", error);
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      setLoading(true);
-      try {
-        const clubData = await fetchClubs();
-        setClubs(clubData);
-      } catch (error) {
-        console.error("Error fetching clubs:", error);
-      } finally {
-        setLoading(false);
-      }
+    if (text.length === 0) {
+      setSearchMode(false);
+      setPage(1);
+      await loadClubs(1);
+      return;
+    }
+
+    setLoading(true);
+    setSearchMode(true);
+    try {
+      const clubData = await searchClubsByName(text);
+      setClubs(clubData);
+      setHasMore(false); // Disable infinite scroll in search mode
+    } catch (error) {
+      console.error("Error fetching clubs:", error);
+    } finally {
+      setLoading(false);
     }
   }
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const clubData = await fetchClubs();
-      setClubs(clubData);
-    } catch (error) {
-      console.error("Error refreshing clubs:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
 
   const snapPoints = useMemo(() => ["50%"], []);
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -163,7 +184,7 @@ export default function HomeScreen() {
         Tonights <Text style={styles.Motivz}>Motivz</Text>
       </Text>
 
-      {loading ? (
+      {loading && !isLoadingMore ? (
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
         <FlatList
@@ -180,7 +201,6 @@ export default function HomeScreen() {
                   <Text style={styles.clubDetails}>
                     ⭐ {item.Rating} | {item.Tags?.join(", ")}
                   </Text>
-                  {/* Render dynamic operating hours using the 'hours' property */}
                   {item.hours && <ClubHours hours={item.hours} />}
                 </View>
               </View>
@@ -188,6 +208,17 @@ export default function HomeScreen() {
           )}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onEndReached={loadMoreClubs}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={() =>
+            isLoadingMore ? (
+              <ActivityIndicator
+                size="small"
+                color="#007AFF"
+                style={styles.loadingMore}
+              />
+            ) : null
           }
         />
       )}
@@ -298,4 +329,7 @@ const styles = StyleSheet.create({
   },
   filterRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   filterLabel: { flex: 1, color: "#fff", fontSize: 16 },
+  loadingMore: {
+    marginVertical: 20,
+  },
 });

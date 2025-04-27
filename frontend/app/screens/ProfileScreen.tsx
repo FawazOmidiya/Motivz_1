@@ -9,6 +9,7 @@ import {
   TouchableHighlight,
   RefreshControl,
   ScrollView,
+  TouchableOpacity,
 } from "react-native";
 import { Button, Text } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
@@ -20,6 +21,7 @@ import {
   fetchUserFavourites,
   fetchUserProfile,
   fetchUserFriends,
+  fetchSingleClub,
 } from "../utils/supabaseService";
 import FavouriteClub from "@/components/ClubFavourite";
 import * as types from "@/app/utils/types";
@@ -34,12 +36,9 @@ type ProfileScreenNavigationProp = NativeStackNavigationProp<
 export default function Account() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [username, setUsername] = useState("");
-  const [website, setWebsite] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
   const [favourites, setFavourites] = useState<types.Club[]>([]);
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
-  const [friends, setFriends] = useState<types.UserProfile[]>([]);
+  const [activeClub, setActiveClub] = useState<types.Club | null>(null);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
 
@@ -47,7 +46,6 @@ export default function Account() {
     if (session) {
       getProfile();
       getFavourites();
-      getFriends();
     }
   }, [session]);
 
@@ -59,6 +57,10 @@ export default function Account() {
       const data = await fetchUserProfile(session.user.id);
       if (data) {
         setProfile(data);
+        if (data.active_club_id) {
+          const club = await fetchSingleClub(data.active_club_id);
+          setActiveClub(club);
+        }
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -69,21 +71,6 @@ export default function Account() {
     }
   }
 
-  async function getFriends() {
-    try {
-      setLoading(true);
-      if (!session?.user) throw new Error("No user on the session!");
-      const data = await fetchUserFriends(session.user.id);
-      if (data) {
-        setFriends(data);
-        console.log("friends", data);
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        Alert.alert("Friends Error", error.message);
-      }
-    }
-  }
   // Pull user Favourites
   async function getFavourites() {
     try {
@@ -184,6 +171,25 @@ export default function Account() {
             </View>
           </View>
         </View>
+        {activeClub && (
+          <TouchableOpacity
+            style={styles.activeClubContainer}
+            onPress={() =>
+              navigation.navigate("ClubDetail", { club: activeClub })
+            }
+          >
+            <View style={styles.activeClubContent}>
+              <Image
+                source={{ uri: activeClub.Image }}
+                style={styles.activeClubImage}
+              />
+              <View style={styles.activeClubInfo}>
+                <Text style={styles.activeClubTitle}>Currently at</Text>
+                <Text style={styles.activeClubName}>{activeClub.Name}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
       <Text style={styles.sectionTitle}>Favourites</Text>
     </View>
@@ -250,7 +256,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   signOutButton: {
-    backgroundColor: Constants.purpleCOLOR,
+    backgroundColor: Constants.redCOLOR,
     borderRadius: 8,
     height: 40,
     padding: 0,
@@ -335,5 +341,35 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     height: 40,
     padding: 0,
+  },
+  activeClubContainer: {
+    marginTop: 20,
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 12,
+    padding: 12,
+    width: "100%",
+  },
+  activeClubContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  activeClubImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  activeClubInfo: {
+    flex: 1,
+  },
+  activeClubTitle: {
+    color: Constants.whiteCOLOR,
+    opacity: 0.7,
+    fontSize: 12,
+  },
+  activeClubName: {
+    color: Constants.whiteCOLOR,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

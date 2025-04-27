@@ -7,25 +7,35 @@ import {
   Image,
   RefreshControl,
   ScrollView,
+  TouchableOpacity,
 } from "react-native";
 import { Text } from "@rneui/themed";
-import { useRoute } from "@react-navigation/native";
-import { fetchUserFavourites } from "../utils/supabaseService";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import { fetchUserFavourites, fetchSingleClub } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import FavouriteClub from "@/components/ClubFavourite";
 import BackButton from "@/components/BackButton";
 import FriendButton from "@/components/FriendButton"; // Import your FriendButton component
 import { useSession } from "@/components/SessionContext";
 import * as Constants from "@/constants/Constants";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../navigation/Navigation";
+
+type UserProfileScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "ClubDetail"
+>;
 
 export default function UserProfileScreen() {
   // Assume the user profile is passed via route params:
   const route = useRoute();
   const { user } = route.params as { user: types.UserProfile };
   const session = useSession();
+  const navigation = useNavigation<UserProfileScreenNavigationProp>();
   const [favourites, setFavourites] = useState<types.Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeClub, setActiveClub] = useState<types.Club | null>(null);
 
   // Fetch favourites when the screen mounts or when the user changes.
   const loadFavourites = useCallback(async () => {
@@ -47,7 +57,12 @@ export default function UserProfileScreen() {
 
   useEffect(() => {
     loadFavourites();
-  }, [loadFavourites]);
+    if (user.active_club_id) {
+      fetchSingleClub(user.active_club_id)
+        .then((club) => setActiveClub(club))
+        .catch((error) => console.error("Error fetching active club:", error));
+    }
+  }, [loadFavourites, user.active_club_id]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -90,6 +105,25 @@ export default function UserProfileScreen() {
         {/* Only show friend button if current user is not viewing their own profile */}
         {session?.user.id && session.user.id !== user.id && (
           <FriendButton targetUserId={user.id} />
+        )}
+        {activeClub && (
+          <TouchableOpacity
+            style={styles.activeClubContainer}
+            onPress={() =>
+              navigation.navigate("ClubDetail", { club: activeClub })
+            }
+          >
+            <View style={styles.activeClubContent}>
+              <Image
+                source={{ uri: activeClub.Image }}
+                style={styles.activeClubImage}
+              />
+              <View style={styles.activeClubInfo}>
+                <Text style={styles.activeClubTitle}>Currently at</Text>
+                <Text style={styles.activeClubName}>{activeClub.Name}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         )}
       </View>
       <Text style={styles.sectionTitle}>Favourites</Text>
@@ -200,5 +234,35 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 16,
     color: "gray",
+  },
+  activeClubContainer: {
+    marginTop: 20,
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 12,
+    padding: 12,
+    width: "100%",
+  },
+  activeClubContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  activeClubImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  activeClubInfo: {
+    flex: 1,
+  },
+  activeClubTitle: {
+    color: Constants.whiteCOLOR,
+    opacity: 0.7,
+    fontSize: 12,
+  },
+  activeClubName: {
+    color: Constants.whiteCOLOR,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

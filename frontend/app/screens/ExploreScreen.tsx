@@ -44,11 +44,6 @@ export default function SearchScreen() {
     }
   }
 
-  useEffect(() => {
-    // Optionally, you can trigger a search on component mount or whenever `searchType` changes
-    // searchItems();
-  }, []);
-
   async function searchItems() {
     // Hide keyboard once search starts
     Keyboard.dismiss();

@@ -20,6 +20,7 @@ import {
   removeClubFromFavourites,
   fetchClubMusicSchedules,
   updateUserActiveClub,
+  fetchClubAppReviews,
 } from "../utils/supabaseService";
 import { Button } from "@rneui/themed";
 import { useSession, useProfile } from "@/components/SessionContext";
@@ -36,6 +37,7 @@ export default function ClubDetailScreen() {
   const route = useRoute();
   const { club } = route.params as { club: types.Club };
   const [events, setEvents] = useState<any>([]);
+  const [musicSchedule, setMusicSchedule] = useState<String[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
   const session = useSession();
@@ -138,20 +140,25 @@ export default function ClubDetailScreen() {
     setIsGoing(!isGoing);
     await updateUserActiveClub(session.user.id, club_id);
   };
-  const getMusicSchedule = async () => {
-    const todayNumber = new Date().getDay();
 
+  const getMusicSchedule = async () => {
+    if (!club.hours) return;
+    const [periods] = getTodaysHours(club.hours, new Date());
+    console.log("Periods:", periods);
+    if (!periods || typeof periods === "string") return;
+
+    const todayNumber = periods.open.day;
     const musicData = await fetchClubMusicSchedules(club.id, todayNumber);
     if (musicData === null) return; // Explicit null check to narrow the type
-
     const entries = Object.entries(musicData);
     const genreEntries = Object.entries(musicData).filter(
       ([key, value]) => typeof value === "number"
     );
     genreEntries.sort((a, b) => Number(b[1]) - Number(a[1]));
 
-    console.log("Music schedule:", genreEntries.slice(0, 3));
+    setMusicSchedule(genreEntries.slice(0, 3).map(([key]) => key));
   };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -174,14 +181,7 @@ export default function ClubDetailScreen() {
         )}
       </View>
       <Image source={{ uri: club.Image }} style={styles.clubBanner} />
-      {/* <Button
-        title="Get Music Schedule"
-        buttonStyle={{
-          backgroundColor: Constants.purpleCOLOR,
-        }}
-        containerStyle={styles.buttonContainer}
-        onPress={getMusicSchedule}
-      /> */}
+
       <View style={styles.buttonContainer}>
         {/* Rate this club button */}
         <TouchableOpacity
@@ -203,6 +203,11 @@ export default function ClubDetailScreen() {
       {/* Tags */}
       <Text style={styles.sectionTitle}>Vibes:</Text>
       <View style={styles.tagsContainer}>
+        {musicSchedule?.map((genre: string, index: number) => (
+          <View key={index} style={styles.tag}>
+            <Text style={styles.tagText}>{genre}</Text>
+          </View>
+        ))}
         {club.Tags?.map((tag: any, index: number) => (
           <View key={index} style={styles.tag}>
             <Text style={styles.tagText}>{tag}</Text>
@@ -211,7 +216,9 @@ export default function ClubDetailScreen() {
       </View>
       {/* Operating Hours */}
       {club.hours && (
-        <Text style={styles.hoursText}>{getTodaysHours(club.hours)}</Text>
+        <Text style={styles.hoursText}>
+          {getTodaysHours(club.hours, new Date())[1]?.toString()}
+        </Text>
       )}
       {/* Toggle Tabs */}
       <View style={styles.toggleContainer}>
@@ -428,5 +435,39 @@ const styles = StyleSheet.create({
   closeText: {
     color: "#007AFF",
     fontSize: 16,
+  },
+  scheduleContainer: {
+    padding: 15,
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 10,
+    marginVertical: 10,
+  },
+  scheduleTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+    marginBottom: 10,
+  },
+  genresContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 10,
+  },
+  genreTag: {
+    backgroundColor: Constants.purpleCOLOR,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  genreText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+  },
+  scheduleTime: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    opacity: 0.8,
   },
 });
