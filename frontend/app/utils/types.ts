@@ -7,9 +7,10 @@ export type Club = {
   latitude: number;
   longitude: number;
   Rating: number;
-  Tags: string[];
+  Tags?: string[];
   Address: string;
-  hours: RegularOpeningHours;
+  hours?: RegularOpeningHours;
+  music_schedule?: musicGenres;
 };
 
 export type UserProfile = {
@@ -84,11 +85,17 @@ export interface AppReview {
 }
 
 export interface musicGenres {
+  id: string;
+  club_id: string;
+  day_of_week: number;
+  genres: string[];
+  start_time: string;
+  end_time: string;
+  Rap?: number;
   HipHop?: number;
   Rock?: number;
   Pop?: number;
   Jazz?: number;
-  Classical?: number;
   EDM?: number;
   Country?: number;
   Reggae?: number;
@@ -97,6 +104,7 @@ export interface musicGenres {
   Soul?: number;
   Latin?: number;
   Afrobeats?: number;
+  DanceHall?: number;
 }
 
 export type LocationCoords = {

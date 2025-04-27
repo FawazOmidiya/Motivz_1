@@ -20,17 +20,26 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 // Storage for image handling
 export const storage = supabase.storage.from("avatars");
 /**
- * Fetches all clubs from the Supabase database.
+ * Fetches clubs from the Supabase database with pagination.
+ * @param page The page number to fetch (1-based)
+ * @param pageSize The number of items per page (default: 10)
  */
-export const fetchClubs = async () => {
+export const fetchClubs = async (page: number = 1, pageSize: number = 10) => {
   try {
-    const { data, error } = await supabase.from("Clubs").select("*");
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error } = await supabase
+      .from("Clubs")
+      .select("*")
+      .range(from, to)
+      .order("Name");
 
     if (error) {
       throw new Error(error.message);
     }
 
-    return data;
+    return data || [];
   } catch (error) {
     console.error("Error fetching clubs:", error);
     return [];
@@ -442,13 +451,58 @@ export function isClubOpenDynamic(hours: types.RegularOpeningHours): boolean {
  * [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday].
  * JavaScript's getDay() returns 0 for Sunday, 1 for Monday, etc.
  */
-export function getTodaysHours(hours: types.RegularOpeningHours): string {
-  if (hours.weekdayDescriptions && hours.weekdayDescriptions.length === 7) {
-    const currentDay = new Date().getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
-    const index = currentDay === 0 ? 6 : currentDay - 1; // Map Sunday (0) to index 6
-    return hours.weekdayDescriptions[index];
+export function getTodaysHours(hours: types.RegularOpeningHours, date: Date) {
+  const currentDay = date.getDay();
+  const currentMinutes = date.getHours() * 60 + date.getMinutes();
+
+  // Helper function to convert day and time to minutes
+  const toMinutes = (day: number, hour: number, minute: number) =>
+    ((day + 7) % 7) * 24 * 60 + hour * 60 + minute;
+
+  // Find the period that matches the given date
+  for (const period of hours.periods || []) {
+    let openMinutes = toMinutes(
+      period.open.day,
+      period.open.hour,
+      period.open.minute
+    );
+    let closeMinutes = toMinutes(
+      period.close.day,
+      period.close.hour,
+      period.close.minute
+    );
+    let currentTotalMinutes = toMinutes(
+      currentDay,
+      date.getHours(),
+      date.getMinutes()
+    );
+
+    if (currentTotalMinutes < openMinutes && currentDay === period.open.day) {
+      const weekdayIndex = (period.open.day + 6) % 7;
+      const weekdayDescription =
+        hours.weekdayDescriptions?.[weekdayIndex] || "";
+      return [period, weekdayDescription];
+    }
+    if (
+      openMinutes <= currentTotalMinutes &&
+      currentTotalMinutes <= closeMinutes
+    ) {
+      // Find the corresponding weekday description
+      const weekdayIndex = (period.open.day + 6) % 7;
+      const weekdayDescription =
+        hours.weekdayDescriptions?.[weekdayIndex] || "";
+      return [period, weekdayDescription];
+    }
+    if (closeMinutes < openMinutes && openMinutes < currentTotalMinutes) {
+      const weekdayIndex = (period.open.day + 6) % 7;
+      const weekdayDescription =
+        hours.weekdayDescriptions?.[weekdayIndex] || "";
+      return [period, weekdayDescription];
+    }
   }
-  return "";
+
+  // If no matching period is found
+  return [null, "Closed"];
 }
 
 export async function fetchClubGoogleReviews(
@@ -556,7 +610,6 @@ export async function fetchClubMusicSchedules(
     .single();
 
   if (error) {
-    console.error("Error fetching music counts:", error);
     return null;
   }
 
@@ -582,7 +635,13 @@ export async function fetchUserFriends(
           username,
           avatar_url,
           first_name,
-          last_name
+          last_name,
+          active_club_id,
+          active_club:Clubs!active_club_id (
+            id,
+            Name,
+            Image
+          )
         )
       `
       )
@@ -603,13 +662,13 @@ export async function fetchUserFriends(
           username,
           avatar_url,
           first_name,
-          last_name, 
+          last_name,
           active_club_id,
           active_club:Clubs!active_club_id (
             id,
             Name,
             Image
-          ) 
+          )
         )
       `
       )
