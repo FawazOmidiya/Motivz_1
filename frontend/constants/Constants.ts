@@ -8,6 +8,7 @@ export const blackCOLOR = "#000000";
 export const whiteCOLOR = "#FFFFFF";
 export const purpleCOLOR = "#BC13FE";
 export const greyCOLOR = "#808080";
+export const redCOLOR = "#FF0000";
 
 export const backgroundCOLOR = blackCOLOR;
 export const tabCOLOR_ACTIVE = purpleCOLOR;
