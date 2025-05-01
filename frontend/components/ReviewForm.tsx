@@ -12,6 +12,7 @@ import {
 import { useSession } from "@/components/SessionContext";
 import { addAppReview, addAppReviewSimple } from "@/app/utils/supabaseService";
 import { useNavigation } from "@react-navigation/native";
+import * as Constants from "@/constants/Constants";
 
 const GENRES = [
   "EDM",
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     margin: 4,
   },
-  genreSel: { backgroundColor: "#007AFF" },
+  genreSel: { backgroundColor: Constants.purpleCOLOR },
   genreTxt: { color: "#fff" },
   genreTxtSel: { fontWeight: "bold" },
   textInput: {
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   submitBtn: {
-    backgroundColor: "#007AFF",
+    backgroundColor: Constants.purpleCOLOR,
     padding: 15,
     borderRadius: 8,
     alignItems: "center",

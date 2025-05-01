@@ -1,8 +1,12 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import {
+  createBottomTabNavigator,
+  BottomTabScreenProps,
+} from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
+import { RouteProp } from "@react-navigation/native";
 
 import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
@@ -73,8 +77,12 @@ function ProfileStackScreen() {
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ color, size }) => {
+      screenOptions={({
+        route,
+      }: {
+        route: RouteProp<types.RootTabParamList, keyof types.RootTabParamList>;
+      }) => ({
+        tabBarIcon: ({ color, size }: { color: string; size: number }) => {
           let iconName = "";
           if (route.name === "Home") iconName = "home-outline";
           else if (route.name === "Explore") iconName = "search-outline";
@@ -114,7 +122,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <NavigationContainer>
+    <>
       {session && session.user ? (
         <SessionProvider>
           <SafeAreaView style={styles.safeArea}>
@@ -125,7 +133,7 @@ export default function RootLayout() {
       ) : (
         <AuthNavigator />
       )}
-    </NavigationContainer>
+    </>
   );
 }
 

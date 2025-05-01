@@ -1,0 +1,208 @@
+[
+  {
+    "id": "ChIJv5nrK_c0K4gRr9tO9VfJE8g",
+    "name": "Revival Event Venue",
+    "genres_by_day": {
+      "Sunday": [],
+      "Monday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJV9Tj99A0K4gRvVWQ-EOOPaw",
+    "name": "Venus Night Club",
+    "genres_by_day": {
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJVw9tTAA1K4gRqfeb19CS2cg",
+    "name": "Future",
+    "genres_by_day": {
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJvywkbX7L1IkRQ-qfFBF6HX0",
+    "name": "Penthouse 17",
+    "genres_by_day": {
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJWwoxTLQ0K4gRgP1GEP8jLxw",
+    "name": "Roof Top",
+    "genres_by_day": {
+      "Sunday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJWZiKLmQ1K4gRTohnty7oKUs",
+    "name": "Clockwork Champagne & Cocktails",
+    "genres_by_day": {
+      "Sunday": [],
+      "Monday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJX3r9Qrs0K4gR1XZePI0nty0",
+    "name": "Proof Bar & Patio",
+    "genres_by_day": {
+      "Sunday": [],
+      "Monday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJXbn8Q0XL1IkRATbK6Kitqc0",
+    "name": "Planet Paradise",
+    "genres_by_day": {
+      "Sunday": [],
+      "Monday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJxc_7MpI0K4gR_CxjHVsdwGA",
+    "name": "Coda",
+    "genres_by_day": {}
+  },
+  {
+    "id": "ChIJXQ3fe5M1K4gRhuy9ctns_Qc",
+    "name": "Aitch Toronto",
+    "genres_by_day": {
+      "Sunday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJXXzXIPw1K4gRIaRd5fnk1pQ",
+    "name": "After Seven",
+    "genres_by_day": {
+      "Sunday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJy0Gm88I0K4gRFgbnlHv38C0",
+    "name": "Handlebar",
+    "genres_by_day": {
+      "Sunday": [],
+      "Monday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJY0mDKPE0K4gRY3Heskq3Yao",
+    "name": "The Mod Club",
+    "genres_by_day": {
+      "Sunday": [],
+      "Monday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJySjGnBI1K4gR3lmQ6CdtL4c",
+    "name": "Big Trouble",
+    "genres_by_day": {
+      "Sunday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJyxnZ2B7L1IkRtNxEmWo9_P8",
+    "name": "Cabana Poolbar",
+    "genres_by_day": {
+      "Sunday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJyYDE54o1K4gRLSNape49O1k",
+    "name": "Top Toronto Clubs",
+    "genres_by_day": {
+      "Sunday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJYZyhJr81K4gRn0CZ5Snk56M",
+    "name": "Cloud Six Shisha Lounge",
+    "genres_by_day": {
+      "Sunday": [],
+      "Monday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJZ8TO4kc1K4gRL6bmU2C2gsI",
+    "name": "Casablanca Lounge & Event Venue",
+    "genres_by_day": {
+      "Friday": [],
+      "Saturday": []
+    }
+  },
+  {
+    "id": "ChIJZwbJIEY1K4gRbkaK6Ycu4uE",
+    "name": "Ultraviolet",
+    "genres_by_day": {}
+  },
+  {
+    "id": "ChIJzXrOjd40K4gRGOnZK_uJpZE",
+    "name": "Century",
+    "genres_by_day": {
+      "Friday": [],
+      "Saturday": []
+    }
+  }
+]

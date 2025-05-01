@@ -24,15 +24,11 @@ export const storage = supabase.storage.from("avatars");
  * @param page The page number to fetch (1-based)
  * @param pageSize The number of items per page (default: 10)
  */
-export const fetchClubs = async (page: number = 1, pageSize: number = 10) => {
+export const fetchClubs = async () => {
   try {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
     const { data, error } = await supabase
       .from("Clubs")
       .select("*")
-      .range(from, to)
       .order("Name");
 
     if (error) {

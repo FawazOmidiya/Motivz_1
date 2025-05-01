@@ -60,7 +60,7 @@ def insert_club(club_data):
     else:
         print("No reviews found in the details.")
 
-def search_clubs():
+def search_clubs(searchInput: str):
     """
     Searches for nightclubs in Toronto using the Google Places API with pagination.
     Returns a list of club records.
@@ -71,7 +71,6 @@ def search_clubs():
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.regularOpeningHours,places.photos,nextPageToken",
     }
-    searchInput = "Nightclubs, nightlife, and Lounges in Calgary"
     # Initial payload using the text query.
     payload = {
         "textQuery": searchInput,
@@ -179,7 +178,9 @@ def populate_club_google_reviews(club_id: str, reviews: list) -> dict:
 
 
 def main():
-    clubs = search_clubs()
+    searchInput = "Toop Lounge Toronto"
+
+    clubs = search_clubs(searchInput)
     # print(clubs[0])
     print(f"Total clubs found: {len(clubs)}")
     for club_data in clubs:
@@ -187,7 +188,7 @@ def main():
     try:
         # Fetch detailed information for the club using its place id.
         details = fetch_place_details("ChIJSRmVLjXL1IkRQHFvgpujO7Y")
-        print(f"Fetched details for place ID: {details}")
+        # print(f"Fetched details for place ID: {details}")
     except Exception as e:
         print(f"Error fetching details for club: {e}")
     
