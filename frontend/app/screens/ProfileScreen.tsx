@@ -10,6 +10,8 @@ import {
   RefreshControl,
   ScrollView,
   TouchableOpacity,
+  Modal,
+  StatusBar,
 } from "react-native";
 import { Button, Text } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
@@ -27,6 +29,7 @@ import FavouriteClub from "@/components/ClubFavourite";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -39,6 +42,7 @@ export default function Account() {
   const [favourites, setFavourites] = useState<types.Club[]>([]);
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
   const [activeClub, setActiveClub] = useState<types.Club | null>(null);
+  const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
 
@@ -112,17 +116,26 @@ export default function Account() {
   }
   const ListHeaderComponent = () => (
     <View>
+      <LinearGradient
+        colors={["rgba(0,0,0,0.7)", "transparent"]}
+        style={styles.headerGradient}
+      />
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={styles.placeholderAvatar}>
-              <Text style={styles.avatarInitial}>
-                {profile?.first_name?.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
+          <TouchableOpacity onPress={() => setIsImageModalVisible(true)}>
+            {profile?.avatar_url ? (
+              <Image
+                source={{ uri: profile.avatar_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={styles.placeholderAvatar}>
+                <Text style={styles.avatarInitial}>
+                  {profile?.first_name?.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
         <Text style={styles.username}>{profile?.username}</Text>
         <View style={styles.profileButtonsContainer}>
@@ -132,42 +145,36 @@ export default function Account() {
               <Text style={styles.lastName}>{profile?.last_name}</Text>
             </View>
             <View style={styles.buttonsRow}>
-              <Button
-                icon={
-                  <Ionicons
-                    name="log-out-outline"
-                    size={24}
-                    color={Constants.whiteCOLOR}
-                  />
-                }
-                onPress={handleSignOut}
-                buttonStyle={styles.signOutButton}
-                type="clear"
-              />
-              <Button
-                icon={
-                  <Ionicons
-                    name="settings-outline"
-                    size={24}
-                    color={Constants.whiteCOLOR}
-                  />
-                }
-                onPress={() => navigation.navigate("ProfileSettings")}
-                buttonStyle={styles.editProfileButton}
-                type="clear"
-              />
-              <Button
-                icon={
-                  <Ionicons
-                    name="people-outline"
-                    size={24}
-                    color={Constants.whiteCOLOR}
-                  />
-                }
+              <TouchableOpacity
+                style={styles.iconButton}
                 onPress={() => navigation.navigate("FriendsList")}
-                buttonStyle={styles.followersBtn}
-                type="clear"
-              />
+              >
+                <Ionicons
+                  name="people-outline"
+                  size={24}
+                  color={Constants.whiteCOLOR}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => navigation.navigate("ProfileSettings")}
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={24}
+                  color={Constants.whiteCOLOR}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={handleSignOut}
+              >
+                <Ionicons
+                  name="log-out-outline"
+                  size={24}
+                  color={Constants.whiteCOLOR}
+                />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -197,6 +204,35 @@ export default function Account() {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <Modal
+        visible={isImageModalVisible}
+        transparent={true}
+        onRequestClose={() => setIsImageModalVisible(false)}
+        animationType="fade"
+      >
+        <TouchableOpacity
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPress={() => setIsImageModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            {profile?.avatar_url ? (
+              <Image
+                source={{ uri: profile.avatar_url }}
+                style={styles.modalImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={styles.modalPlaceholder}>
+                <Text style={styles.modalPlaceholderText}>
+                  {profile?.first_name?.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
       {/* Favourites Section */}
       <FlatList
         data={favourites}
@@ -219,22 +255,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Constants.backgroundCOLOR,
   },
-  // Header styles
+  headerGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    zIndex: 1,
+  },
   header: {
     paddingVertical: 20,
     paddingHorizontal: 20,
     backgroundColor: Constants.backgroundCOLOR,
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: Constants.greyCOLOR,
+    zIndex: 2,
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     overflow: "hidden",
-    backgroundColor: "#ccc",
-    marginBottom: 10,
+    backgroundColor: Constants.greyCOLOR,
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: Constants.purpleCOLOR,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   avatar: {
     width: "100%",
@@ -246,107 +298,98 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarInitial: {
-    fontSize: 40,
-    color: "#fff",
+    fontSize: 48,
+    color: Constants.whiteCOLOR,
+    fontWeight: "600",
   },
   username: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 10,
-    color: "#fff",
-  },
-  signOutButton: {
-    backgroundColor: Constants.redCOLOR,
-    borderRadius: 8,
-    height: 40,
-    padding: 0,
-  },
-  signOutContainer: {
-    marginTop: 10,
-    width: 120,
-  },
-  editProfileButton: {
-    backgroundColor: Constants.greyCOLOR,
-    borderRadius: 8,
-    height: 40,
-    padding: 0,
-  },
-  // Favourites styles
-
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 10,
-    color: "#fff",
-    paddingHorizontal: 20,
-  },
-  favouritesList: {
-    justifyContent: "space-between",
-  },
-  favouritesRow: {
-    justifyContent: "space-between",
-    marginBottom: 10,
-    paddingHorizontal: 20,
-  },
-  favouriteItem: {
-    backgroundColor: "#f0f0f0",
-    borderRadius: 12,
-    padding: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-    flex: 1,
-    marginHorizontal: 5,
-    width: 180,
-  },
-  favouriteImage: {
-    width: 160,
-    height: 120,
-    resizeMode: "cover",
-    borderRadius: 12,
-    marginBottom: 5,
-  },
-  favouriteTitle: {
-    fontSize: 14,
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: Constants.whiteCOLOR,
   },
   profileButtonsContainer: {
     width: "100%",
     paddingHorizontal: 20,
-    marginTop: 10,
+    marginTop: 16,
   },
   nameAndButtonsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    padding: 16,
+    borderRadius: 12,
   },
   nameContainer: {
     flex: 1,
   },
   firstName: {
     color: Constants.whiteCOLOR,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
   },
   lastName: {
     color: Constants.whiteCOLOR,
-    fontSize: 16,
+    fontSize: 18,
     opacity: 0.8,
   },
   buttonsRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 12,
   },
-  followersBtn: {
-    backgroundColor: Constants.greyCOLOR,
-    borderRadius: 8,
+  iconButton: {
+    width: 40,
     height: 40,
-    padding: 0,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 16,
+    color: Constants.whiteCOLOR,
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  favouritesList: {
+    paddingBottom: 20,
+  },
+  favouritesRow: {
+    justifyContent: "space-between",
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  favouriteItem: {
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 16,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    flex: 1,
+    marginHorizontal: 8,
+    width: "45%",
+  },
+  favouriteImage: {
+    width: "100%",
+    height: 120,
+    resizeMode: "cover",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  favouriteTitle: {
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    fontWeight: "600",
   },
   activeClubContainer: {
     marginTop: 20,
-    backgroundColor: Constants.greyCOLOR,
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 16,
+    padding: 16,
     width: "100%",
   },
   activeClubContent: {
@@ -354,10 +397,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   activeClubImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    marginRight: 16,
   },
   activeClubInfo: {
     flex: 1,
@@ -365,11 +408,40 @@ const styles = StyleSheet.create({
   activeClubTitle: {
     color: Constants.whiteCOLOR,
     opacity: 0.7,
-    fontSize: 12,
+    fontSize: 14,
+    marginBottom: 4,
   },
   activeClubName: {
     color: Constants.whiteCOLOR,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    height: "90%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalImage: {
+    width: "100%",
+    height: "100%",
+  },
+  modalPlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalPlaceholderText: {
+    fontSize: 80,
+    color: Constants.whiteCOLOR,
   },
 });

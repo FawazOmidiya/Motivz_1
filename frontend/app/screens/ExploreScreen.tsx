@@ -101,7 +101,7 @@ export default function SearchScreen() {
         <View style={styles.searchBar}>
           <TextInput
             style={styles.searchInput}
-            placeholder={"Search Users..."}
+            placeholder={"Find Friends..."}
             value={query}
             onChangeText={handleTextChange}
             onSubmitEditing={searchItems}
@@ -134,7 +134,8 @@ export default function SearchScreen() {
         {/* Results List */}
         {results.length === 0 ? (
           <View style={styles.centeredContainer}>
-            <Text style={styles.centeredText}>Coming Soon...</Text>
+            <Text style={styles.centeredText}>Explore Page Coming Soon...</Text>
+            <Text style={styles.centeredText}>Find your friends above</Text>
           </View>
         ) : loading ? (
           <ActivityIndicator size="large" style={{ marginTop: 20 }} />
