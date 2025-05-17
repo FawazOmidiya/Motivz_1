@@ -10,6 +10,7 @@ import {
   TextInput,
   Keyboard,
   TouchableWithoutFeedback,
+  FlatList,
 } from "react-native";
 import MapView, {
   Marker,
@@ -26,6 +27,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Constants from "@/constants/Constants";
+import * as types from "@/app/utils/types";
 import { LinearGradient } from "expo-linear-gradient";
 
 type LocationCoords = {
@@ -49,6 +51,7 @@ export default function MapScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [region, setRegion] = useState<Region | null>(null);
   const [clubs, setClubs] = useState<Club[]>([]);
+  const [queriedClubs, setQueriedClubs] = useState<Club[]>([]);
   const navigation = useNavigation();
   const mapRef = useRef<MapView>(null);
   // Create a ref to store the debounce timeout ID
@@ -120,39 +123,8 @@ export default function MapScreen() {
     Keyboard.dismiss();
     setIsSearching(true);
     try {
-      // First try to search for clubs by name
       const searchedClubs = await searchClubsByName(searchQuery);
-      if (searchedClubs.length > 0) {
-        // Center map on the first result
-        if (searchedClubs[0]) {
-          const newRegion: Region = {
-            latitude: searchedClubs[0].latitude,
-            longitude: searchedClubs[0].longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          };
-          mapRef.current?.animateToRegion(newRegion, 1000);
-          setRegion(newRegion);
-        }
-      } else {
-        // If no clubs found, try to search for the location
-        const coordinates = await getCoordinatesFromAddress(searchQuery);
-        if (coordinates) {
-          const newRegion: Region = {
-            latitude: coordinates.latitude,
-            longitude: coordinates.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          };
-          mapRef.current?.animateToRegion(newRegion, 1000);
-          setRegion(newRegion);
-        } else {
-          Alert.alert(
-            "No Results",
-            "No clubs or locations found matching your search."
-          );
-        }
-      }
+      setQueriedClubs(searchedClubs.slice(0, 3));
     } catch (error) {
       console.error("Search error:", error);
       Alert.alert("Error", "An error occurred while searching.");
@@ -161,6 +133,43 @@ export default function MapScreen() {
     }
   };
 
+  const queryClub = async (text: string) => {
+    setSearchQuery(text);
+    if (text.length > 0) {
+      setIsSearching(true);
+      try {
+        const searchedClubs = await searchClubsByName(text);
+        setQueriedClubs(searchedClubs.slice(0, 3));
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    } else {
+      setQueriedClubs([]);
+    }
+  };
+
+  function renderItem({ item }: { item: types.Club }) {
+    const newRegion: Region = {
+      latitude: item.latitude,
+      longitude: item.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
+    const moveToClub = () => {
+      mapRef.current?.animateToRegion(newRegion, 1000);
+      setRegion(newRegion);
+      setQueriedClubs([]);
+    };
+    return (
+      <TouchableOpacity onPress={moveToClub}>
+        <View>
+          <Text style={{ color: Constants.whiteCOLOR }}>{item.Name}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
@@ -181,7 +190,7 @@ export default function MapScreen() {
                   placeholder="Search clubs or locations..."
                   placeholderTextColor="rgba(255,255,255,0.5)"
                   value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  onChangeText={queryClub}
                   onSubmitEditing={handleSearch}
                   returnKeyType="search"
                 />
@@ -195,14 +204,24 @@ export default function MapScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+              {queriedClubs.length > 0 && (
+                <View style={styles.searchResultContainer}>
+                  <FlatList
+                    data={queriedClubs}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => item.id.toString()}
+                    style={styles.searchResultsList}
+                  />
+                </View>
+              )}
             </View>
             <MapView
               ref={mapRef}
               style={styles.map}
               region={
                 region ?? {
-                  latitude: 37.7749,
-                  longitude: -122.4194,
+                  latitude: 43.6548,
+                  longitude: 79.3883,
                   latitudeDelta: 0.01,
                   longitudeDelta: 0.01,
                 }
@@ -281,6 +300,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 45,
+    marginBottom: 4,
   },
   searchIcon: {
     marginRight: 8,
@@ -377,5 +397,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     elevation: 2,
+  },
+  searchResultContainer: {
+    backgroundColor: Constants.blackCOLOR,
+    borderRadius: 12,
+    marginTop: 4,
+    maxHeight: 200,
+  },
+  searchResultsList: {
+    padding: 8,
   },
 });

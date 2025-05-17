@@ -1,13 +1,12 @@
 {
   "expo": {
     "name": "Motivz",
-    "slug": "motivz",
-    "version": "1.0.5",
+    "slug": "frontend",
+    "version": "1.1.1",
     "orientation": "portrait",
-    "icon": "./assets/images/Mobile-Application-Blue-Icon-Transparent-PNG.png",
-    "scheme": "myapp",
+    "icon": "./assets/images/appstore.png",
+    "scheme": "motivz",
     "userInterfaceStyle": "automatic",
-    "jsEngine": "jsc",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,

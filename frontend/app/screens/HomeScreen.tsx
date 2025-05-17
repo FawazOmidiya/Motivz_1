@@ -102,7 +102,7 @@ export default function HomeScreen() {
 
   const loadClubs = async (pageNum = 1) => {
     try {
-      const clubData = await fetchClubs(pageNum);
+      const clubData = await fetchClubs();
       if (pageNum === 1) {
         setClubs(clubData);
         // Fetch music schedules for all clubs
