@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -13,7 +13,7 @@ import {
   Modal,
   StatusBar,
 } from "react-native";
-import { Button, Text } from "@rneui/themed";
+import { Button, Text, Input } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
@@ -24,17 +24,106 @@ import {
   fetchUserProfile,
   fetchUserFriends,
   fetchSingleClub,
+  supabase,
 } from "../utils/supabaseService";
 import FavouriteClub from "@/components/ClubFavourite";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
+import { uploadPost, fetchUserPosts, deletePost } from "../utils/postService";
+import { decode } from "base64-arraybuffer";
+import { Video } from "expo-av";
+import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 
-type ProfileScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "Profile"
->;
+type ProfileScreenNavigationProp =
+  NativeStackNavigationProp<RootStackParamList>;
+
+function CameraModal({
+  visible,
+  onClose,
+  onCapture,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCapture: (photo: any) => void;
+}) {
+  const cameraRef = useRef<any>(null);
+  const [facing, setFacing] = useState<CameraType>("back");
+  const [permission, requestPermission] = useCameraPermissions();
+
+  if (!permission) return <View />;
+  if (!permission.granted) {
+    return (
+      <Modal visible={visible} animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "black",
+          }}
+        >
+          <Text style={{ color: "white", marginBottom: 20 }}>
+            We need your permission to show the camera
+          </Text>
+          <TouchableOpacity
+            onPress={requestPermission}
+            style={{ backgroundColor: "white", padding: 16, borderRadius: 8 }}
+          >
+            <Text>Grant Permission</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={{ marginTop: 20 }}>
+            <Text style={{ color: "white" }}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide">
+      <CameraView style={{ flex: 1 }} facing={facing} ref={cameraRef}>
+        <View
+          style={{ flex: 1, justifyContent: "flex-end", alignItems: "center" }}
+        >
+          <TouchableOpacity
+            onPress={async () => {
+              if (cameraRef.current) {
+                const photo = await cameraRef.current.takePhotoAsync({
+                  base64: true,
+                });
+                onCapture(photo);
+                onClose();
+              }
+            }}
+            style={{
+              marginBottom: 40,
+              backgroundColor: "white",
+              padding: 20,
+              borderRadius: 50,
+            }}
+          >
+            <Text>Capture</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setFacing(facing === "back" ? "front" : "back")}
+            style={{ position: "absolute", top: 40, left: 20 }}
+          >
+            <Text style={{ color: "white", fontSize: 18 }}>Flip</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onClose}
+            style={{ position: "absolute", top: 40, right: 20 }}
+          >
+            <Text style={{ color: "white", fontSize: 18 }}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </CameraView>
+    </Modal>
+  );
+}
 
 export default function Account() {
   const [loading, setLoading] = useState(true);
@@ -43,8 +132,20 @@ export default function Account() {
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
   const [activeClub, setActiveClub] = useState<types.Club | null>(null);
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
+  const [posts, setPosts] = useState<types.Post[]>([]);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [pickedAsset, setPickedAsset] = useState<any>(null);
+  const [caption, setCaption] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<{
+    url: string;
+    type: "photo" | "video";
+  } | null>(null);
+  const [mediaModalVisible, setMediaModalVisible] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
   useEffect(() => {
     if (session) {
@@ -52,6 +153,12 @@ export default function Account() {
       getFavourites();
     }
   }, [session]);
+
+  useEffect(() => {
+    if (profile?.id) {
+      fetchUserPosts(profile.id).then(setPosts);
+    }
+  }, [profile]);
 
   async function getProfile() {
     try {
@@ -114,6 +221,177 @@ export default function Account() {
       }
     }
   }
+
+  const handleCaptureMoment = async () => {
+    Alert.alert("Add Media", "Choose an option", [
+      {
+        text: "Take Photo or Video",
+        onPress: async () => {
+          // Request camera permissions first
+          if (permission?.status !== "granted") {
+            Alert.alert("Camera permission is required!");
+            return;
+          }
+          setShowCameraModal(true);
+          console.log("Camera modal shown", showCameraModal);
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: async () => {
+          // Request media library permissions first
+          const { status } =
+            await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert("Media library permission is required!");
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ["images", "videos"],
+            allowsEditing: true,
+            quality: 0.8,
+            base64: true, // only works for images
+          });
+          Alert.alert("Result", JSON.stringify(result));
+          if (!result.canceled && result.assets && result.assets[0].uri) {
+            setPickedAsset(result.assets[0]);
+            setShowPostModal(true);
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const handleUploadPost = async () => {
+    if (!pickedAsset || !profile) return;
+    setUploading(true);
+    try {
+      // Create object in posts table
+      const { data: insertPost, error: insertError } = await supabase
+        .from("posts")
+        .insert({
+          user_id: profile.id,
+          caption,
+          location: undefined,
+        })
+        .select()
+        .single();
+      if (!insertPost || !insertPost.id)
+        throw new Error("Failed to create post.");
+
+      const ext =
+        pickedAsset.uri.split(".").pop() ||
+        (pickedAsset.type === "video" ? "mp4" : "jpg");
+      const timestamp = Date.now();
+      const fileName = `post_${timestamp}.${ext}`;
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const postId = insertPost.id;
+      const storagePath = `${profile.id}/${year}/${month}/${day}/${postId}/original/${fileName}`;
+
+      let uploadError;
+      let publicUrl = "";
+      if (pickedAsset.type === "video") {
+        // Use Blob for video
+        const response = await fetch(pickedAsset.uri);
+        const blob = await response.blob();
+        ({ error: uploadError } = await supabase.storage
+          .from("posts")
+          .upload(storagePath, blob, {
+            upsert: false,
+            contentType: blob.type,
+          }));
+      } else if (pickedAsset.base64) {
+        // Use base64 for images
+        const buffer = decode(pickedAsset.base64);
+        ({ error: uploadError } = await supabase.storage
+          .from("posts")
+          .upload(storagePath, buffer, {
+            upsert: false,
+            contentType: `image/${ext}`,
+          }));
+      } else {
+        Alert.alert("Error", "Could not process selected media.");
+        setUploading(false);
+        return;
+      }
+      if (uploadError) throw uploadError;
+      // Get public URL
+      const { data } = supabase.storage.from("posts").getPublicUrl(storagePath);
+      publicUrl = data.publicUrl;
+      // Update post record
+      const { error: postError } = await supabase
+        .from("posts")
+        .update({
+          id: postId,
+          user_id: profile.id,
+          club_id: null,
+          media_type: pickedAsset.type === "video" ? "video" : "photo",
+          media_url: publicUrl,
+          thumbnail_url: publicUrl, // TODO: generate real thumbnail for video
+          caption,
+          location: undefined,
+        })
+        .eq("user_id", profile.id)
+        .eq("id", postId);
+      if (postError) throw postError;
+      Alert.alert("Success", "Media posted!");
+      setShowPostModal(false);
+      setPickedAsset(null);
+      setCaption("");
+      // Optionally refresh posts here
+      if (profile.id) {
+        const newPosts = await fetchUserPosts(profile.id);
+        setPosts(newPosts);
+      }
+    } catch (e) {
+      Alert.alert("Error", (e as Error).message || "Failed to upload post.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Add delete handler
+  const handleDeletePost = async (postId: string) => {
+    if (!profile) return;
+    Alert.alert(
+      "Delete Post",
+      "Are you sure you want to delete this post? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const success = await deletePost(postId, profile.id);
+            if (success) {
+              // Refresh posts
+              const newPosts = await fetchUserPosts(profile.id);
+              setPosts(newPosts);
+            } else {
+              Alert.alert("Error", "Failed to delete post.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderFavouriteClub = ({ item }: { item: types.Club }) => (
+    <TouchableOpacity
+      style={styles.favouriteClubItem}
+      onPress={() => navigation.navigate("ClubDetail", { club: item })}
+    >
+      <Image source={{ uri: item.Image }} style={styles.favouriteClubImage} />
+      <Text style={styles.favouriteClubName} numberOfLines={1}>
+        {item.Name}
+      </Text>
+    </TouchableOpacity>
+  );
+
   const ListHeaderComponent = () => (
     <View>
       <LinearGradient
@@ -121,21 +399,23 @@ export default function Account() {
         style={styles.headerGradient}
       />
       <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          <TouchableOpacity onPress={() => setIsImageModalVisible(true)}>
-            {profile?.avatar_url ? (
-              <Image
-                source={{ uri: profile.avatar_url }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={styles.placeholderAvatar}>
-                <Text style={styles.avatarInitial}>
-                  {profile?.first_name?.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+        <View style={styles.headerRow}>
+          <View style={styles.avatarContainer}>
+            <TouchableOpacity onPress={() => setIsImageModalVisible(true)}>
+              {profile?.avatar_url ? (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={styles.placeholderAvatar}>
+                  <Text style={styles.avatarInitial}>
+                    {profile?.first_name?.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
         <Text style={styles.username}>{profile?.username}</Text>
         <View style={styles.profileButtonsContainer}>
@@ -145,16 +425,20 @@ export default function Account() {
               <Text style={styles.lastName}>{profile?.last_name}</Text>
             </View>
             <View style={styles.buttonsRow}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => navigation.navigate("FriendsList")}
-              >
-                <Ionicons
-                  name="people-outline"
-                  size={24}
-                  color={Constants.whiteCOLOR}
-                />
-              </TouchableOpacity>
+              {profile?.id && (
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() =>
+                    navigation.navigate("FriendsList", { userId: profile.id })
+                  }
+                >
+                  <Ionicons
+                    name="people-outline"
+                    size={24}
+                    color={Constants.whiteCOLOR}
+                  />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => navigation.navigate("ProfileSettings")}
@@ -199,6 +483,29 @@ export default function Account() {
         )}
       </View>
       <Text style={styles.sectionTitle}>Favourites</Text>
+      <FlatList
+        data={favourites}
+        keyExtractor={(item) => item?.id}
+        renderItem={renderFavouriteClub}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.favouritesHorizontalList}
+      />
+      {session?.user.id === profile?.id && (
+        <View style={{ alignItems: "center", marginVertical: 16 }}>
+          <Button
+            title="Capture a Moment"
+            onPress={handleCaptureMoment}
+            buttonStyle={{
+              backgroundColor: Constants.purpleCOLOR,
+              borderRadius: 24,
+              paddingHorizontal: 32,
+              paddingVertical: 12,
+            }}
+            titleStyle={{ fontWeight: "bold", fontSize: 18 }}
+          />
+        </View>
+      )}
     </View>
   );
 
@@ -233,19 +540,188 @@ export default function Account() {
           </View>
         </TouchableOpacity>
       </Modal>
-      {/* Favourites Section */}
-      <FlatList
-        data={favourites}
-        keyExtractor={(item) => item?.id}
-        renderItem={({ item }) => <FavouriteClub club={item} />}
-        numColumns={2}
-        columnWrapperStyle={styles.favouritesRow}
-        contentContainerStyle={styles.favouritesList}
-        ListHeaderComponent={ListHeaderComponent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+      <CameraModal
+        visible={showCameraModal}
+        onClose={() => setShowCameraModal(false)}
+        onCapture={(photo) => {
+          setPickedAsset(photo);
+          setShowPostModal(true);
+        }}
       />
+      <Modal
+        visible={showPostModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowPostModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.8)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: Constants.backgroundCOLOR,
+              borderRadius: 16,
+              padding: 24,
+              width: "90%",
+              alignItems: "center",
+            }}
+          >
+            {pickedAsset && (
+              <Image
+                source={{ uri: pickedAsset.uri }}
+                style={{
+                  width: 220,
+                  height: 220,
+                  borderRadius: 12,
+                  marginBottom: 16,
+                }}
+              />
+            )}
+            <Input
+              placeholder="Write a caption..."
+              value={caption}
+              onChangeText={setCaption}
+              inputStyle={{ color: Constants.whiteCOLOR }}
+              placeholderTextColor={Constants.whiteCOLOR + "80"}
+              containerStyle={{ width: "100%" }}
+            />
+            <Button
+              title={uploading ? "Posting..." : "Post"}
+              onPress={handleUploadPost}
+              disabled={uploading}
+              buttonStyle={{
+                backgroundColor: Constants.purpleCOLOR,
+                borderRadius: 20,
+                width: 120,
+              }}
+              titleStyle={{ fontWeight: "bold" }}
+            />
+            <Button
+              title="Cancel"
+              type="clear"
+              onPress={() => setShowPostModal(false)}
+              titleStyle={{ color: Constants.whiteCOLOR, marginTop: 8 }}
+            />
+          </View>
+        </View>
+      </Modal>
+      {/* Posts Section (main FlatList) */}
+      <FlatList
+        data={posts}
+        keyExtractor={(item) => item.id}
+        numColumns={3}
+        renderItem={({ item }) => (
+          <View style={{ position: "relative", flex: 1 }}>
+            <TouchableOpacity
+              style={styles.gridItem}
+              onPress={() => {
+                setSelectedMedia({
+                  url: item.media_url,
+                  type: item.media_type,
+                });
+                setMediaModalVisible(true);
+              }}
+            >
+              {item.media_type === "video" ? (
+                <View style={{ flex: 1 }}>
+                  <Video
+                    source={{ uri: item.media_url }}
+                    style={styles.gridImage}
+                    resizeMode="cover"
+                    isMuted
+                    shouldPlay={false}
+                  />
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      right: 8,
+                      backgroundColor: "rgba(0,0,0,0.5)",
+                      borderRadius: 12,
+                      padding: 2,
+                    }}
+                  >
+                    <Ionicons name="play" size={20} color="#fff" />
+                  </View>
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: item.media_url }}
+                  style={styles.gridImage}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+            {/* Delete button overlay, only for current user's posts */}
+            {profile && item.user_id === profile.id && (
+              <TouchableOpacity
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  left: 8,
+                  backgroundColor: "rgba(0,0,0,0.6)",
+                  borderRadius: 16,
+                  padding: 4,
+                  zIndex: 2,
+                }}
+                onPress={() => handleDeletePost(item.id)}
+              >
+                <Ionicons name="trash" size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        ListHeaderComponent={ListHeaderComponent}
+        ListEmptyComponent={
+          <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
+            No posts yet.
+          </Text>
+        }
+        contentContainerStyle={styles.gridList}
+      />
+      <Modal
+        visible={mediaModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMediaModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.95)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <TouchableOpacity
+            style={{ position: "absolute", top: 40, right: 20, zIndex: 2 }}
+            onPress={() => setMediaModalVisible(false)}
+          >
+            <Ionicons name="close" size={36} color="#fff" />
+          </TouchableOpacity>
+          {selectedMedia && selectedMedia.type === "video" && (
+            <Video
+              source={{ uri: selectedMedia.url }}
+              style={{ width: "90%", aspectRatio: 9 / 16, borderRadius: 16 }}
+              resizeMode="contain"
+              shouldPlay
+              useNativeControls
+            />
+          )}
+          {selectedMedia && selectedMedia.type === "photo" && (
+            <Image
+              source={{ uri: selectedMedia.url }}
+              style={{ width: "90%", aspectRatio: 1, borderRadius: 16 }}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -269,6 +745,13 @@ const styles = StyleSheet.create({
     backgroundColor: Constants.backgroundCOLOR,
     alignItems: "center",
     zIndex: 2,
+  },
+  headerRow: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 12,
   },
   avatarContainer: {
     width: 120,
@@ -353,6 +836,21 @@ const styles = StyleSheet.create({
     color: Constants.whiteCOLOR,
     paddingHorizontal: 20,
     marginTop: 24,
+  },
+  gridList: {
+    paddingBottom: 20,
+  },
+  gridItem: {
+    flex: 1,
+    aspectRatio: 1,
+    margin: 2,
+    backgroundColor: "#222",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  gridImage: {
+    width: "100%",
+    height: "100%",
   },
   favouritesList: {
     paddingBottom: 20,
@@ -443,5 +941,28 @@ const styles = StyleSheet.create({
   modalPlaceholderText: {
     fontSize: 80,
     color: Constants.whiteCOLOR,
+  },
+  favouritesHorizontalList: {
+    paddingVertical: 8,
+    paddingLeft: 20,
+    gap: 12,
+  },
+  favouriteClubItem: {
+    alignItems: "center",
+    marginRight: 18,
+    width: 80,
+  },
+  favouriteClubImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 6,
+    backgroundColor: Constants.greyCOLOR,
+  },
+  favouriteClubName: {
+    color: Constants.whiteCOLOR,
+    fontSize: 13,
+    textAlign: "center",
+    width: 70,
   },
 });

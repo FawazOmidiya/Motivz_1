@@ -4,13 +4,20 @@
     "strict": true,
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "types": ["jest", "node"],
+    "esModuleInterop": true,
+    "jsx": "react-native",
+    "isolatedModules": true,
+    "moduleResolution": "node"
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     "**/*.jsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "__tests__/**/*.ts",
+    "__tests__/**/*.tsx"
   ]
 }

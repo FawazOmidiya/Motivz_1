@@ -38,9 +38,19 @@ export type RootTabParamList = {
 // Define type-safe navigation routes for the root stack:
 export type RootStackParamList = {
   Main: undefined;
+  SignIn: undefined;
+  SignUp: undefined;
+  ProfileCompletion: {
+    signUpInfo: {
+      username: string;
+      email: string;
+      password: string;
+    };
+  };
   ClubDetail: { club: Club };
   ProfileSettings: undefined;
   UserProfile: { profile: UserProfile };
+  FriendsList: { userId: string };
 };
 
 export type GlobalStackParamList = {
@@ -64,6 +74,7 @@ export interface RegularOpeningHours {
   weekdayDescriptions?: string[];
   nextCloseTime?: string;
 }
+
 export interface GoogleReview {
   review_id: string;
   club_id: string;
@@ -75,6 +86,7 @@ export interface GoogleReview {
   publish_time: string; // ISO timestamp
   google_maps_uri: string | null;
 }
+
 export interface AppReview {
   id: string;
   club_id: string;
@@ -111,3 +123,55 @@ export type LocationCoords = {
   latitude: number;
   longitude: number;
 };
+
+export interface Hours {
+  [key: string]: {
+    open: string;
+    close: string;
+  };
+}
+
+export interface Post {
+  id: string;
+  user_id: string;
+  club_id: string | null;
+  media_type: "photo" | "video";
+  media_url: string;
+  thumbnail_url: string | null;
+  caption: string | null;
+  location: string | null;
+  created_at: string;
+  updated_at: string;
+  likes_count: number | 0;
+  comments_count: number | 0;
+  is_deleted: boolean | null;
+  user?: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    avatar_url: string | null;
+  };
+  club?: {
+    id: string;
+    Name: string;
+    Image: string;
+  };
+}
+
+export interface PostComment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
+  user?: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    avatar_url: string | null;
+  };
+}

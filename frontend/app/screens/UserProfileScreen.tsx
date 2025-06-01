@@ -11,7 +11,7 @@ import {
   Modal,
   StatusBar,
 } from "react-native";
-import { Text } from "@rneui/themed";
+import { Text, Button, Input } from "@rneui/themed";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { fetchUserFavourites, fetchSingleClub } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
@@ -23,11 +23,13 @@ import * as Constants from "@/constants/Constants";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { fetchUserPosts } from "../utils/postService";
+import { Video } from "expo-av";
 
-type UserProfileScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "ClubDetail"
->;
+type UserProfileScreenNavigationProp =
+  NativeStackNavigationProp<RootStackParamList>;
 
 export default function UserProfileScreen() {
   // Assume the user profile is passed via route params:
@@ -40,6 +42,12 @@ export default function UserProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeClub, setActiveClub] = useState<types.Club | null>(null);
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
+  const [posts, setPosts] = useState<types.Post[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<{
+    url: string;
+    type: "photo" | "video";
+  } | null>(null);
+  const [mediaModalVisible, setMediaModalVisible] = useState(false);
 
   // Fetch favourites when the screen mounts or when the user changes.
   const loadFavourites = useCallback(async () => {
@@ -66,7 +74,10 @@ export default function UserProfileScreen() {
         .then((club) => setActiveClub(club))
         .catch((error) => console.error("Error fetching active club:", error));
     }
-  }, [loadFavourites, user.active_club_id]);
+    if (user?.id) {
+      fetchUserPosts(user.id).then(setPosts);
+    }
+  }, [loadFavourites, user.active_club_id, user]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -74,10 +85,22 @@ export default function UserProfileScreen() {
     setRefreshing(false);
   }
 
-  const renderFavourite = ({ item }: { item: types.Club }) => (
-    <View style={styles.favouriteItem}>
-      <Image source={{ uri: item.Image }} style={styles.favouriteImage} />
-      <Text style={styles.favouriteTitle}>{item.Name}</Text>
+  const renderFavouriteClub = ({ item }: { item: types.Club }) => (
+    <TouchableOpacity
+      style={styles.favouriteClubItem}
+      onPress={() => navigation.navigate("ClubDetail", { club: item })}
+    >
+      <Image source={{ uri: item.Image }} style={styles.favouriteClubImage} />
+      <Text style={styles.favouriteClubName} numberOfLines={1}>
+        {item.Name}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderPostItem = ({ item }: { item: types.Post }) => (
+    // Placeholder for post item
+    <View>
+      <Text style={{ color: "#fff" }}>{item.caption || "Untitled Post"}</Text>
     </View>
   );
 
@@ -112,6 +135,25 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
         </View>
         <Text style={styles.username}>{user.username}</Text>
+        {/* Name and Friends button row */}
+        <View style={styles.nameAndFriendsRow}>
+          <Text style={styles.fullName}>
+            {user.first_name} {user.last_name}
+          </Text>
+          <TouchableOpacity
+            style={styles.friendsButton}
+            onPress={() =>
+              navigation.navigate("FriendsList", { userId: user.id })
+            }
+          >
+            <Ionicons
+              name="people-outline"
+              size={22}
+              color={Constants.whiteCOLOR}
+            />
+            <Text style={styles.friendsButtonText}>Friends</Text>
+          </TouchableOpacity>
+        </View>
         {/* Only show friend button if current user is not viewing their own profile */}
         {session?.user.id && session.user.id !== user.id && (
           <FriendButton targetUserId={user.id} />
@@ -137,6 +179,15 @@ export default function UserProfileScreen() {
         )}
       </View>
       <Text style={styles.sectionTitle}>Favourites</Text>
+      {/* Horizontal FlatList for Favourites with circular images */}
+      <FlatList
+        data={favourites}
+        keyExtractor={(item) => item?.id}
+        renderItem={renderFavouriteClub}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.favouritesHorizontalList}
+      />
     </View>
   );
   return (
@@ -170,19 +221,96 @@ export default function UserProfileScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-      {/* Favourites Section */}
+      {/* Posts Section */}
       <FlatList
-        data={favourites}
-        keyExtractor={(item) => item?.id}
-        renderItem={({ item }) => <FavouriteClub club={item} />}
-        numColumns={2}
-        columnWrapperStyle={styles.favouritesRow}
-        contentContainerStyle={styles.favouritesList}
+        data={posts}
+        keyExtractor={(item) => item.id}
+        numColumns={3}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.gridItem}
+            onPress={() => {
+              setSelectedMedia({ url: item.media_url, type: item.media_type });
+              setMediaModalVisible(true);
+            }}
+          >
+            {item.media_type === "video" ? (
+              <View style={{ flex: 1 }}>
+                <Video
+                  source={{ uri: item.media_url }}
+                  style={styles.gridImage}
+                  resizeMode="cover"
+                  isMuted
+                  shouldPlay={false}
+                />
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    backgroundColor: "rgba(0,0,0,0.5)",
+                    borderRadius: 12,
+                    padding: 2,
+                  }}
+                >
+                  <Ionicons name="play" size={20} color="#fff" />
+                </View>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: item.media_url }}
+                style={styles.gridImage}
+                resizeMode="cover"
+              />
+            )}
+          </TouchableOpacity>
+        )}
         ListHeaderComponent={ListHeaderComponent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        ListEmptyComponent={
+          <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
+            No posts yet.
+          </Text>
         }
+        contentContainerStyle={styles.gridList}
       />
+      <Modal
+        visible={mediaModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMediaModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.95)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <TouchableOpacity
+            style={{ position: "absolute", top: 40, right: 20, zIndex: 2 }}
+            onPress={() => setMediaModalVisible(false)}
+          >
+            <Ionicons name="close" size={36} color="#fff" />
+          </TouchableOpacity>
+          {selectedMedia && selectedMedia.type === "video" && (
+            <Video
+              source={{ uri: selectedMedia.url }}
+              style={{ width: "90%", aspectRatio: 9 / 16, borderRadius: 16 }}
+              resizeMode="contain"
+              shouldPlay
+              useNativeControls
+            />
+          )}
+          {selectedMedia && selectedMedia.type === "photo" && (
+            <Image
+              source={{ uri: selectedMedia.url }}
+              style={{ width: "90%", aspectRatio: 1, borderRadius: 16 }}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -374,5 +502,70 @@ const styles = StyleSheet.create({
   modalPlaceholderText: {
     fontSize: 80,
     color: Constants.whiteCOLOR,
+  },
+  nameAndFriendsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 12,
+  },
+  fullName: {
+    fontSize: 18,
+    color: Constants.whiteCOLOR,
+    marginBottom: 8,
+    fontWeight: "500",
+  },
+  friendsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginLeft: 10,
+  },
+  friendsButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 15,
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+  favouritesHorizontalList: {
+    paddingVertical: 8,
+    paddingLeft: 20,
+    gap: 12,
+  },
+  favouriteClubItem: {
+    alignItems: "center",
+    marginRight: 18,
+    width: 80,
+  },
+  favouriteClubImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 6,
+    backgroundColor: Constants.greyCOLOR,
+  },
+  favouriteClubName: {
+    color: Constants.whiteCOLOR,
+    fontSize: 13,
+    textAlign: "center",
+    width: 70,
+  },
+  gridList: {
+    paddingBottom: 20,
+  },
+  gridItem: {
+    flex: 1,
+    aspectRatio: 1,
+    margin: 2,
+    backgroundColor: "#222",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  gridImage: {
+    width: "100%",
+    height: "100%",
   },
 });

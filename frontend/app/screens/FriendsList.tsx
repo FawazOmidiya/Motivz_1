@@ -12,7 +12,7 @@ import { useState, useEffect } from "react";
 import { fetchUserFriends, fetchSingleClub } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import BackButton from "@/components/BackButton";
 import { RootStackParamList } from "../navigation/Navigation";
@@ -22,24 +22,29 @@ type FriendsListNavigationProp = NativeStackNavigationProp<
   "FriendsList"
 >;
 
+type FriendsListRouteProp = {
+  params: { userId: string };
+};
+
 export default function FriendsList() {
   const [friends, setFriends] = useState<types.UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [clubs, setClubs] = useState<{ [key: string]: types.Club }>({});
   const session = useSession();
   const navigation = useNavigation<FriendsListNavigationProp>();
+  const route = useRoute() as FriendsListRouteProp;
+  const userId = route.params?.userId || session?.user?.id;
 
   useEffect(() => {
-    if (session) {
-      getFriends();
+    if (userId) {
+      getFriends(userId);
     }
-  }, [session]);
+  }, [userId]);
 
-  async function getFriends() {
+  async function getFriends(uid: string) {
     try {
       setLoading(true);
-      if (!session?.user) throw new Error("No user on the session!");
-      const data = await fetchUserFriends(session.user.id);
+      const data = await fetchUserFriends(uid);
       if (data) {
         setFriends(data);
         // Fetch club data for friends with active clubs

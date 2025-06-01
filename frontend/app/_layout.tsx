@@ -1,3 +1,7 @@
+import { encode as btoa, decode as atob } from "base-64";
+
+if (typeof global.btoa === "undefined") global.btoa = btoa;
+if (typeof global.atob === "undefined") global.atob = atob;
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import {
@@ -98,6 +102,9 @@ function MainTabs() {
           paddingBottom: 0,
           paddingTop: 5,
           backgroundColor: Constants.blackCOLOR,
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
         },
       })}
     >

@@ -70,7 +70,6 @@ export default function ProfileSettings() {
     if (status !== "granted") {
       return Alert.alert("Permission Denied", "Media access is required.");
     }
-    console.log("Picking image...");
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"], // updated line
       allowsEditing: true,

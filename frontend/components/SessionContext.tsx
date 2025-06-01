@@ -21,7 +21,9 @@ export const SessionProvider = ({
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        fetchUserProfile(session.user.id).then(setProfile);
+        fetchUserProfile(session.user.id).then((profile) => {
+          setProfile(profile);
+        });
       }
     });
 
@@ -30,7 +32,9 @@ export const SessionProvider = ({
       (_event, session) => {
         setSession(session);
         if (session?.user) {
-          fetchUserProfile(session.user.id).then(setProfile);
+          fetchUserProfile(session.user.id).then((profile) => {
+            setProfile(profile);
+          });
         } else {
           setProfile(null);
         }

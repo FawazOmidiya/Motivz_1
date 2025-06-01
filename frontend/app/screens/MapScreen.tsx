@@ -11,6 +11,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   FlatList,
+  Pressable,
 } from "react-native";
 import MapView, {
   Marker,
@@ -59,37 +60,48 @@ export default function MapScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [allClubs, setAllClubs] = useState<Club[]>([]);
+  const [clubParam, setClubParam] = useState<Club | null>(null);
 
   useEffect(() => {
     const getLocation = async () => {
       try {
-        // Get user's current location
-        const userLocation = await Location.getCurrentPositionAsync({});
-        const coords: LocationCoords = {
-          latitude: userLocation.coords.latitude,
-          longitude: userLocation.coords.longitude,
-        };
-        setLocation(coords);
+        if (clubParam) {
+          // Focus on the club if provided
+          setRegion({
+            latitude: clubParam.latitude,
+            longitude: clubParam.longitude,
+            latitudeDelta: 0.003, // closer zoom
+            longitudeDelta: 0.003,
+          });
+        } else {
+          // Get user's current location
+          const userLocation = await Location.getCurrentPositionAsync({});
+          const coords: LocationCoords = {
+            latitude: userLocation.coords.latitude,
+            longitude: userLocation.coords.longitude,
+          };
+          setLocation(coords);
 
-        // Set map region to user's location
-        setRegion({
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
+          // Set map region to user's location
+          setRegion({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
 
-        // Fetch address using geocoding service
-        const formattedAddress = await getAddressFromCoordinates(
-          coords.latitude,
-          coords.longitude
-        );
-        setAddress(formattedAddress || "Unknown Location");
+          // Fetch address using geocoding service
+          const formattedAddress = await getAddressFromCoordinates(
+            coords.latitude,
+            coords.longitude
+          );
+          setAddress(formattedAddress || "Unknown Location");
 
-        // Fetch all clubs from Supabase
-        const fetchedClubs = await fetchClubs();
-        setAllClubs(fetchedClubs);
-        setClubs(fetchedClubs);
+          // Fetch all clubs from Supabase
+          const fetchedClubs = await fetchClubs();
+          setAllClubs(fetchedClubs);
+          setClubs(fetchedClubs);
+        }
       } catch (error) {
         console.error("Error getting location:", error);
       } finally {
@@ -98,7 +110,7 @@ export default function MapScreen() {
     };
 
     getLocation();
-  }, []);
+  }, [clubParam]);
 
   const recenterMap = async () => {
     const locationData = await Location.getCurrentPositionAsync({});
@@ -154,8 +166,8 @@ export default function MapScreen() {
     const newRegion: Region = {
       latitude: item.latitude,
       longitude: item.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
+      latitudeDelta: 0.003, // closer zoom
+      longitudeDelta: 0.003,
     };
     const moveToClub = () => {
       mapRef.current?.animateToRegion(newRegion, 1000);
@@ -163,11 +175,15 @@ export default function MapScreen() {
       setQueriedClubs([]);
     };
     return (
-      <TouchableOpacity onPress={moveToClub}>
-        <View>
-          <Text style={{ color: Constants.whiteCOLOR }}>{item.Name}</Text>
-        </View>
-      </TouchableOpacity>
+      <Pressable
+        onPress={moveToClub}
+        style={({ pressed }) => [
+          styles.dropdownItem,
+          pressed && styles.dropdownItemPressed,
+        ]}
+      >
+        <Text style={styles.dropdownItemText}>{item.Name}</Text>
+      </Pressable>
     );
   }
   return (
@@ -399,12 +415,34 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   searchResultContainer: {
-    backgroundColor: Constants.blackCOLOR,
+    backgroundColor: "rgba(20,20,20,0.85)", // almost see-through dark
     borderRadius: 12,
     marginTop: 4,
     maxHeight: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   searchResultsList: {
-    padding: 8,
+    paddingVertical: 4,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "transparent",
+  },
+  dropdownItemPressed: {
+    backgroundColor: "rgba(128,0,255,0.08)",
+  },
+  dropdownItemText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "500",
   },
 });

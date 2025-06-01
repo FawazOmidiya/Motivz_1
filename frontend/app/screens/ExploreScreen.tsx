@@ -102,6 +102,7 @@ export default function SearchScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder={"Find Friends..."}
+            placeholderTextColor={Constants.whiteCOLOR}
             value={query}
             onChangeText={handleTextChange}
             onSubmitEditing={searchItems}

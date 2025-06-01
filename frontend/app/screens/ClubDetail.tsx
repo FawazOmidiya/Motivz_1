@@ -11,6 +11,7 @@ import {
   Modal,
   Pressable,
   Dimensions,
+  Animated,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import {
@@ -26,6 +27,7 @@ import {
 import { Button } from "@rneui/themed";
 import { useSession, useProfile } from "@/components/SessionContext";
 import * as types from "@/app/utils/types";
+import { Club } from "@/app/utils/Club";
 import * as Location from "expo-location";
 import BackButton from "@/components/BackButton";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -40,7 +42,8 @@ const { width } = Dimensions.get("window");
 
 export default function ClubDetailScreen() {
   const route = useRoute();
-  const { club } = route.params as { club: types.Club };
+  const { club: clubData } = route.params as { club: types.Club };
+  const [club] = useState(() => new Club(clubData));
   const [events, setEvents] = useState<any>([]);
   const [musicSchedule, setMusicSchedule] = useState<string[] | null>(null);
   const [adding, setAdding] = useState(false);
@@ -55,6 +58,7 @@ export default function ClubDetailScreen() {
     null
   );
   const [isGoing, setIsGoing] = useState(false);
+  const [showSchedulePopup, setShowSchedulePopup] = useState(false);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -110,7 +114,7 @@ export default function ClubDetailScreen() {
   async function handleAddToFavourites() {
     setAdding(true);
     try {
-      const added = await addClubToFavourites(session, club);
+      const added = await addClubToFavourites(session, club.toJSON());
       if (added) {
         setIsFavourite(true);
       } else {
@@ -128,7 +132,7 @@ export default function ClubDetailScreen() {
   async function handleRemoveFromFavourites() {
     setAdding(true);
     try {
-      const removed = await removeClubFromFavourites(session, club);
+      const removed = await removeClubFromFavourites(session, club.toJSON());
       if (removed) {
         setIsFavourite(false);
       }
@@ -168,17 +172,21 @@ export default function ClubDetailScreen() {
     }
   };
 
+  const handleLongPress = () => {
+    setShowSchedulePopup(true);
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.headerContainer}>
-        <Image source={{ uri: club.Image }} style={styles.clubBanner} />
+        <Image source={{ uri: club.image }} style={styles.clubBanner} />
         <LinearGradient
           colors={["rgba(0,0,0,0.7)", "transparent"]}
           style={styles.gradientOverlay}
         />
         <View style={styles.header}>
           <BackButton color="white" />
-          <Text style={styles.clubName}>{club.Name}</Text>
+          <Text style={styles.clubName}>{club.name}</Text>
           {isFavourite ? (
             <TouchableOpacity onPress={handleRemoveFromFavourites}>
               <FontAwesome
@@ -207,7 +215,7 @@ export default function ClubDetailScreen() {
               color="white"
               style={styles.buttonIcon}
             />
-            <Text style={styles.actionButtonText}>Rate this club</Text>
+            <Text style={styles.actionButtonText}>Leave a review!</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -236,20 +244,26 @@ export default function ClubDetailScreen() {
               <Text style={styles.tagText}>{genre}</Text>
             </View>
           ))}
-          {club.Tags?.map((tag: any, index: number) => (
+          {clubData.Tags?.map((tag: any, index: number) => (
             <View key={index} style={styles.tag}>
               <Text style={styles.tagText}>{tag}</Text>
             </View>
           ))}
         </View>
 
-        {/* Operating Hours */}
+        {/* Operating Hours with Long Press Popup */}
         {club.hours && (
-          <View style={styles.hoursContainer}>
-            <Ionicons name="time-outline" size={20} color="#fff" />
-            <Text style={styles.hoursText}>
-              {getTodaysHours(club.hours, new Date())[1]?.toString()}
-            </Text>
+          <View style={styles.hoursSection}>
+            <Pressable style={styles.hoursContainer} onPress={handleLongPress}>
+              <Ionicons name="time-outline" size={20} color="#fff" />
+              <Text style={styles.hoursText}>{club.getCurrentDayHours()}</Text>
+              <Ionicons
+                name="information-circle-outline"
+                size={20}
+                color="#fff"
+                style={styles.hoursChevron}
+              />
+            </Pressable>
           </View>
         )}
 
@@ -343,6 +357,60 @@ export default function ClubDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Schedule Popup */}
+      {showSchedulePopup && (
+        <Pressable
+          style={styles.popupOverlay}
+          onPress={() => setShowSchedulePopup(false)}
+        >
+          <View style={styles.schedulePopup}>
+            <View style={styles.popupHeader}>
+              <Text style={styles.popupTitle}>Weekly Schedule</Text>
+              <TouchableOpacity
+                onPress={() => setShowSchedulePopup(false)}
+                style={styles.closePopupButton}
+              >
+                <Ionicons name="close" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.popupContent}>
+              {club.getFullSchedule().map((description, index) => {
+                const dayNames = [
+                  "Sunday",
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                ];
+                const isCurrentDay = description.startsWith(
+                  dayNames[new Date().getDay()]
+                );
+                return (
+                  <View
+                    key={index}
+                    style={[
+                      styles.scheduleRow,
+                      isCurrentDay && styles.currentDayRow,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.scheduleDay,
+                        isCurrentDay && styles.currentDayText,
+                      ]}
+                    >
+                      {description}
+                    </Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -459,18 +527,85 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontSize: 14,
   },
+  hoursSection: {
+    marginBottom: 20,
+  },
   hoursContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     padding: 15,
     borderRadius: 12,
-    marginBottom: 20,
   },
   hoursText: {
     color: "#fff",
     fontSize: 16,
     marginLeft: 10,
+    flex: 1,
+  },
+  hoursChevron: {
+    marginLeft: 10,
+  },
+  popupOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    zIndex: 1000,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  schedulePopup: {
+    width: 300,
+    maxHeight: 400,
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  popupHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  popupTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  closePopupButton: {
+    padding: 5,
+  },
+  popupContent: {
+    maxHeight: 300,
+  },
+  scheduleRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  currentDayRow: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  scheduleDay: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  currentDayText: {
+    color: Constants.purpleCOLOR,
+    fontWeight: "bold",
   },
   toggleContainer: {
     flexDirection: "row",

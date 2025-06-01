@@ -2,15 +2,17 @@
   "expo": {
     "name": "Motivz",
     "slug": "frontend",
-    "version": "1.1.1",
+    "version": "1.1.5",
     "orientation": "portrait",
-    "icon": "./assets/images/appstore.png",
+    "icon": "./assets/images/iTunesArtwork@1x.png",
     "scheme": "motivz",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
+      "buildNumber": "3",
+      "icon": "./assets/images/iTunesArtwork@1x.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
@@ -57,6 +59,10 @@
       "eas": {
         "projectId": "66836f2a-6d2a-490d-ad14-7624483fff56"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/66836f2a-6d2a-490d-ad14-7624483fff56"
     }
   }
 }

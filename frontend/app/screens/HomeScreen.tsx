@@ -24,6 +24,7 @@ import React, {
   useCallback,
 } from "react";
 import * as types from "@/app/utils/types";
+import { Club } from "@/app/utils/Club";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation"; // Import the types
 import {
@@ -50,7 +51,7 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<
 >;
 
 export default function HomeScreen() {
-  const [clubs, setClubs] = useState<types.Club[]>([]);
+  const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -103,33 +104,23 @@ export default function HomeScreen() {
   const loadClubs = async (pageNum = 1) => {
     try {
       const clubData = await fetchClubs();
+      const today = new Date().getDay();
+
+      // Convert raw club data to Club objects
+      const clubObjects = clubData.map((data) => new Club(data));
+
+      // Load music schedules in parallel
+      await Promise.all(
+        clubObjects.map((club) => club.loadMusicSchedule(today))
+      );
+
       if (pageNum === 1) {
-        setClubs(clubData);
-        // Fetch music schedules for all clubs
-        const schedules: Record<string, types.musicGenres> = {};
-        // For testing, set to Friday (5)
-        const today = new Date().getDay();
-        for (const club of clubData) {
-          const schedule = await fetchClubMusicSchedules(club.id, today);
-          if (schedule) {
-            schedules[club.id] = schedule;
-          }
-        }
-        setMusicSchedules(schedules);
+        setClubs(clubObjects);
       } else {
-        setClubs((prevClubs) => [...prevClubs, ...clubData]);
-        // Fetch music schedules for new clubs
-        const newSchedules = { ...musicSchedules };
-        const today = new Date().getDay();
-        for (const club of clubData) {
-          const schedule = await fetchClubMusicSchedules(club.id, today);
-          if (schedule) {
-            newSchedules[club.id] = schedule;
-          }
-        }
-        setMusicSchedules(newSchedules);
+        setClubs((prevClubs) => [...prevClubs, ...clubObjects]);
       }
-      setHasMore(clubData.length === 10); // Assuming pageSize is 10
+
+      setHasMore(clubData.length === 10);
     } catch (error) {
       console.error("Error loading clubs:", error);
     } finally {
@@ -161,8 +152,9 @@ export default function HomeScreen() {
     setLoading(true);
     setSearchMode(true);
     try {
-      const clubs: types.Club[] = await searchClubsByName(query);
-      setClubs(clubs);
+      const clubData = await searchClubsByName(query);
+      const clubObjects = clubData.map((data) => new Club(data));
+      setClubs(clubObjects);
       setHasMore(false); // Disable infinite scroll in search mode
     } catch (err) {
       console.error("Search error:", err);
@@ -184,7 +176,8 @@ export default function HomeScreen() {
     setSearchMode(true);
     try {
       const clubData = await searchClubsByName(text);
-      setClubs(clubData);
+      const clubObjects = clubData.map((data) => new Club(data));
+      setClubs(clubObjects);
       setHasMore(false); // Disable infinite scroll in search mode
     } catch (error) {
       console.error("Error fetching clubs:", error);
@@ -217,19 +210,23 @@ export default function HomeScreen() {
   // Apply filters
   const filteredClubs = useMemo(() => {
     return clubs.filter((club) => {
-      // Check if club is open if filterOpen is true
-      if (filterOpen && club.hours && !isClubOpenDynamic(club.hours)) {
+      if (filterOpen) {
+        // Defensive: skip if club or club.hours is missing, or if isOpen throws
+        try {
+          if (!club || !club.hours) return false;
+          if (typeof club.isOpen !== "function") return false;
+          if (!club.isOpen()) return false;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      if (minRating > 0 && club.rating < minRating) {
         return false;
       }
 
-      // Check rating filter
-      if (minRating > 0 && club.Rating < minRating) {
-        return false;
-      }
-
-      // Check genre filter if any genres are selected
       if (selectedGenres.length > 0) {
-        const schedule = musicSchedules[club.id];
+        const schedule = club.musicSchedule;
         if (!schedule) return false;
 
         // Check if any of the selected genres have a positive value in the schedule
@@ -241,21 +238,7 @@ export default function HomeScreen() {
 
       return true;
     });
-  }, [clubs, filterOpen, selectedGenres, musicSchedules, minRating]);
-
-  const getTopGenres = (clubId: string) => {
-    const schedule = musicSchedules[clubId];
-    if (!schedule) return "No music schedule";
-
-    // Get all numeric genre values
-    const genreEntries = Object.entries(schedule)
-      .filter(([key, value]) => typeof value === "number" && value > 0)
-      .sort((a, b) => Number(b[1]) - Number(a[1]));
-
-    // Return top 3 genres
-    const topGenres = genreEntries.slice(0, 3).map(([genre]) => genre);
-    return topGenres.length > 0 ? topGenres.join(", ") : "No music today";
-  };
+  }, [clubs, filterOpen, selectedGenres, minRating]);
 
   return (
     <View style={styles.container}>
@@ -327,27 +310,33 @@ export default function HomeScreen() {
       ) : (
         <FlatList
           data={filteredClubs}
-          extraData={clubs}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          initialNumToRender={5}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity
-              onPress={() => navigation.navigate("ClubDetail", { club: item })}
+              onPress={() =>
+                navigation.navigate("ClubDetail", { club: item.toJSON() })
+              }
               style={styles.clubCardContainer}
             >
-              <Image source={{ uri: item.Image }} style={styles.clubImage} />
+              <Image source={{ uri: item.image }} style={styles.clubImage} />
               <LinearGradient
                 colors={["transparent", "rgba(0,0,0,0.8)"]}
                 style={styles.imageGradient}
               />
               <View style={styles.clubInfo}>
-                <Text style={styles.clubName}>{item.Name}</Text>
+                <Text style={styles.clubName}>{item.name}</Text>
                 <View style={styles.ratingContainer}>
                   <Ionicons name="star" size={16} color="#FFD700" />
-                  <Text style={styles.ratingText}>{item.Rating}</Text>
+                  <Text style={styles.ratingText}>{item.rating}</Text>
                 </View>
                 <View style={styles.genreContainer}>
                   <Ionicons name="musical-notes" size={16} color="#fff" />
-                  <Text style={styles.genreText}>{getTopGenres(item.id)}</Text>
+                  <Text style={styles.genreText}>{item.getTopGenres()}</Text>
                 </View>
                 {item.hours && <ClubHours hours={item.hours} />}
               </View>
@@ -387,32 +376,47 @@ export default function HomeScreen() {
         backgroundComponent={renderBackdrop}
       >
         <BottomSheetView style={styles.modalSheet}>
-          <Text style={styles.sheetTitle}>Filters</Text>
-          <View style={styles.filterSection}>
+          <View style={styles.filterHeader}>
+            <Text style={styles.sheetTitle}>Filters</Text>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => {
+                setFilterOpen(false);
+                setSelectedGenres([]);
+                setMinRating(0);
+              }}
+            >
+              <Text style={styles.clearButtonText}>Clear All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.filterContent}>
             <View style={styles.filterRow}>
-              <View style={styles.filterLabelContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.filterPill,
+                  filterOpen && styles.filterPillActive,
+                ]}
+                onPress={() => setFilterOpen(!filterOpen)}
+              >
                 <Ionicons
                   name="time"
-                  size={20}
-                  color="#fff"
-                  style={styles.filterIcon}
+                  size={16}
+                  color={filterOpen ? "#fff" : "rgba(255,255,255,0.7)"}
                 />
-                <Text style={styles.filterLabel}>Open Now</Text>
-              </View>
-              <Switch
-                value={filterOpen}
-                onValueChange={setFilterOpen}
-                trackColor={{ false: "#767577", true: Constants.purpleCOLOR }}
-                thumbColor={filterOpen ? "#fff" : "#f4f3f4"}
-              />
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    filterOpen && styles.filterPillTextActive,
+                  ]}
+                >
+                  Open Now
+                </Text>
+              </TouchableOpacity>
             </View>
-          </View>
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Music Genres</Text>
-            <ScrollView
-              style={styles.genreScrollContainer}
-              contentContainerStyle={styles.genreGridContainer}
-            >
+
+            <Text style={styles.sectionTitle}>Music Genres</Text>
+            <View style={styles.genreGrid}>
               {GENRES.map((genre) => (
                 <TouchableOpacity
                   key={genre}
@@ -432,10 +436,9 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
-          </View>
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Minimum Rating</Text>
+            </View>
+
+            <Text style={styles.sectionTitle}>Minimum Rating</Text>
             <View style={styles.ratingFilterContainer}>
               {[0, 1, 2, 3, 4, 5].map((rating) => (
                 <TouchableOpacity
@@ -457,9 +460,10 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>Apply Filters</Text>
+          </ScrollView>
+
+          <TouchableOpacity onPress={handleClose} style={styles.applyButton}>
+            <Text style={styles.applyButtonText}>Apply Filters</Text>
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheet>
@@ -597,35 +601,69 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
   },
-  filterSection: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 15,
+  filterHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
-  filterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  clearButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
-  filterLabelContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  filterIcon: {
-    marginRight: 10,
-  },
-  filterLabel: {
+  clearButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 14,
   },
-  closeButton: {
+  filterContent: {
+    flex: 1,
+  },
+  filterRow: {
+    marginBottom: 20,
+  },
+  filterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignSelf: "flex-start",
+  },
+  filterPillActive: {
+    backgroundColor: Constants.purpleCOLOR,
+  },
+  filterPillText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  filterPillTextActive: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 12,
+  },
+  genreGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+  },
+  applyButton: {
     backgroundColor: Constants.purpleCOLOR,
     padding: 15,
     borderRadius: 12,
     alignItems: "center",
+    marginTop: 20,
   },
-  closeButtonText: {
+  applyButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
