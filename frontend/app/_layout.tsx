@@ -53,6 +53,7 @@ function ExploreStackScreen() {
       <ExploreStack.Screen name="ExploreMain" component={ExploreScreen} />
       <ExploreStack.Screen name="ClubDetail" component={ClubDetailScreen} />
       <ExploreStack.Screen name="UserProfile" component={UserProfileScreen} />
+      <ExploreStack.Screen name="FriendsList" component={FriendsList} />
     </ExploreStack.Navigator>
   );
 }
