@@ -21,6 +21,7 @@ import {
   greyCOLOR,
 } from "@/constants/Constants";
 import BackButton from "@/components/BackButton";
+import { Camera } from "expo-camera";
 
 export default function ProfileSettings() {
   const session = useSession();
@@ -31,6 +32,16 @@ export default function ProfileSettings() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cameraPermission, setCameraPermission] = useState(false);
+  const [imagePickerPermission, setImagePickerPermission] = useState(false);
+
+  useEffect(() => {
+    async function requestPermissions() {
+      await Camera.requestCameraPermissionsAsync();
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    }
+    requestPermissions();
+  }, []);
 
   // Fetch profile info when screen mounts
   useEffect(() => {
@@ -100,6 +111,9 @@ export default function ProfileSettings() {
         contentType: `image/${ext}`,
         metadata: { user_id: session!.user.id },
       });
+      if (uploadError) {
+        Alert.alert("Upload Error", uploadError.message);
+      }
 
       const { data } = storage.getPublicUrl(filePath);
       // after getting publicURL:

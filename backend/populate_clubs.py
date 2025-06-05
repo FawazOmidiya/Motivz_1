@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 import time
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass
 
 
 load_dotenv()
@@ -16,54 +18,94 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def insert_club(club_data):
-    """
-    Inserts a single club record into Supabase.
-    Adjust the mapping based on the response structure.
-    """
-    
-    image_url = None
-    if "photos" in club_data and club_data["photos"]:
-        try:
-            # Use the first photo from the list.
-            photo_name = club_data["photos"][0].get("name")
-            if photo_name:
-                image_url = fetch_photo_url(photo_name)
-        except Exception as e:
-            print("Error fetching photo URL:", e)
-            
-    
-    club = {
-        "Name": club_data.get("displayName")['text'],  # assuming this is a string
-        "Address": club_data.get("formattedAddress"),
-        "latitude": club_data.get("location", {}).get("latitude"),
-        "longitude": club_data.get("location", {}).get("longitude"),
-        "Rating": club_data.get("rating"),
-        "club_ids": club_data.get("id"),
-        "id": club_data.get("id"),
-        "google_id": club_data.get("id"),
-        "Image": image_url,  # New field to store the image URL.
-        "hours": club_data.get("regularOpeningHours")
+class Club:
+    """Represents a club with its data and operations"""
+    def __init__(self, club_data: Dict[str, Any]):
+        self.raw_data = club_data
+        self.name = club_data.get("displayName", {}).get("text")
+        self.address = club_data.get("formattedAddress")
+        self.location = club_data.get("location", {})
+        self.rating = club_data.get("rating", 0.0)
+        self.club_id = club_data.get("id")
+        self.hours = club_data.get("regularOpeningHours")
+        self.photos = club_data.get("photos", [])
+        self.image_url = None
+        self.website = None
+        self.reviews = []
 
-
-    }
-    try:
-        res = supabase.table("Clubs").upsert(club).execute()
-    except Exception as e:
-        print("Error inserting record:", e)
+    def fetch_photo(self) -> Optional[str]:
+        """Fetch the club's photo URL"""
+        if not self.photos:
+            return None
         
-    # Now, fetch detailed data (including reviews) for the club:
-    details = fetch_place_details(club_data.get("id"))
-    if details and "reviews" in details:
-        reviews = details.get("reviews")
-        result = populate_club_google_reviews(club_data.get("id"), reviews)
-    else:
-        print("No reviews found in the details.")
+        try:
+            photo_name = self.photos[0].get("name")
+            if photo_name:
+                self.image_url = fetch_photo_url(photo_name)
+                return self.image_url
+        except Exception as e:
+            print(f"Error fetching photo URL: {e}")
+        return None
 
-def search_clubs(searchInput: str):
+    def fetch_details(self) -> None:
+        """Fetch additional club details including website and reviews"""
+        if not self.club_id:
+            return
+
+        try:
+            details = fetch_place_details(self.club_id)
+            if details:
+                self.website = details.get("websiteUri")
+                self.reviews = details.get("reviews", [])
+        except Exception as e:
+            print(f"Error fetching club details: {e}")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert club data to dictionary format for database insertion"""
+        return {
+            "Name": self.name,
+            "Address": self.address,
+            "latitude": self.location.get("latitude"),
+            "longitude": self.location.get("longitude"),
+            "Rating": self.rating,
+            "club_ids": self.club_id,
+            "id": self.club_id,
+            "google_id": self.club_id,
+            "Image": self.image_url,
+            "hours": self.hours,
+            "website": self.website or "https://example.com"  # Default website if none provided
+        }
+
+    def save(self) -> None:
+        """Save club data to the database"""
+        try:
+            # Fetch photo if not already fetched
+            if not self.image_url:
+                self.fetch_photo()
+
+            # Fetch additional details if not already fetched
+            if not self.website or not self.reviews:
+                self.fetch_details()
+
+            # Save club data
+            club_dict = self.to_dict()
+            result = supabase.table("Clubs").upsert(club_dict).execute()
+            
+            if not result.data:
+                print(f"Error saving club {self.name}: {result.error}")
+                return
+
+            # # Save reviews if available
+            # if self.reviews:
+            #     populate_club_google_reviews(self.club_id, self.reviews)
+
+        except Exception as e:
+            print(f"Error saving club {self.name}: {e}")
+
+def search_clubs(searchInput: str) -> List[Club]:
     """
     Searches for nightclubs in Toronto using the Google Places API with pagination.
-    Returns a list of club records.
+    Returns a list of Club objects.
     """
     url = "https://places.googleapis.com/v1/places:searchText"
     headers = {
@@ -84,7 +126,8 @@ def search_clubs(searchInput: str):
         
         places = data.get("places", [])
         print(f"Found {len(places)} clubs on this page...")
-        all_clubs.extend(places)
+        # Convert each place to a Club object
+        all_clubs.extend([Club(place) for place in places])
         
         # Check for a next page token
         next_page_token = data.get("nextPageToken")
@@ -178,19 +221,13 @@ def populate_club_google_reviews(club_id: str, reviews: list) -> dict:
 
 
 def main():
-    searchInput = "Toop Lounge Toronto"
+    searchInput = "Nightclubs in Toronto"
 
     clubs = search_clubs(searchInput)
-    # print(clubs[0])
     print(f"Total clubs found: {len(clubs)}")
-    for club_data in clubs:
-        insert_club(club_data)
-    try:
-        # Fetch detailed information for the club using its place id.
-        details = fetch_place_details("ChIJSRmVLjXL1IkRQHFvgpujO7Y")
-        # print(f"Fetched details for place ID: {details}")
-    except Exception as e:
-        print(f"Error fetching details for club: {e}")
+    
+    for club in clubs:
+        club.save()
     
     print("Finished processing nightclubs.")
 

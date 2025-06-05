@@ -1,3 +1,4 @@
+import "../app/polyfills";
 import { encode as btoa, decode as atob } from "base-64";
 
 if (typeof global.btoa === "undefined") global.btoa = btoa;

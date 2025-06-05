@@ -47,7 +47,15 @@
       ],
       "expo-secure-store",
       "expo-build-properties",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends.",
+          "cameraPermission": "The app accesses your camera to let you share them with your friends.",
+          "microphonePermission": "The app accesses your microphone to let you share them with your friends."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

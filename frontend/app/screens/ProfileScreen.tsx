@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Modal,
   StatusBar,
+  Linking,
 } from "react-native";
 import { Button, Text, Input } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
@@ -229,7 +230,17 @@ export default function Account() {
         onPress: async () => {
           // Request camera permissions first
           if (permission?.status !== "granted") {
-            Alert.alert("Camera permission is required!");
+            Alert.alert(
+              "Camera permission is required!",
+              "Please enable permissions in your device settings.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Open Settings",
+                  onPress: () => Linking.openSettings(),
+                },
+              ]
+            );
             return;
           }
           setShowCameraModal(true);

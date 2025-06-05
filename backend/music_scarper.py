@@ -18,8 +18,7 @@ import logging
 import argparse
 import requests
 from dotenv import load_dotenv
-
-from datetime import datetime
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 
 # Configure logging
