@@ -55,7 +55,8 @@
           "cameraPermission": "The app accesses your camera to let you share them with your friends.",
           "microphonePermission": "The app accesses your microphone to let you share them with your friends."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
