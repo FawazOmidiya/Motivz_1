@@ -22,6 +22,8 @@ import {
 } from "@/constants/Constants";
 import BackButton from "@/components/BackButton";
 import { Camera } from "expo-camera";
+import * as ImageManipulator from "expo-image-manipulator";
+import * as FileSystem from "expo-file-system";
 
 export default function ProfileSettings() {
   const session = useSession();
@@ -82,10 +84,10 @@ export default function ProfileSettings() {
       return Alert.alert("Permission Denied", "Media access is required.");
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images", "videos"], // updated line
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
-      base64: true, //Add this line
+      base64: true,
     });
     if (result.canceled) return;
     setUploading(true);
@@ -96,16 +98,31 @@ export default function ProfileSettings() {
 
     setUploading(true);
     try {
-      // 3. Decode Base64 to ArrayBuffer
-      const buffer = decode(asset.base64);
+      // Compress image using ImageManipulator
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
 
-      // 4. Generate filename & path
-      const ext = asset.uri.split(".").pop()!;
+      // Convert compressed image to base64
+      const compressedBase64 = await FileSystem.readAsStringAsync(
+        manipulated.uri,
+        {
+          encoding: FileSystem.EncodingType.Base64,
+        }
+      );
+
+      // Decode Base64 to ArrayBuffer
+      const buffer = decode(compressedBase64);
+
+      // Generate filename & path
+      const ext = "jpg"; // Always use jpg for compressed images
       const timestamp = Date.now();
       const fileName = `${session!.user.id}_${timestamp}.${ext}`;
       const filePath = `avatars/${fileName}`;
 
-      // 5. Upload using ArrayBuffer
+      // Upload using ArrayBuffer
       const { error: uploadError } = await storage.upload(filePath, buffer, {
         upsert: true,
         contentType: `image/${ext}`,
@@ -125,7 +142,6 @@ export default function ProfileSettings() {
     }
   }
   async function updateProfile() {
-    console.log("Updating profile...");
     try {
       setLoading(true);
       if (!session?.user) throw new Error("No user on the session!");

@@ -10,9 +10,10 @@ import {
   Alert,
 } from "react-native";
 import { useSession } from "@/components/SessionContext";
-import { addAppReview, addAppReviewSimple } from "@/app/utils/supabaseService";
 import { useNavigation } from "@react-navigation/native";
 import * as Constants from "@/constants/Constants";
+import { Club } from "@/app/utils/Club";
+import { Ionicons } from "@expo/vector-icons";
 
 const GENRES = [
   "EDM",
@@ -36,14 +37,13 @@ const GENRES = [
 ];
 
 interface Props {
-  clubId: string;
+  club: Club;
   onSuccess: () => void;
 }
 
-const ReviewForm: React.FC<Props> = ({ clubId, onSuccess }) => {
+const ReviewForm: React.FC<Props> = ({ club, onSuccess }) => {
   const session = useSession();
   const [rating, setRating] = useState(0);
-  // Replace single selection with multiselect state
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -71,29 +71,13 @@ const ReviewForm: React.FC<Props> = ({ clubId, onSuccess }) => {
 
     setSubmitting(true);
 
-    // If your API expects a string, you can join the genres with a delimiter.
-    const genresString = selectedGenres.join(", ");
-
     let result;
-    if (text.trim().length === 0) {
-      // No comment provided.
-      result = await addAppReview(
-        clubId,
-        session.user.id,
-        rating,
-        genresString,
-        text
-      );
-    } else {
-      // With comment provided.
-      result = await addAppReview(
-        clubId,
-        session.user.id,
-        rating,
-        genresString,
-        text
-      );
-    }
+    result = await club.addAppReview(
+      session.user.id,
+      rating,
+      selectedGenres,
+      text
+    );
 
     setSubmitting(false);
 
@@ -106,20 +90,44 @@ const ReviewForm: React.FC<Props> = ({ clubId, onSuccess }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Rating:</Text>
-      <View style={styles.ratingRow}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <TouchableOpacity key={n} onPress={() => setRating(n)}>
-            <Text style={[styles.star, rating >= n && styles.starSel]}>★</Text>
-          </TouchableOpacity>
-        ))}
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <Text style={styles.title}>Rate your experience</Text>
+      <Text style={styles.subtitle}>How would you rate {club.name}?</Text>
+
+      {/* Rating Section */}
+      <View style={styles.ratingContainer}>
+        <View style={styles.starsRow}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <TouchableOpacity
+              key={n}
+              onPress={() => setRating(n)}
+              style={styles.starButton}
+            >
+              <Ionicons
+                name="star"
+                size={48}
+                color={rating >= n ? "#FFD700" : "#555"}
+                style={styles.star}
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={styles.ratingText}>
+          {rating === 0 && "Tap a star to rate"}
+          {rating === 1 && "Wack"}
+          {rating === 2 && "Mid"}
+          {rating === 3 && "It's okay"}
+          {rating === 4 && "Kinda lit"}
+          {rating === 5 && "It's bumping"}
+        </Text>
       </View>
 
+      {/* Genres Section */}
       <Text style={styles.label}>What kind of music is being played?</Text>
       <ScrollView
         style={styles.genreScrollContainer}
         contentContainerStyle={styles.genreContainer}
+        showsVerticalScrollIndicator={false}
       >
         {GENRES.map((g) => (
           <TouchableOpacity
@@ -142,72 +150,127 @@ const ReviewForm: React.FC<Props> = ({ clubId, onSuccess }) => {
         ))}
       </ScrollView>
 
-      <Text style={styles.label}>Review (optional):</Text>
+      <Text style={styles.label}>Review:</Text>
       <TextInput
         style={styles.textInput}
         multiline
-        placeholder="Your thoughts..."
+        placeholder="How were the vibes?"
         placeholderTextColor="#aaa"
         value={text}
         onChangeText={setText}
+        autoCorrect={true}
       />
 
+      {/* Submit Button */}
       <TouchableOpacity
         style={[styles.submitBtn, submitting && styles.btnDisabled]}
         onPress={submit}
         disabled={submitting}
       >
         <Text style={styles.submitTxt}>
-          {submitting ? "Submitting..." : "Submit"}
+          {submitting ? "Submitting..." : "Submit Review"}
         </Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { marginVertical: 10 },
-  label: { color: "#fff", marginBottom: 5 },
-  ratingRow: { flexDirection: "row", marginBottom: 15 },
-  star: { fontSize: 30, color: "#555", marginHorizontal: 5 },
-  starSel: { color: "#FFD700" },
-  // ScrollView that holds all genre buttons and enables vertical scrolling if needed.
-  genreScrollContainer: {
-    maxHeight: 100, // Adjust this height as needed to show approximately 2 rows.
+  container: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  title: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 8,
+    marginTop: 20,
+  },
+  subtitle: {
+    color: "#aaa",
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 30,
+  },
+  ratingContainer: {
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  starsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
     marginBottom: 15,
   },
-  // Content container that lays out the buttons with flexWrap.
+  starButton: {
+    padding: 8,
+  },
+  star: {
+    marginHorizontal: 8,
+  },
+  ratingText: {
+    color: "#FFD700",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  label: {
+    color: "#fff",
+    marginBottom: 15,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  genreScrollContainer: {
+    maxHeight: 150,
+    marginBottom: 30,
+  },
   genreContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
   },
   genreBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     backgroundColor: "#333",
     borderRadius: 12,
     margin: 4,
   },
-  genreSel: { backgroundColor: Constants.purpleCOLOR },
-  genreTxt: { color: "#fff" },
-  genreTxtSel: { fontWeight: "bold" },
+  genreSel: {
+    backgroundColor: Constants.purpleCOLOR,
+  },
+  genreTxt: {
+    color: "#fff",
+    fontSize: 14,
+  },
+  genreTxtSel: {
+    fontWeight: "bold",
+  },
   textInput: {
     backgroundColor: "#222",
     color: "#fff",
-    borderRadius: 8,
-    padding: 10,
-    height: 80,
-    marginBottom: 15,
+    borderRadius: 12,
+    padding: 15,
+    height: 120,
+    marginBottom: 30,
+    fontSize: 16,
+    textAlignVertical: "top",
   },
   submitBtn: {
     backgroundColor: Constants.purpleCOLOR,
-    padding: 15,
-    borderRadius: 8,
+    padding: 18,
+    borderRadius: 12,
     alignItems: "center",
+    marginTop: 10,
   },
-  btnDisabled: { backgroundColor: "#555" },
-  submitTxt: { color: "#fff", fontWeight: "bold" },
+  btnDisabled: {
+    backgroundColor: "#555",
+  },
+  submitTxt: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 18,
+  },
 });
 
 export default ReviewForm;

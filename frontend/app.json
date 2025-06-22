@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "3",
+      "buildNumber": "9",
       "icon": "./assets/images/iTunesArtwork@1x.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -56,7 +56,8 @@
           "microphonePermission": "The app accesses your microphone to let you share them with your friends."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

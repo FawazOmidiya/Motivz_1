@@ -11,20 +11,16 @@ import {
   Modal,
   Pressable,
   Dimensions,
-  Animated,
+  Linking,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import {
   fetchEventsByClub,
-  getTodaysHours,
   queryUserFavouriteExists,
   addClubToFavourites,
   removeClubFromFavourites,
-  fetchClubMusicSchedules,
   updateUserActiveClub,
-  fetchClubAppReviews,
 } from "../utils/supabaseService";
-import { Button } from "@rneui/themed";
 import { useSession, useProfile } from "@/components/SessionContext";
 import * as types from "@/app/utils/types";
 import { Club } from "@/app/utils/Club";
@@ -43,7 +39,7 @@ const { width } = Dimensions.get("window");
 export default function ClubDetailScreen() {
   const route = useRoute();
   const { club: clubData } = route.params as { club: types.Club };
-  const [club] = useState(() => new Club(clubData));
+  const [club, setClub] = useState<Club | null>(null);
   const [events, setEvents] = useState<any>([]);
   const [musicSchedule, setMusicSchedule] = useState<string[] | null>(null);
   const [adding, setAdding] = useState(false);
@@ -59,10 +55,21 @@ export default function ClubDetailScreen() {
   );
   const [isGoing, setIsGoing] = useState(false);
   const [showSchedulePopup, setShowSchedulePopup] = useState(false);
+  const [liveRating, setLiveRating] = useState<number | null>(null);
+  const [showLiveOnly, setShowLiveOnly] = useState(true);
+
+  useEffect(() => {
+    const loadClub = async () => {
+      const c = new Club(clubData);
+      await c.initLiveRating();
+      setClub(c);
+    };
+    loadClub();
+  }, [clubData]);
 
   useEffect(() => {
     const loadEvents = async () => {
-      const eventData = await fetchEventsByClub(club.id);
+      const eventData = await fetchEventsByClub(club?.id || "");
       setEvents(eventData);
     };
     const getLocation = async () => {
@@ -82,9 +89,19 @@ export default function ClubDetailScreen() {
     };
     getLocation();
     loadEvents();
-    setIsGoing(profile?.active_club_id === club.id);
+    setIsGoing(profile?.active_club_id === club?.id);
     getMusicSchedule();
-  }, [club.id, profile]);
+  }, [club?.id, profile]);
+
+  useEffect(() => {
+    let mounted = true;
+    club?.getLiveRating().then((rating) => {
+      if (mounted) setLiveRating(rating);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [club]);
 
   // Check whether the club is already in favourites when the screen loads or when session/club changes.
   useEffect(() => {
@@ -106,12 +123,13 @@ export default function ClubDetailScreen() {
 
   useEffect(() => {
     // Check if this is the user's active club
-    if (profile?.active_club_id === club.id) {
+    if (profile?.active_club_id === club?.id) {
       setIsGoing(true);
     }
-  }, [session, club.id]);
+  }, [session, club?.id]);
 
   async function handleAddToFavourites() {
+    if (!club) return;
     setAdding(true);
     try {
       const added = await addClubToFavourites(session, club.toJSON());
@@ -130,6 +148,7 @@ export default function ClubDetailScreen() {
   }
 
   async function handleRemoveFromFavourites() {
+    if (!club) return;
     setAdding(true);
     try {
       const removed = await removeClubFromFavourites(session, club.toJSON());
@@ -153,18 +172,15 @@ export default function ClubDetailScreen() {
 
   const getMusicSchedule = async () => {
     try {
-      // For testing, set to Friday (5)
-      const testDay = new Date().getDay();
-      const musicData = await fetchClubMusicSchedules(club.id, testDay);
-      if (musicData === null) {
+      const currentDay = new Date().getDay();
+      await club?.loadMusicSchedule(currentDay);
+      if (!club?.musicSchedule) {
         setMusicSchedule(null);
         return;
       }
-
-      const genreEntries = Object.entries(musicData)
+      const genreEntries = Object.entries(club.musicSchedule)
         .filter(([key, value]) => typeof value === "number" && value > 0)
         .sort((a, b) => Number(b[1]) - Number(a[1]));
-
       setMusicSchedule(genreEntries.slice(0, 3).map(([key]) => key));
     } catch (error) {
       console.error("Error fetching music schedule:", error);
@@ -176,17 +192,25 @@ export default function ClubDetailScreen() {
     setShowSchedulePopup(true);
   };
 
+  if (!club) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.tagText}>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.headerContainer}>
-        <Image source={{ uri: club.image }} style={styles.clubBanner} />
+        <Image source={{ uri: club?.image }} style={styles.clubBanner} />
         <LinearGradient
           colors={["rgba(0,0,0,0.7)", "transparent"]}
           style={styles.gradientOverlay}
         />
         <View style={styles.header}>
           <BackButton color="white" />
-          <Text style={styles.clubName}>{club.name}</Text>
+          <Text style={styles.clubName}>{club?.name}</Text>
           {isFavourite ? (
             <TouchableOpacity onPress={handleRemoveFromFavourites}>
               <FontAwesome
@@ -206,39 +230,54 @@ export default function ClubDetailScreen() {
       <View style={styles.contentContainer}>
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.rateButton]}
-            onPress={() => setShowModal(true)}
-          >
-            <Ionicons
-              name="star"
-              size={20}
-              color="white"
-              style={styles.buttonIcon}
-            />
-            <Text style={styles.actionButtonText}>Leave a review!</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             style={[
               styles.actionButton,
               isGoing ? styles.goingButton : styles.notGoingButton,
             ]}
-            onPress={() => setActiveClub(isGoing ? null : club.id)}
+            onPress={() => setActiveClub(isGoing ? null : club?.id)}
           >
             <Ionicons
-              name={isGoing ? "checkmark-circle" : "add-circle"}
-              size={20}
+              name={isGoing ? "checkmark-circle" : "location"}
+              size={24}
               color="white"
               style={styles.buttonIcon}
             />
             <Text style={styles.actionButtonText}>
-              {isGoing ? "I'm Going" : "I'm Not Going"}
+              {isGoing ? "You're Here!" : "Check In"}
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.externalActionButton]}
+            onPress={() =>
+              Linking.openURL(
+                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  club?.name || ""
+                )}`
+              )
+            }
+          >
+            <Ionicons name="logo-google" size={24} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.externalActionButton]}
+            onPress={() =>
+              Linking.openURL(
+                `https://www.instagram.com/${club?.instagram_handle || ""}`
+              )
+            }
+          >
+            <Ionicons name="logo-instagram" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
         {/* Tags */}
         <Text style={styles.sectionTitle}>Vibes</Text>
         <View style={styles.tagsContainer}>
+          <View style={[styles.tag, styles.ratingTag, styles.ratingTagRow]}>
+            <Ionicons name="star" size={16} color="#FFD700" />
+            <Text style={styles.tagText}>{club?.live_rating}</Text>
+          </View>
+
           {musicSchedule?.map((genre: string, index: number) => (
             <View key={index} style={styles.tag}>
               <Text style={styles.tagText}>{genre}</Text>
@@ -252,7 +291,7 @@ export default function ClubDetailScreen() {
         </View>
 
         {/* Operating Hours with Long Press Popup */}
-        {club.hours && (
+        {club?.hours && (
           <View style={styles.hoursSection}>
             <Pressable style={styles.hoursContainer} onPress={handleLongPress}>
               <Ionicons name="time-outline" size={20} color="#fff" />
@@ -267,45 +306,72 @@ export default function ClubDetailScreen() {
           </View>
         )}
 
-        {/* Toggle Tabs */}
+        {/* Toggle for reviews */}
         <View style={styles.toggleContainer}>
           <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === "google" && styles.tabActive,
-            ]}
-            onPress={() => setActiveTab("google")}
+            style={[styles.toggleButton, showLiveOnly && styles.toggleActive]}
+            onPress={() => setShowLiveOnly(true)}
           >
             <Text
               style={[
-                styles.tabText,
-                activeTab === "google" && styles.tabTextActive,
-              ]}
-            >
-              Google Reviews
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === "app" && styles.tabActive]}
-            onPress={() => setActiveTab("app")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "app" && styles.tabTextActive,
+                styles.toggleText,
+                showLiveOnly && styles.toggleTextActive,
               ]}
             >
               Live Reviews
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, !showLiveOnly && styles.toggleActive]}
+            onPress={() => setShowLiveOnly(false)}
+          >
+            <Text
+              style={[
+                styles.toggleText,
+                !showLiveOnly && styles.toggleTextActive,
+              ]}
+            >
+              All Reviews
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Reviews Section */}
-        {activeTab === "google" ? (
-          <ClubGoogleReviews clubId={club.id} />
-        ) : (
-          <ClubAppReviews clubId={club.id} />
-        )}
+        <View style={styles.reviewsSection}>
+          <View style={styles.reviewsHeader}>
+            <Text style={styles.sectionTitle}>
+              {showLiveOnly ? "Live Reviews" : "All Reviews"}
+            </Text>
+            <TouchableOpacity
+              style={styles.writeReviewButton}
+              onPress={() => setShowModal(true)}
+            >
+              <Ionicons
+                name="create-outline"
+                size={20}
+                color={Constants.purpleCOLOR}
+              />
+              <Text style={styles.writeReviewText}>Write Review</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Handle club status for live reviews */}
+          {(() => {
+            const isOpen = club?.isOpen();
+            return showLiveOnly && club && !isOpen ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  Wait for the club to open to see live reviews!
+                </Text>
+              </View>
+            ) : (
+              <ClubAppReviews
+                clubId={club?.id || ""}
+                isLiveOnly={showLiveOnly}
+              />
+            );
+          })()}
+        </View>
 
         {/* Upcoming Events */}
         <Text style={styles.sectionTitle}>Upcoming Events</Text>
@@ -332,7 +398,6 @@ export default function ClubDetailScreen() {
       {/* Review Form Modal */}
       <Modal
         visible={showModal}
-        transparent
         animationType="slide"
         onRequestClose={() => setShowModal(false)}
       >
@@ -348,7 +413,7 @@ export default function ClubDetailScreen() {
               </TouchableOpacity>
             </View>
             <ReviewForm
-              clubId={club.id}
+              club={club}
               onSuccess={() => {
                 setShowModal(false);
                 setRefreshFlag((f) => !f);
@@ -375,7 +440,7 @@ export default function ClubDetailScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.popupContent}>
-              {club.getFullSchedule().map((description, index) => {
+              {club?.getFullSchedule().map((description, index) => {
                 const dayNames = [
                   "Sunday",
                   "Monday",
@@ -471,7 +536,8 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    justifyContent: "center",
+    padding: 16,
     borderRadius: 12,
     flex: 1,
     marginHorizontal: 5,
@@ -484,14 +550,14 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  rateButton: {
-    backgroundColor: Constants.purpleCOLOR,
-  },
   goingButton: {
     backgroundColor: "#4CAF50",
   },
   notGoingButton: {
-    backgroundColor: "#FF5252",
+    backgroundColor: Constants.purpleCOLOR,
+  },
+  rateButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   buttonIcon: {
     marginRight: 8,
@@ -609,25 +675,27 @@ const styles = StyleSheet.create({
   },
   toggleContainer: {
     flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 20,
     marginBottom: 20,
+    marginTop: 10,
+    alignSelf: "center",
+    overflow: "hidden",
   },
-  tabButton: {
+  toggleButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: "center",
   },
-  tabActive: {
+  toggleActive: {
     backgroundColor: Constants.purpleCOLOR,
   },
-  tabText: {
+  toggleText: {
     color: "#ccc",
     fontSize: 16,
     fontWeight: "500",
   },
-  tabTextActive: {
+  toggleTextActive: {
     color: "#fff",
     fontWeight: "bold",
   },
@@ -656,29 +724,19 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: Constants.backgroundCOLOR,
   },
   modalContent: {
-    width: "90%",
-    backgroundColor: Constants.greyCOLOR,
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    flex: 1,
+    backgroundColor: Constants.backgroundCOLOR,
+    paddingTop: 50,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
+    paddingHorizontal: 20,
   },
   modalTitle: {
     fontSize: 24,
@@ -687,5 +745,57 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 5,
+  },
+  ratingTag: {
+    backgroundColor: "rgba(255, 215, 0, 0.2)",
+    borderColor: "rgba(255, 215, 0, 0.3)",
+  },
+  ratingTagRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reviewsSection: {
+    marginBottom: 30,
+  },
+  reviewsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  sectionSubtitle: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 14,
+    marginTop: 4,
+  },
+  writeReviewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  writeReviewText: {
+    color: Constants.purpleCOLOR,
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  externalActionButton: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    minWidth: 0,
+    marginHorizontal: 2,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyText: {
+    color: "rgba(255, 255, 255, 0.5)",
+    fontSize: 16,
   },
 });

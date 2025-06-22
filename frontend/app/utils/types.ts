@@ -11,6 +11,8 @@ export type Club = {
   Address: string;
   hours?: RegularOpeningHours;
   music_schedule?: musicGenres;
+  live_rating?: number;
+  instagram_handle?: string | null;
 };
 
 export type UserProfile = {
@@ -20,6 +22,7 @@ export type UserProfile = {
   last_name: string;
   avatar_url?: string | null;
   active_club_id?: string | null;
+  active_club_closed?: string | null; // ISO datetime string when the club closes
   // add any additional fields you need
 };
 
@@ -94,6 +97,8 @@ export interface AppReview {
   rating: number;
   text: string;
   created_at: string;
+  like_ids: string[];
+  genres: string[];
 }
 
 export interface musicGenres {

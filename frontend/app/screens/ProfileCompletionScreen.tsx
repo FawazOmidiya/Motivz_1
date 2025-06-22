@@ -21,6 +21,8 @@ import { supabaseAuth } from "../utils/supabaseAuth";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
 import { decode } from "base64-arraybuffer";
+import * as ImageManipulator from "expo-image-manipulator";
+import * as FileSystem from "expo-file-system";
 
 type ProfileCompletionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -66,11 +68,26 @@ export default function ProfileCompletionScreen() {
     }
 
     try {
+      // Compress image using ImageManipulator
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      // Convert compressed image to base64
+      const compressedBase64 = await FileSystem.readAsStringAsync(
+        manipulated.uri,
+        {
+          encoding: FileSystem.EncodingType.Base64,
+        }
+      );
+
       // Decode Base64 to ArrayBuffer
-      const buffer = decode(asset.base64);
+      const buffer = decode(compressedBase64);
 
       // Generate filename & path
-      const ext = asset.uri.split(".").pop()!;
+      const ext = "jpg"; // Always use jpg for compressed images
       const timestamp = Date.now();
       const fileName = `temp_${timestamp}.${ext}`;
       const filePath = `avatars/${fileName}`;

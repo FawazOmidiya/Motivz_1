@@ -3,7 +3,10 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import { supabase } from "../app/utils/supabaseService";
 import { Session } from "@supabase/supabase-js";
 import * as types from "@/app/utils/types";
-import { fetchUserProfile } from "@/app/utils/supabaseService";
+import {
+  fetchUserProfile,
+  checkAndClearExpiredAttendance,
+} from "@/app/utils/supabaseService";
 
 const SessionContext = createContext<Session | null>(null);
 const ProfileContext = createContext<types.UserProfile | null>(null);
@@ -16,14 +19,33 @@ export const SessionProvider = ({
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
 
+  // Function to fetch profile and check expired attendance
+  const fetchProfileAndCheckAttendance = async (userId: string) => {
+    try {
+      // First check and clear any expired attendance
+      await checkAndClearExpiredAttendance(userId);
+
+      // Then fetch the updated profile
+      const profileData = await fetchUserProfile(userId);
+      setProfile(profileData);
+    } catch (error) {
+      console.error("Error fetching profile or checking attendance:", error);
+      // Fallback to just fetching profile if attendance check fails
+      try {
+        const profileData = await fetchUserProfile(userId);
+        setProfile(profileData);
+      } catch (fallbackError) {
+        console.error("Error fetching profile:", fallbackError);
+      }
+    }
+  };
+
   useEffect(() => {
     // Fetch initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        fetchUserProfile(session.user.id).then((profile) => {
-          setProfile(profile);
-        });
+        fetchProfileAndCheckAttendance(session.user.id);
       }
     });
 
@@ -32,9 +54,7 @@ export const SessionProvider = ({
       (_event, session) => {
         setSession(session);
         if (session?.user) {
-          fetchUserProfile(session.user.id).then((profile) => {
-            setProfile(profile);
-          });
+          fetchProfileAndCheckAttendance(session.user.id);
         } else {
           setProfile(null);
         }

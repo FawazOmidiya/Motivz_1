@@ -2,7 +2,6 @@ import {
   View,
   Text,
   FlatList,
-  Button,
   Image,
   StyleSheet,
   ActivityIndicator,
@@ -29,19 +28,19 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation"; // Import the types
 import {
   fetchClubs,
-  searchClubsByName,
   isClubOpenDynamic,
-  fetchClubMusicSchedules,
+  searchClubsByName,
+  fetchFriendsAttending,
 } from "../utils/supabaseService";
 import * as Constants from "@/constants/Constants";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import BottomSheet, {
   BottomSheetView,
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
 import ClubHours from "@/components/ClubHours"; // Import the ClubHours component
 import { LinearGradient } from "expo-linear-gradient";
+import { useSession } from "@/components/SessionContext";
 
 const { width } = Dimensions.get("window");
 
@@ -59,9 +58,6 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchMode, setSearchMode] = useState(false);
-  const [musicSchedules, setMusicSchedules] = useState<
-    Record<string, types.musicGenres>
-  >({});
 
   // Filters
   const [filterOpen, setFilterOpen] = useState(false);
@@ -97,9 +93,37 @@ export default function HomeScreen() {
     );
   };
 
+  const [friendsAttending, setFriendsAttending] = useState<{
+    [clubId: string]: { id: string; avatar_url: string | null }[];
+  }>({});
+
+  const session = useSession();
+
   useEffect(() => {
     loadClubs();
   }, []);
+
+  useEffect(() => {
+    if (clubs.length === 0 || !session?.user?.id) return;
+    let mounted = true;
+    (async () => {
+      const result: {
+        [clubId: string]: { id: string; avatar_url: string | null }[];
+      } = {};
+      await Promise.all(
+        clubs.map(async (club) => {
+          result[club.id] = await fetchFriendsAttending(
+            club.id,
+            session.user.id
+          );
+        })
+      );
+      if (mounted) setFriendsAttending(result);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [clubs, session?.user?.id]);
 
   const loadClubs = async (pageNum = 1) => {
     try {
@@ -113,6 +137,9 @@ export default function HomeScreen() {
       await Promise.all(
         clubObjects.map((club) => club.loadMusicSchedule(today))
       );
+
+      // Load live ratings in parallel
+      await Promise.all(clubObjects.map((club) => club.initLiveRating()));
 
       if (pageNum === 1) {
         setClubs(clubObjects);
@@ -207,17 +234,17 @@ export default function HomeScreen() {
     []
   );
 
-  // Apply filters
+  // Apply filters and sort by open status
   const filteredClubs = useMemo(() => {
-    return clubs.filter((club) => {
+    const filtered = clubs.filter((club) => {
       if (filterOpen) {
         // Defensive: skip if club or club.hours is missing, or if isOpen throws
         try {
           if (!club || !club.hours) return false;
           if (typeof club.isOpen !== "function") return false;
-          if (!club.isOpen()) return false;
+          if (!isClubOpenDynamic(club.hours)) return false;
         } catch (e) {
-          return false;
+          return true;
         }
       }
 
@@ -237,6 +264,38 @@ export default function HomeScreen() {
       }
 
       return true;
+    });
+
+    // Sort clubs: open clubs first, then by rating (highest first)
+    return filtered.sort((a, b) => {
+      // First, check if clubs are open
+      let aIsOpen = false;
+      let bIsOpen = false;
+
+      try {
+        aIsOpen = a.hours ? isClubOpenDynamic(a.hours) : false;
+        bIsOpen = b.hours ? isClubOpenDynamic(b.hours) : false;
+      } catch (e) {
+        // If there's an error checking open status, treat as closed
+        aIsOpen = false;
+        bIsOpen = false;
+      }
+
+      // If one is open and the other isn't, open club comes first
+      if (aIsOpen && !bIsOpen) return -1;
+      if (!aIsOpen && bIsOpen) return 1;
+
+      // If both have the same open status, sort by rating (highest first)
+      const aRating =
+        a.live_rating !== undefined && a.live_rating !== null
+          ? a.live_rating
+          : a.rating;
+      const bRating =
+        b.live_rating !== undefined && b.live_rating !== null
+          ? b.live_rating
+          : b.rating;
+
+      return bRating - aRating;
     });
   }, [clubs, filterOpen, selectedGenres, minRating]);
 
@@ -268,6 +327,9 @@ export default function HomeScreen() {
               onSubmitEditing={searchItems}
               returnKeyType="search"
               clearButtonMode="always"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
           <TouchableOpacity
@@ -332,7 +394,52 @@ export default function HomeScreen() {
                 <Text style={styles.clubName}>{item.name}</Text>
                 <View style={styles.ratingContainer}>
                   <Ionicons name="star" size={16} color="#FFD700" />
-                  <Text style={styles.ratingText}>{item.rating}</Text>
+                  <Text style={styles.ratingText}>
+                    {item.live_rating !== undefined && item.live_rating !== null
+                      ? item.live_rating
+                      : item.rating}
+                  </Text>
+                </View>
+                <View style={styles.friendsRow}>
+                  {friendsAttending[item.id] &&
+                    friendsAttending[item.id].slice(0, 3).map((friend, idx) => (
+                      <View
+                        key={friend.id}
+                        style={[
+                          styles.friendAvatar,
+                          {
+                            marginLeft: idx === 0 ? 0 : -12,
+                            zIndex: 3 - idx,
+                          },
+                        ]}
+                      >
+                        {friend.avatar_url ? (
+                          <Image
+                            source={{ uri: friend.avatar_url }}
+                            style={styles.friendAvatarImage}
+                          />
+                        ) : (
+                          <Ionicons name="person" size={20} color="#fff" />
+                        )}
+                      </View>
+                    ))}
+                  {friendsAttending[item.id] &&
+                    friendsAttending[item.id].length > 3 && (
+                      <View
+                        style={[
+                          styles.friendAvatar,
+                          styles.plusAvatar,
+                          {
+                            marginLeft: -12,
+                            zIndex: 1,
+                          },
+                        ]}
+                      >
+                        <Text style={styles.plusText}>
+                          +{friendsAttending[item.id].length - 3}
+                        </Text>
+                      </View>
+                    )}
                 </View>
                 <View style={styles.genreContainer}>
                   <Ionicons name="musical-notes" size={16} color="#fff" />
@@ -747,4 +854,36 @@ const styles = StyleSheet.create({
   ratingTxtSel: {
     fontWeight: "bold",
   },
+  friendsRow: {
+    flexDirection: "row",
+    marginTop: 4,
+    height: 32,
+    position: "absolute",
+    bottom: 15,
+    right: "5%",
+    zIndex: 3,
+    alignItems: "center",
+  },
+  friendAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#fff",
+    backgroundColor: "#888",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  friendAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 14,
+  },
+  plusAvatar: {
+    backgroundColor: "#888",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1,
+  },
+  plusText: { color: "#fff", fontWeight: "bold" },
 });

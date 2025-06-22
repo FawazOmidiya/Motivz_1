@@ -13,13 +13,14 @@ import {
   Modal,
   StatusBar,
   Linking,
+  Pressable,
 } from "react-native";
 import { Button, Text, Input } from "@rneui/themed";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation";
+import { RootStackParamList } from "../utils/types";
 import {
   fetchUserFavourites,
   fetchUserProfile,
@@ -35,8 +36,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { uploadPost, fetchUserPosts, deletePost } from "../utils/postService";
 import { decode } from "base64-arraybuffer";
-import { Video } from "expo-av";
-import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
+import { Video, ResizeMode } from "expo-av";
+import {
+  CameraView,
+  CameraType,
+  useCameraPermissions,
+  Camera,
+} from "expo-camera";
+import * as FileSystem from "expo-file-system";
+import * as ImageManipulator from "expo-image-manipulator";
 
 type ProfileScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
@@ -45,19 +53,22 @@ function CameraModal({
   visible,
   onClose,
   onCapture,
+  setPickedAssetType,
 }: {
   visible: boolean;
   onClose: () => void;
-  onCapture: (photo: any) => void;
+  onCapture: (media: any) => void;
+  setPickedAssetType: (type: "photo" | "video") => void;
 }) {
   const cameraRef = useRef<any>(null);
   const [facing, setFacing] = useState<CameraType>("back");
   const [permission, requestPermission] = useCameraPermissions();
+  const [recording, setRecording] = useState(false);
 
-  if (!permission) return <View />;
+  if (!permission) return null;
   if (!permission.granted) {
     return (
-      <Modal visible={visible} animationType="slide">
+      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
         <View
           style={{
             flex: 1,
@@ -83,45 +94,80 @@ function CameraModal({
     );
   }
 
+  const takePicture = async () => {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePictureAsync({
+        base64: true,
+      });
+      setPickedAssetType("photo");
+      onCapture(photo);
+    }
+  };
+
+  const startRecording = async () => {
+    if (cameraRef.current && !recording) {
+      setRecording(true);
+      const video = await cameraRef.current.recordAsync();
+      setRecording(false);
+      setPickedAssetType("video");
+      onCapture(video);
+    }
+  };
+
+  const stopRecording = async () => {
+    if (cameraRef.current && recording) {
+      await cameraRef.current.stopRecording();
+      setRecording(false);
+    }
+  };
+
   return (
-    <Modal visible={visible} animationType="slide">
-      <CameraView style={{ flex: 1 }} facing={facing} ref={cameraRef}>
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1 }}>
+        <CameraView
+          style={{ flex: 1 }}
+          ref={cameraRef}
+          facing={facing}
+          mode="video"
+        />
         <View
-          style={{ flex: 1, justifyContent: "flex-end", alignItems: "center" }}
+          style={{
+            position: "absolute",
+            bottom: 40,
+            left: 0,
+            right: 0,
+            alignItems: "center",
+          }}
         >
-          <TouchableOpacity
-            onPress={async () => {
-              if (cameraRef.current) {
-                const photo = await cameraRef.current.takePhotoAsync({
-                  base64: true,
-                });
-                onCapture(photo);
-                onClose();
-              }
-            }}
+          <Pressable
+            onPress={takePicture}
+            onLongPress={startRecording}
+            onPressOut={stopRecording}
             style={{
-              marginBottom: 40,
-              backgroundColor: "white",
+              backgroundColor: recording ? "red" : "white",
               padding: 20,
               borderRadius: 50,
+              marginBottom: 16,
             }}
           >
-            <Text>Capture</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setFacing(facing === "back" ? "front" : "back")}
-            style={{ position: "absolute", top: 40, left: 20 }}
-          >
-            <Text style={{ color: "white", fontSize: 18 }}>Flip</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={onClose}
-            style={{ position: "absolute", top: 40, right: 20 }}
-          >
-            <Text style={{ color: "white", fontSize: 18 }}>Close</Text>
-          </TouchableOpacity>
+            <Text style={{ color: recording ? "white" : "black" }}>
+              {recording ? "Recording..." : "Capture"}
+            </Text>
+          </Pressable>
         </View>
-      </CameraView>
+        <TouchableOpacity
+          onPress={() => setFacing(facing === "back" ? "front" : "back")}
+          style={{ position: "absolute", top: 60, left: 20 }}
+        >
+          <Text style={{ color: "white", fontSize: 18 }}>Flip</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onClose}
+          style={{ position: "absolute", top: 60, right: 20 }}
+        >
+          <Text style={{ color: "white", fontSize: 18 }}>Close</Text>
+        </TouchableOpacity>
+      </View>
     </Modal>
   );
 }
@@ -138,6 +184,9 @@ export default function Account() {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [showPostModal, setShowPostModal] = useState(false);
   const [pickedAsset, setPickedAsset] = useState<any>(null);
+  const [pickedAssetType, setPickedAssetType] = useState<"photo" | "video">(
+    "photo"
+  );
   const [caption, setCaption] = useState("");
   const [uploading, setUploading] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<{
@@ -154,12 +203,6 @@ export default function Account() {
       getFavourites();
     }
   }, [session]);
-
-  useEffect(() => {
-    if (profile?.id) {
-      fetchUserPosts(profile.id).then(setPosts);
-    }
-  }, [profile]);
 
   async function getProfile() {
     try {
@@ -229,7 +272,8 @@ export default function Account() {
         text: "Take Photo or Video",
         onPress: async () => {
           // Request camera permissions first
-          if (permission?.status !== "granted") {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") {
             Alert.alert(
               "Camera permission is required!",
               "Please enable permissions in your device settings.",
@@ -244,7 +288,6 @@ export default function Account() {
             return;
           }
           setShowCameraModal(true);
-          console.log("Camera modal shown", showCameraModal);
         },
       },
       {
@@ -254,7 +297,17 @@ export default function Account() {
           const { status } =
             await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== "granted") {
-            Alert.alert("Media library permission is required!");
+            Alert.alert(
+              "Media library permission is required!",
+              "Please enable permissions in your device settings.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Open Settings",
+                  onPress: () => Linking.openSettings(),
+                },
+              ]
+            );
             return;
           }
           const result = await ImagePicker.launchImageLibraryAsync({
@@ -263,9 +316,17 @@ export default function Account() {
             quality: 0.8,
             base64: true, // only works for images
           });
-          Alert.alert("Result", JSON.stringify(result));
           if (!result.canceled && result.assets && result.assets[0].uri) {
             setPickedAsset(result.assets[0]);
+            setPickedAssetType(
+              result.assets[0].type === "video"
+                ? "video"
+                : result.assets[0].type === "livePhoto"
+                ? "photo"
+                : result.assets[0].type === "image"
+                ? "photo"
+                : "video"
+            );
             setShowPostModal(true);
           }
         },
@@ -278,19 +339,21 @@ export default function Account() {
     if (!pickedAsset || !profile) return;
     setUploading(true);
     try {
-      // Create object in posts table
+      // 1. Create the post record (without media_url yet)
       const { data: insertPost, error: insertError } = await supabase
         .from("posts")
         .insert({
           user_id: profile.id,
           caption,
           location: undefined,
+          media_type: pickedAssetType,
         })
         .select()
         .single();
       if (!insertPost || !insertPost.id)
         throw new Error("Failed to create post.");
 
+      // 2. Prepare file info
       const ext =
         pickedAsset.uri.split(".").pop() ||
         (pickedAsset.type === "video" ? "mp4" : "jpg");
@@ -302,45 +365,43 @@ export default function Account() {
       const day = String(date.getDate()).padStart(2, "0");
       const postId = insertPost.id;
       const storagePath = `${profile.id}/${year}/${month}/${day}/${postId}/original/${fileName}`;
+      const mimeType =
+        pickedAssetType === "photo" ? `image/${ext}` : "video/mp4";
 
-      let uploadError;
-      let publicUrl = "";
-      if (pickedAsset.type === "video") {
-        // Use Blob for video
-        const response = await fetch(pickedAsset.uri);
-        const blob = await response.blob();
-        ({ error: uploadError } = await supabase.storage
-          .from("posts")
-          .upload(storagePath, blob, {
-            upsert: false,
-            contentType: blob.type,
-          }));
-      } else if (pickedAsset.base64) {
-        // Use base64 for images
-        const buffer = decode(pickedAsset.base64);
-        ({ error: uploadError } = await supabase.storage
-          .from("posts")
-          .upload(storagePath, buffer, {
-            upsert: false,
-            contentType: `image/${ext}`,
-          }));
-      } else {
-        Alert.alert("Error", "Could not process selected media.");
-        setUploading(false);
-        return;
+      // 3. Compress image if needed
+      let uploadUri = pickedAsset.uri;
+      if (pickedAssetType === "photo") {
+        const manipulated = await ImageManipulator.manipulateAsync(
+          pickedAsset.uri,
+          [],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        uploadUri = manipulated.uri;
       }
+
+      // 4. Upload file directly to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("posts")
+        .upload(storagePath, uploadUri, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
       if (uploadError) throw uploadError;
-      // Get public URL
-      const { data } = supabase.storage.from("posts").getPublicUrl(storagePath);
-      publicUrl = data.publicUrl;
-      // Update post record
-      const { error: postError } = await supabase
+
+      // 5. Get the public URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("posts").getPublicUrl(storagePath);
+
+      // 6. Update post record with the public URL
+      await supabase
         .from("posts")
         .update({
           id: postId,
           user_id: profile.id,
           club_id: null,
-          media_type: pickedAsset.type === "video" ? "video" : "photo",
+          media_type: pickedAssetType,
           media_url: publicUrl,
           thumbnail_url: publicUrl, // TODO: generate real thumbnail for video
           caption,
@@ -348,8 +409,7 @@ export default function Account() {
         })
         .eq("user_id", profile.id)
         .eq("id", postId);
-      if (postError) throw postError;
-      Alert.alert("Success", "Media posted!");
+
       setShowPostModal(false);
       setPickedAsset(null);
       setCaption("");
@@ -502,7 +562,7 @@ export default function Account() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.favouritesHorizontalList}
       />
-      {session?.user.id === profile?.id && (
+      {/* {session?.user.id === profile?.id && (
         <View style={{ alignItems: "center", marginVertical: 16 }}>
           <Button
             title="Capture a Moment"
@@ -516,7 +576,7 @@ export default function Account() {
             titleStyle={{ fontWeight: "bold", fontSize: 18 }}
           />
         </View>
-      )}
+      )} */}
     </View>
   );
 
@@ -554,11 +614,14 @@ export default function Account() {
       <CameraModal
         visible={showCameraModal}
         onClose={() => setShowCameraModal(false)}
-        onCapture={(photo) => {
-          setPickedAsset(photo);
+        onCapture={(media) => {
+          setPickedAsset(media);
+          setShowCameraModal(false);
           setShowPostModal(true);
         }}
+        setPickedAssetType={setPickedAssetType}
       />
+      {/* Post Modal */}
       <Modal
         visible={showPostModal}
         transparent={true}
@@ -582,17 +645,32 @@ export default function Account() {
               alignItems: "center",
             }}
           >
-            {pickedAsset && (
-              <Image
-                source={{ uri: pickedAsset.uri }}
-                style={{
-                  width: 220,
-                  height: 220,
-                  borderRadius: 12,
-                  marginBottom: 16,
-                }}
-              />
-            )}
+            {pickedAsset &&
+              (pickedAssetType === "video" ? (
+                <Video
+                  source={{ uri: pickedAsset.uri }}
+                  style={{
+                    width: 220,
+                    height: 220,
+                    borderRadius: 12,
+                    marginBottom: 16,
+                  }}
+                  useNativeControls
+                  resizeMode={ResizeMode.CONTAIN}
+                  shouldPlay={true}
+                  isLooping={true}
+                />
+              ) : (
+                <Image
+                  source={{ uri: pickedAsset.uri }}
+                  style={{
+                    width: 220,
+                    height: 220,
+                    borderRadius: 12,
+                    marginBottom: 16,
+                  }}
+                />
+              ))}
             <Input
               placeholder="Write a caption..."
               value={caption}
@@ -643,7 +721,7 @@ export default function Account() {
                   <Video
                     source={{ uri: item.media_url }}
                     style={styles.gridImage}
-                    resizeMode="cover"
+                    resizeMode={ResizeMode.COVER}
                     isMuted
                     shouldPlay={false}
                   />
@@ -690,7 +768,7 @@ export default function Account() {
         ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={
           <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
-            No posts yet.
+            More features coming soon!
           </Text>
         }
         contentContainerStyle={styles.gridList}
@@ -719,7 +797,7 @@ export default function Account() {
             <Video
               source={{ uri: selectedMedia.url }}
               style={{ width: "90%", aspectRatio: 9 / 16, borderRadius: 16 }}
-              resizeMode="contain"
+              resizeMode={ResizeMode.CONTAIN}
               shouldPlay
               useNativeControls
             />

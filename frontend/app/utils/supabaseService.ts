@@ -255,7 +255,6 @@ export const searchUsersByName = async (
     if (error) {
       throw new Error(error.message);
     }
-    console.log("Fetched users:", data);
     return data || [];
   } catch (err) {
     console.error("Error searching users:", err);
@@ -394,6 +393,8 @@ export async function fetchFriendshipStatus(
  * Dynamically calculates whether the club is open based on its operating periods.
  * It converts the open and close times into "absolute minutes" relative to the start of the week.
  */
+// TODO: This is a temporary function to check if the club is open.
+// We should use the new isClubOpen function instead.
 export function isClubOpenDynamic(hours: types.RegularOpeningHours): boolean {
   if (!hours.periods || hours.periods.length === 0) return false;
 
@@ -447,6 +448,7 @@ export function isClubOpenDynamic(hours: types.RegularOpeningHours): boolean {
  * [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday].
  * JavaScript's getDay() returns 0 for Sunday, 1 for Monday, etc.
  */
+// TODO: This is a temporary function to get the operating hours for today.
 export function getTodaysHours(hours: types.RegularOpeningHours, date: Date) {
   const currentDay = date.getDay();
   const currentMinutes = date.getHours() * 60 + date.getMinutes();
@@ -550,6 +552,7 @@ export async function addAppReview(
       user_id: userId,
       rating,
       text,
+      like_ids: [],
     },
   ]);
   return { data, error };
@@ -561,7 +564,7 @@ export async function addAppReviewSimple(
   musicGenre: string
 ) {
   const { data, error } = await supabase
-    .from("app_reviews")
+    .from("club_reviews")
     .insert([
       {
         club_id: clubId,
@@ -569,6 +572,7 @@ export async function addAppReviewSimple(
         rating,
         music_genre: musicGenre,
         text: null, // no comment
+        like_ids: [],
       },
     ])
     .select();
@@ -633,6 +637,7 @@ export async function fetchUserFriends(
           first_name,
           last_name,
           active_club_id,
+          active_club_closed,
           active_club:Clubs!active_club_id (
             id,
             Name,
@@ -660,6 +665,7 @@ export async function fetchUserFriends(
           first_name,
           last_name,
           active_club_id,
+          active_club_closed,
           active_club:Clubs!active_club_id (
             id,
             Name,
@@ -691,15 +697,194 @@ export async function fetchUserFriends(
     return [];
   }
 }
+
+/**
+ * Calculates the next closing time for a club based on its operating hours
+ */
+function calculateClubClosingTime(
+  clubHours: types.RegularOpeningHours
+): string | null {
+  console.log(
+    "calculateClubClosingTime - clubHours:",
+    JSON.stringify(clubHours, null, 2)
+  );
+
+  if (!clubHours?.periods || clubHours.periods.length === 0) {
+    console.log("No periods found in club hours");
+    return null;
+  }
+
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 (Sun) to 6 (Sat)
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
+
+  console.log(
+    "Current day:",
+    currentDay,
+    "Current time (minutes):",
+    currentTime
+  );
+  console.log("Current date:", now.toISOString());
+  console.log(
+    "User timezone:",
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
+
+  let nextClosingTime: Date | null = null;
+  let minDaysUntilClose = Infinity;
+
+  // Check each period to find the next closing time
+  for (let period of clubHours.periods) {
+    console.log("Checking period:", period);
+
+    if (!period.open || !period.close) {
+      console.log("Skipping period - missing open or close data");
+      continue;
+    }
+
+    // Calculate days until this period's closing time
+    let daysUntilClose = 0;
+
+    if (period.close.day === currentDay) {
+      // Close on the same day
+      const closeTime = period.close.hour * 60 + period.close.minute;
+      if (currentTime < closeTime) {
+        // Club closes later today
+        daysUntilClose = 0;
+      } else {
+        // Club already closed today, skip this period
+        continue;
+      }
+    } else if (period.close.day > currentDay) {
+      // Close on a future day this week
+      daysUntilClose = period.close.day - currentDay;
+    } else {
+      // Close on a day next week (period spans midnight)
+      daysUntilClose = 7 - currentDay + period.close.day;
+    }
+
+    console.log(
+      "Period analysis:",
+      "close day:",
+      period.close.day,
+      "close time:",
+      period.close.hour + ":" + period.close.minute,
+      "daysUntilClose:",
+      daysUntilClose
+    );
+
+    // If this is the earliest closing time we've found, update our result
+    if (daysUntilClose < minDaysUntilClose) {
+      minDaysUntilClose = daysUntilClose;
+
+      // Calculate the target date in user's local timezone
+      const targetDate = new Date(now);
+      targetDate.setDate(targetDate.getDate() + daysUntilClose);
+
+      // Create the closing time in user's local timezone
+      const closeDate = new Date(
+        targetDate.getFullYear(),
+        targetDate.getMonth(),
+        targetDate.getDate(),
+        period.close.hour,
+        period.close.minute,
+        0,
+        0
+      );
+
+      nextClosingTime = closeDate;
+
+      console.log("Target date:", targetDate.toDateString());
+      console.log("Closing time (local):", closeDate.toString());
+    }
+  }
+
+  if (nextClosingTime) {
+    // Create a proper timestamptz string in the user's local timezone
+    const year = nextClosingTime.getFullYear();
+    const month = String(nextClosingTime.getMonth() + 1).padStart(2, "0");
+    const day = String(nextClosingTime.getDate()).padStart(2, "0");
+    const hours = String(nextClosingTime.getHours()).padStart(2, "0");
+    const minutes = String(nextClosingTime.getMinutes()).padStart(2, "0");
+    const seconds = String(nextClosingTime.getSeconds()).padStart(2, "0");
+
+    // Get timezone offset in minutes and convert to +/-HH:mm format
+    const timezoneOffset = nextClosingTime.getTimezoneOffset();
+    const offsetHours = Math.abs(Math.floor(timezoneOffset / 60));
+    const offsetMinutes = Math.abs(timezoneOffset % 60);
+    const offsetSign = timezoneOffset <= 0 ? "+" : "-";
+    const offsetString = `${offsetSign}${String(offsetHours).padStart(
+      2,
+      "0"
+    )}:${String(offsetMinutes).padStart(2, "0")}`;
+
+    // Format: YYYY-MM-DDTHH:mm:ss+/-HH:mm
+    const timestamptz = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetString}`;
+
+    console.log("Final closing time (timestamptz):", timestamptz);
+    return timestamptz;
+  }
+
+  console.log("No closing time found");
+  return null;
+}
+
 export async function updateUserActiveClub(
   userId: string,
   clubId: string | null
 ) {
+  let updateData: {
+    active_club_id: string | null;
+    active_club_closed?: string | null;
+  } = {
+    active_club_id: clubId,
+  };
+
+  // If user is checking into a club, calculate the closing time
+  if (clubId) {
+    try {
+      console.log("Checking into club:", clubId);
+
+      // Get the club's hours
+      const { data: club, error: clubError } = await supabase
+        .from("Clubs")
+        .select("hours")
+        .eq("id", clubId)
+        .single();
+
+      console.log("Club data:", club, "Club error:", clubError);
+
+      if (!clubError && club?.hours) {
+        console.log("Club hours found, calculating closing time...");
+        const closingTime = calculateClubClosingTime(club.hours);
+        console.log("Calculated closing time:", closingTime);
+
+        if (closingTime) {
+          updateData.active_club_closed = closingTime;
+          console.log("Set active_club_closed to:", closingTime);
+        } else {
+          console.log("No closing time calculated");
+        }
+      } else {
+        console.log("No club hours found or error occurred");
+      }
+    } catch (error) {
+      console.error("Error calculating club closing time:", error);
+      // Continue without setting closing time if there's an error
+    }
+  } else {
+    // If user is leaving a club, clear the closing time
+    console.log("Leaving club, clearing active_club_closed");
+    updateData.active_club_closed = null;
+  }
+
   const { data, error } = await supabase
     .from("profiles")
-    .update({ active_club_id: clubId })
-    .eq("id", userId);
+    .update(updateData)
+    .eq("id", userId)
+    .select();
 
+  console.log("updateUserActiveClub", data, error);
   if (!error) {
     // Broadcast the profile update
     await supabase.channel("profile_changes").send({
@@ -710,6 +895,67 @@ export async function updateUserActiveClub(
   }
 
   return { data, error };
+}
+
+/**
+ * Checks if the user's active club has closed and clears their attendance if so
+ * This should be called when the app opens or when checking user status
+ */
+export async function checkAndClearExpiredAttendance(
+  userId: string
+): Promise<boolean> {
+  try {
+    // Get the user's current profile
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("active_club_id, active_club_closed")
+      .eq("id", userId)
+      .single();
+
+    if (profileError || !profile) {
+      return false;
+    }
+
+    // If user has an active club and a closing time
+    if (profile.active_club_id && profile.active_club_closed) {
+      const closingTime = new Date(profile.active_club_closed);
+      const now = new Date();
+
+      // If the closing time has passed, clear the attendance
+      if (now > closingTime) {
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({
+            active_club_id: null,
+            active_club_closed: null,
+          })
+          .eq("id", userId);
+
+        if (!updateError) {
+          // Broadcast the profile update
+          await supabase.channel("profile_changes").send({
+            type: "broadcast",
+            event: "profile_update",
+            payload: {
+              new: {
+                id: userId,
+                active_club_id: null,
+                active_club_closed: null,
+              },
+            },
+          });
+
+          console.log(`Cleared expired attendance for user ${userId}`);
+          return true;
+        }
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Error checking expired attendance:", error);
+    return false;
+  }
 }
 
 export async function fetchFriendsActiveClubs(userId: string) {
@@ -728,6 +974,7 @@ export async function fetchFriendsActiveClubs(userId: string) {
         first_name,
         last_name,
         active_club_id,
+        active_club_closed,
         active_club:Clubs!active_club_id (
           id,
           Name,
@@ -745,5 +992,103 @@ export async function fetchFriendsActiveClubs(userId: string) {
   } catch (error) {
     console.error("Error fetching friends active clubs:", error);
     return [];
+  }
+}
+
+/**
+ * Returns friends of the current user who are attending (active_club_id === clubId).
+ * @param clubId - The club to check attendance for.
+ * @param userId - The current user's id.
+ * @returns Array of { id, avatar_url } for friends attending the club.
+ */
+export async function fetchFriendsAttending(
+  clubId: string,
+  userId: string
+): Promise<{ id: string; avatar_url: string | null }[]> {
+  const friends = await fetchUserFriends(userId);
+  return friends
+    .filter((friend) => friend.active_club_id === clubId)
+    .map((friend) => ({
+      id: friend.id,
+      avatar_url: friend.avatar_url ?? null,
+    }));
+}
+
+/**
+ * Manually checks and clears expired attendance for all users
+ * This can be called for testing or manual cleanup
+ */
+export async function checkAndClearAllExpiredAttendance(): Promise<{
+  clearedCount: number;
+  errors: string[];
+}> {
+  try {
+    // Get all users with active clubs and closing times
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, active_club_id, active_club_closed")
+      .not("active_club_id", "is", null)
+      .not("active_club_closed", "is", null);
+
+    if (profilesError) {
+      throw new Error(`Error fetching profiles: ${profilesError.message}`);
+    }
+
+    if (!profiles || profiles.length === 0) {
+      return { clearedCount: 0, errors: [] };
+    }
+
+    const now = new Date();
+    const usersToClear: string[] = [];
+    const errors: string[] = [];
+
+    // Check each profile for expired attendance
+    for (const profile of profiles) {
+      try {
+        const closingTime = new Date(profile.active_club_closed);
+
+        if (now > closingTime) {
+          usersToClear.push(profile.id);
+        }
+      } catch (error) {
+        errors.push(`Error processing profile ${profile.id}: ${error}`);
+      }
+    }
+
+    // Clear attendance for all expired users
+    if (usersToClear.length > 0) {
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          active_club_id: null,
+          active_club_closed: null,
+        })
+        .in("id", usersToClear);
+
+      if (updateError) {
+        errors.push(`Error updating profiles: ${updateError.message}`);
+      } else {
+        // Broadcast the profile updates
+        await supabase.channel("profile_changes").send({
+          type: "broadcast",
+          event: "attendance_cleared",
+          payload: {
+            clearedUsers: usersToClear,
+            timestamp: now.toISOString(),
+          },
+        });
+      }
+    }
+
+    return {
+      clearedCount: usersToClear.length,
+      errors,
+    };
+  } catch (error) {
+    console.error("Error checking all expired attendance:", error);
+    return {
+      clearedCount: 0,
+      errors: [error instanceof Error ? error.message : "Unknown error"],
+    };
   }
 }
