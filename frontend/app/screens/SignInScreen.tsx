@@ -8,13 +8,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
 } from "react-native";
 import { supabaseAuth } from "../utils/supabaseAuth";
-import { Button, Input, Text } from "@rneui/themed";
+import { Button, TextInput, Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation";
 
@@ -54,83 +54,125 @@ export default function SignInScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={Constants.backgroundCOLOR}
+      />
+
       <LinearGradient
-        colors={["rgba(0,0,0,0.7)", "transparent"]}
+        colors={["rgba(0,0,0,0.8)", "transparent"]}
         style={styles.headerGradient}
       />
-      <View style={styles.scrollContent}>
-        <View style={styles.logoContainer}>
-          <Text h2 style={styles.title}>
-            Motivz
-          </Text>
-          <Text style={styles.subtitle}>Your Nightlife Companion</Text>
-        </View>
 
-        <View style={styles.formContainer}>
-          <Input
-            placeholder="Email"
-            leftIcon={<Ionicons name="mail-outline" size={20} color="#fff" />}
-            onChangeText={setEmail}
-            value={email}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            inputStyle={styles.input}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            containerStyle={styles.inputContainer}
-          />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.content}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
+            <Text variant="displayLarge" style={styles.title}>
+              Motivz
+            </Text>
+            <Text variant="titleMedium" style={styles.subtitle}>
+              Your Nightlife Companion
+            </Text>
+          </View>
 
-          <Input
-            placeholder="Password"
-            leftIcon={
-              <Ionicons name="lock-closed-outline" size={20} color="#fff" />
-            }
-            rightIcon={
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={20}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            }
-            onChangeText={setPassword}
-            value={password}
-            secureTextEntry={!showPassword}
-            inputStyle={styles.input}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            containerStyle={styles.inputContainer}
-          />
+          {/* Form Section */}
+          <View style={styles.formSection}>
+            <Text variant="headlineSmall" style={styles.formTitle}>
+              Welcome Back
+            </Text>
 
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
-          {loading ? (
-            <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
-          ) : (
-            <>
-              <Button
-                title="Sign In"
-                onPress={signInWithEmail}
-                buttonStyle={styles.signInButton}
-                titleStyle={styles.buttonText}
+            <View style={styles.inputGroup}>
+              <TextInput
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                left={
+                  <TextInput.Icon icon="email" color="rgba(255,255,255,0.7)" />
+                }
               />
 
-              <View style={styles.signUpContainer}>
-                <Text style={styles.signUpText}>Don't have an account? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
-                  <Text style={styles.signUpLink}>Sign Up</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+              <TextInput
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                left={
+                  <TextInput.Icon icon="lock" color="rgba(255,255,255,0.7)" />
+                }
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? "eye-off" : "eye"}
+                    color="rgba(255,255,255,0.7)"
+                    onPress={() => setShowPassword(!showPassword)}
+                  />
+                }
+              />
+            </View>
+
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text variant="bodyMedium" style={styles.forgotPasswordText}>
+                Forgot Password?
+              </Text>
+            </TouchableOpacity>
+
+            {loading ? (
+              <ActivityIndicator
+                size="large"
+                color={Constants.purpleCOLOR}
+                style={styles.loader}
+              />
+            ) : (
+              <>
+                <Button
+                  mode="contained"
+                  onPress={signInWithEmail}
+                  style={styles.signInButton}
+                  labelStyle={styles.buttonText}
+                  contentStyle={styles.buttonContent}
+                >
+                  Sign In
+                </Button>
+
+                <View style={styles.signUpContainer}>
+                  <Text variant="bodyMedium" style={styles.signUpText}>
+                    Don't have an account?{" "}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("SignUp")}
+                  >
+                    <Text variant="bodyMedium" style={styles.signUpLink}>
+                      Sign Up
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -144,69 +186,101 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: 300,
     zIndex: 1,
+  },
+  content: {
+    flex: 1,
+    zIndex: 2,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
-  logoContainer: {
+  logoSection: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 60,
   },
   title: {
     color: "#fff",
-    fontSize: 42,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: "center",
   },
   subtitle: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 16,
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
   },
-  formContainer: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+  formSection: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 24,
+    padding: 32,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  formTitle: {
+    color: "#fff",
+    fontWeight: "600",
+    marginBottom: 32,
+    textAlign: "center",
+  },
+  inputGroup: {
+    marginBottom: 24,
   },
   input: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  inputContainer: {
-    paddingHorizontal: 0,
+    marginBottom: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
   forgotPassword: {
     alignSelf: "flex-end",
-    marginBottom: 20,
+    marginBottom: 32,
   },
   forgotPasswordText: {
     color: Constants.purpleCOLOR,
-    fontSize: 14,
+    fontWeight: "500",
+  },
+  loader: {
+    marginVertical: 20,
   },
   signInButton: {
     backgroundColor: Constants.purpleCOLOR,
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginBottom: 20,
+    borderRadius: 16,
+    shadowColor: Constants.purpleCOLOR,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonContent: {
+    paddingVertical: 8,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: "#fff",
   },
   signUpContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 20,
+    alignItems: "center",
+    marginTop: 24,
   },
   signUpText: {
     color: "rgba(255,255,255,0.7)",
   },
   signUpLink: {
     color: Constants.purpleCOLOR,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
 });

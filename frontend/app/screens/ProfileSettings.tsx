@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import { Button, Input, Text } from "@rneui/themed";
+import { Button, TextInput, Text } from "react-native-paper";
 import { storage, supabase } from "../utils/supabaseService";
 import * as ImagePicker from "expo-image-picker";
 import { useSession } from "@/components/SessionContext";
@@ -174,7 +174,7 @@ export default function ProfileSettings() {
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <BackButton color={whiteCOLOR} />
-        <Text h3 style={styles.header}>
+        <Text variant="headlineMedium" style={styles.header}>
           Edit Profile
         </Text>
         <View style={styles.headerSpacer} />
@@ -201,46 +201,63 @@ export default function ProfileSettings() {
           </TouchableOpacity>
 
           <View style={styles.formContainer}>
-            <Input
-              label="Username"
+            <TextInput
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
-              containerStyle={styles.inputContainer}
-              inputStyle={styles.input}
-              labelStyle={styles.label}
-              placeholderTextColor={whiteCOLOR + "80"}
-              placeholder={username || "username"}
+              style={styles.input}
+              placeholderTextColor={whiteCOLOR + "60"}
+              placeholder="Enter your username"
+              mode="outlined"
+              outlineColor="rgba(255,255,255,0.2)"
+              activeOutlineColor={purpleCOLOR}
+              textColor={whiteCOLOR}
+              left={<TextInput.Icon icon="account" color={whiteCOLOR + "80"} />}
             />
-            <Input
-              label="First Name"
+            <TextInput
               value={firstName}
               onChangeText={setFirstName}
-              containerStyle={styles.inputContainer}
-              inputStyle={styles.input}
-              labelStyle={styles.label}
-              placeholderTextColor={whiteCOLOR + "80"}
-              placeholder={firstName || "First Name"}
+              style={styles.input}
+              placeholderTextColor={whiteCOLOR + "60"}
+              placeholder="Enter your first name"
+              mode="outlined"
+              outlineColor="rgba(255,255,255,0.2)"
+              activeOutlineColor={purpleCOLOR}
+              textColor={whiteCOLOR}
+              left={
+                <TextInput.Icon
+                  icon="account-details"
+                  color={whiteCOLOR + "80"}
+                />
+              }
             />
-            <Input
-              label="Last Name"
+            <TextInput
               value={lastName}
               onChangeText={setLastName}
-              containerStyle={styles.inputContainer}
-              inputStyle={styles.input}
-              labelStyle={styles.label}
-              placeholderTextColor={whiteCOLOR + "80"}
-              placeholder={lastName || "Last Name"}
+              style={styles.input}
+              placeholderTextColor={whiteCOLOR + "60"}
+              placeholder="Enter your last name"
+              mode="outlined"
+              outlineColor="rgba(255,255,255,0.2)"
+              activeOutlineColor={purpleCOLOR}
+              textColor={whiteCOLOR}
+              left={
+                <TextInput.Icon
+                  icon="account-details"
+                  color={whiteCOLOR + "80"}
+                />
+              }
             />
 
             <Button
-              title={loading ? "Updating..." : "Update Profile"}
+              mode="contained"
               onPress={updateProfile}
               disabled={loading}
-              buttonStyle={styles.button}
-              titleStyle={styles.buttonText}
-              containerStyle={styles.buttonContainer}
-            />
+              style={styles.button}
+              labelStyle={styles.buttonText}
+            >
+              {loading ? "Updating..." : "Update Profile"}
+            </Button>
           </View>
         </View>
       </ScrollView>
@@ -355,6 +372,8 @@ const styles = StyleSheet.create({
   input: {
     fontSize: 16,
     color: whiteCOLOR,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    marginBottom: 16,
   },
   label: {
     color: whiteCOLOR,

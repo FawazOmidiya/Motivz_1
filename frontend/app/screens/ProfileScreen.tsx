@@ -15,7 +15,7 @@ import {
   Linking,
   Pressable,
 } from "react-native";
-import { Button, Text, Input } from "@rneui/themed";
+import { Button, Text, TextInput } from "react-native-paper";
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
@@ -671,31 +671,37 @@ export default function Account() {
                   }}
                 />
               ))}
-            <Input
+            <TextInput
               placeholder="Write a caption..."
               value={caption}
               onChangeText={setCaption}
-              inputStyle={{ color: Constants.whiteCOLOR }}
+              style={{ color: Constants.whiteCOLOR }}
               placeholderTextColor={Constants.whiteCOLOR + "80"}
-              containerStyle={{ width: "100%" }}
+              mode="outlined"
+              outlineColor="rgba(255,255,255,0.3)"
+              activeOutlineColor={Constants.whiteCOLOR}
+              textColor={Constants.whiteCOLOR}
             />
             <Button
-              title={uploading ? "Posting..." : "Post"}
+              mode="contained"
               onPress={handleUploadPost}
               disabled={uploading}
-              buttonStyle={{
+              style={{
                 backgroundColor: Constants.purpleCOLOR,
                 borderRadius: 20,
                 width: 120,
               }}
-              titleStyle={{ fontWeight: "bold" }}
-            />
+              labelStyle={{ fontWeight: "bold" }}
+            >
+              {uploading ? "Posting..." : "Post"}
+            </Button>
             <Button
-              title="Cancel"
-              type="clear"
+              mode="text"
               onPress={() => setShowPostModal(false)}
-              titleStyle={{ color: Constants.whiteCOLOR, marginTop: 8 }}
-            />
+              labelStyle={{ color: Constants.whiteCOLOR, marginTop: 8 }}
+            >
+              Cancel
+            </Button>
           </View>
         </View>
       </Modal>

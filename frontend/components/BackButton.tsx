@@ -1,6 +1,6 @@
 import React from "react";
 import { TouchableOpacity, StyleSheet } from "react-native";
-import { Icon } from "@rneui/themed";
+import { IconButton } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 
 export default function BackButton({ size = 24, color = "black" }) {
@@ -11,7 +11,12 @@ export default function BackButton({ size = 24, color = "black" }) {
       style={[styles.backButton]}
       onPress={() => navigation.goBack()}
     >
-      <Icon name="arrow-left" type="font-awesome" size={size} color={color} />
+      <IconButton
+        icon="arrow-left"
+        size={size}
+        iconColor={color}
+        onPress={() => navigation.goBack()}
+      />
     </TouchableOpacity>
   );
 }

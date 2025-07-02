@@ -14,12 +14,15 @@ import {
   Linking,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   fetchEventsByClub,
   queryUserFavouriteExists,
   addClubToFavourites,
   removeClubFromFavourites,
   updateUserActiveClub,
+  fetchFriendsAttending,
+  fetchUserProfile,
 } from "../utils/supabaseService";
 import { useSession, useProfile } from "@/components/SessionContext";
 import * as types from "@/app/utils/types";
@@ -36,6 +39,11 @@ import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
 
+type ClubDetailNavigationProp = NativeStackNavigationProp<
+  types.RootTabParamList,
+  "ClubDetail"
+>;
+
 export default function ClubDetailScreen() {
   const route = useRoute();
   const { club: clubData } = route.params as { club: types.Club };
@@ -46,7 +54,7 @@ export default function ClubDetailScreen() {
   const [isFavourite, setIsFavourite] = useState(false);
   const session = useSession();
   const profile = useProfile();
-  const navigation = useNavigation();
+  const navigation = useNavigation<ClubDetailNavigationProp>();
   const [activeTab, setActiveTab] = useState<"google" | "app">("google");
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -57,6 +65,9 @@ export default function ClubDetailScreen() {
   const [showSchedulePopup, setShowSchedulePopup] = useState(false);
   const [liveRating, setLiveRating] = useState<number | null>(null);
   const [showLiveOnly, setShowLiveOnly] = useState(true);
+  const [friendsAtClub, setFriendsAtClub] = useState<
+    { id: string; avatar_url: string | null }[]
+  >([]);
 
   useEffect(() => {
     const loadClub = async () => {
@@ -87,11 +98,22 @@ export default function ClubDetailScreen() {
         longitude: location.coords.longitude,
       };
     };
+    const loadFriendsAtClub = async () => {
+      if (session?.user?.id && club?.id) {
+        try {
+          const friends = await fetchFriendsAttending(club.id, session.user.id);
+          setFriendsAtClub(friends);
+        } catch (error) {
+          console.error("Error fetching friends at club:", error);
+        }
+      }
+    };
     getLocation();
     loadEvents();
+    loadFriendsAtClub();
     setIsGoing(profile?.active_club_id === club?.id);
     getMusicSchedule();
-  }, [club?.id, profile]);
+  }, [club?.id, profile, session?.user?.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -168,6 +190,16 @@ export default function ClubDetailScreen() {
     if (!session?.user) return;
     setIsGoing(!isGoing);
     await updateUserActiveClub(session.user.id, club_id);
+
+    // Refresh friends at club list after checking in/out
+    if (session?.user?.id && club?.id) {
+      try {
+        const friends = await fetchFriendsAttending(club.id, session.user.id);
+        setFriendsAtClub(friends);
+      } catch (error) {
+        console.error("Error refreshing friends at club:", error);
+      }
+    }
   };
 
   const getMusicSchedule = async () => {
@@ -192,6 +224,17 @@ export default function ClubDetailScreen() {
     setShowSchedulePopup(true);
   };
 
+  const handleFriendPress = async (friendId: string) => {
+    try {
+      const userProfile = await fetchUserProfile(friendId);
+      if (userProfile) {
+        navigation.navigate("UserProfile", { user: userProfile });
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
   if (!club) {
     return (
       <View style={styles.container}>
@@ -208,6 +251,33 @@ export default function ClubDetailScreen() {
           colors={["rgba(0,0,0,0.7)", "transparent"]}
           style={styles.gradientOverlay}
         />
+
+        {/* Friends at Club Overlay */}
+        {friendsAtClub.length > 0 && (
+          <View style={styles.friendsAtClubContainer}>
+            <View style={styles.friendsRow}>
+              {friendsAtClub.map((friend, idx) => (
+                <TouchableOpacity
+                  key={friend.id}
+                  style={styles.friendAvatar}
+                  onPress={() => handleFriendPress(friend.id)}
+                >
+                  {friend.avatar_url ? (
+                    <Image
+                      source={{ uri: friend.avatar_url }}
+                      style={styles.friendAvatarImage}
+                    />
+                  ) : (
+                    <View style={styles.friendAvatarPlaceholder}>
+                      <Ionicons name="person" size={20} color="#fff" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={styles.header}>
           <BackButton color="white" />
           <Text style={styles.clubName}>{club?.name}</Text>
@@ -797,5 +867,40 @@ const styles = StyleSheet.create({
   emptyText: {
     color: "rgba(255, 255, 255, 0.5)",
     fontSize: 16,
+  },
+  friendsAtClubContainer: {
+    position: "absolute",
+    bottom: 80,
+    right: "5%",
+    zIndex: 3,
+  },
+  friendsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 32,
+  },
+  friendAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#fff",
+    backgroundColor: "#888",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  friendAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 14,
+  },
+  friendAvatarPlaceholder: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

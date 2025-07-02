@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Dimensions,
 } from "react-native";
-import { Text } from "@rneui/themed";
+import { Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import type { Club } from "../app/utils/types";
 import * as Constants from "@/constants/Constants";
@@ -26,7 +26,9 @@ const FavouriteClub: React.FC<FavouriteClubProps> = ({ club }) => {
     <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
       <View style={styles.favouriteItem}>
         <Image source={{ uri: club.Image }} style={styles.favouriteImage} />
-        <Text style={styles.favouriteTitle}>{club.Name}</Text>
+        <Text variant="bodyMedium" style={styles.favouriteTitle}>
+          {club.Name}
+        </Text>
       </View>
     </TouchableOpacity>
   );

@@ -8,12 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
 } from "react-native";
-import { Button, Input, Text } from "@rneui/themed";
+import { Button, TextInput, Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { supabase } from "../utils/supabaseService";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation";
@@ -86,114 +86,159 @@ export default function SignUpScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={Constants.backgroundCOLOR}
+      />
+
       <LinearGradient
-        colors={["rgba(0,0,0,0.7)", "transparent"]}
+        colors={["rgba(0,0,0,0.8)", "transparent"]}
         style={styles.headerGradient}
       />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.logoContainer}>
-          <Text h2 style={styles.title}>
-            Join Motivz
-          </Text>
-          <Text style={styles.subtitle}>Create your account</Text>
-        </View>
 
-        <View style={styles.formContainer}>
-          <Input
-            placeholder="Username"
-            leftIcon={<Ionicons name="person-outline" size={20} color="#fff" />}
-            onChangeText={setUsername}
-            value={username}
-            autoCapitalize="none"
-            inputStyle={styles.input}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            containerStyle={styles.inputContainer}
-          />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.content}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
+            <Text variant="displayLarge" style={styles.title}>
+              Join Motivz
+            </Text>
+            <Text variant="titleMedium" style={styles.subtitle}>
+              Create your account
+            </Text>
+          </View>
 
-          <Input
-            placeholder="Email"
-            leftIcon={<Ionicons name="mail-outline" size={20} color="#fff" />}
-            onChangeText={setEmail}
-            value={email}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            inputStyle={styles.input}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            containerStyle={styles.inputContainer}
-          />
+          {/* Form Section */}
+          <View style={styles.formSection}>
+            <Text variant="headlineSmall" style={styles.formTitle}>
+              Get Started
+            </Text>
 
-          <Input
-            placeholder="Password"
-            leftIcon={
-              <Ionicons name="lock-closed-outline" size={20} color="#fff" />
-            }
-            rightIcon={
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={20}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            }
-            onChangeText={setPassword}
-            value={password}
-            secureTextEntry={!showPassword}
-            inputStyle={styles.input}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            containerStyle={styles.inputContainer}
-          />
-
-          <Input
-            placeholder="Confirm Password"
-            leftIcon={
-              <Ionicons name="lock-closed-outline" size={20} color="#fff" />
-            }
-            rightIcon={
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                  size={20}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            }
-            onChangeText={setConfirmPassword}
-            value={confirmPassword}
-            secureTextEntry={!showConfirmPassword}
-            inputStyle={styles.input}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            containerStyle={styles.inputContainer}
-          />
-
-          {loading ? (
-            <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
-          ) : (
-            <>
-              <Button
-                title="Continue"
-                onPress={handleContinue}
-                buttonStyle={styles.signUpButton}
-                titleStyle={styles.buttonText}
+            <View style={styles.inputGroup}>
+              <TextInput
+                placeholder="Username"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                left={
+                  <TextInput.Icon
+                    icon="account"
+                    color="rgba(255,255,255,0.7)"
+                  />
+                }
               />
 
-              <View style={styles.signInContainer}>
-                <Text style={styles.signInText}>Already have an account? </Text>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                  <Text style={styles.signInLink}>Sign In</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              <TextInput
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                left={
+                  <TextInput.Icon icon="email" color="rgba(255,255,255,0.7)" />
+                }
+              />
+
+              <TextInput
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                left={
+                  <TextInput.Icon icon="lock" color="rgba(255,255,255,0.7)" />
+                }
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? "eye-off" : "eye"}
+                    color="rgba(255,255,255,0.7)"
+                    onPress={() => setShowPassword(!showPassword)}
+                  />
+                }
+              />
+
+              <TextInput
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                left={
+                  <TextInput.Icon icon="lock" color="rgba(255,255,255,0.7)" />
+                }
+                right={
+                  <TextInput.Icon
+                    icon={showConfirmPassword ? "eye-off" : "eye"}
+                    color="rgba(255,255,255,0.7)"
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  />
+                }
+              />
+            </View>
+
+            {loading ? (
+              <ActivityIndicator
+                size="large"
+                color={Constants.purpleCOLOR}
+                style={styles.loader}
+              />
+            ) : (
+              <>
+                <Button
+                  mode="contained"
+                  onPress={handleContinue}
+                  style={styles.signUpButton}
+                  labelStyle={styles.buttonText}
+                  contentStyle={styles.buttonContent}
+                >
+                  Continue
+                </Button>
+
+                <View style={styles.signInContainer}>
+                  <Text variant="bodyMedium" style={styles.signInText}>
+                    Already have an account?{" "}
+                  </Text>
+                  <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Text variant="bodyMedium" style={styles.signInLink}>
+                      Sign In
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -207,61 +252,93 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: 300,
     zIndex: 1,
+  },
+  content: {
+    flex: 1,
+    zIndex: 2,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
-  logoContainer: {
+  logoSection: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 60,
   },
   title: {
     color: "#fff",
-    fontSize: 42,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: "center",
   },
   subtitle: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 16,
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
   },
-  formContainer: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+  formSection: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 24,
+    padding: 32,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  formTitle: {
+    color: "#fff",
+    fontWeight: "600",
+    marginBottom: 32,
+    textAlign: "center",
+  },
+  inputGroup: {
+    marginBottom: 32,
   },
   input: {
-    color: "#fff",
-    fontSize: 16,
+    marginBottom: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
-  inputContainer: {
-    paddingHorizontal: 0,
+  loader: {
+    marginVertical: 20,
   },
   signUpButton: {
     backgroundColor: Constants.purpleCOLOR,
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginBottom: 20,
+    borderRadius: 16,
+    shadowColor: Constants.purpleCOLOR,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonContent: {
+    paddingVertical: 8,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: "#fff",
   },
   signInContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 20,
+    alignItems: "center",
+    marginTop: 24,
   },
   signInText: {
     color: "rgba(255,255,255,0.7)",
   },
   signInLink: {
     color: Constants.purpleCOLOR,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
 });

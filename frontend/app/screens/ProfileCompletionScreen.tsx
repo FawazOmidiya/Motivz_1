@@ -9,8 +9,9 @@ import {
   Platform,
   ScrollView,
   Image,
+  StatusBar,
 } from "react-native";
-import { Button, Input, Text } from "@rneui/themed";
+import { Button, TextInput, Text } from "react-native-paper";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
@@ -151,72 +152,132 @@ export default function ProfileCompletionScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={Constants.backgroundCOLOR}
+      />
+
       <LinearGradient
-        colors={["rgba(0,0,0,0.7)", "transparent"]}
+        colors={["rgba(0,0,0,0.8)", "transparent"]}
         style={styles.headerGradient}
       />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.logoContainer}>
-          <Text h2 style={styles.title}>
-            Complete Your Profile
-          </Text>
-          <Text style={styles.subtitle}>Tell us a bit about yourself</Text>
-        </View>
 
-        <View style={styles.formContainer}>
-          <TouchableOpacity
-            style={styles.avatarContainer}
-            onPress={pickAndUploadImage}
-          >
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={40} color="#fff" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.content}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <Text variant="displayLarge" style={styles.title}>
+              Complete Your Profile
+            </Text>
+            <Text variant="titleMedium" style={styles.subtitle}>
+              Tell us a bit about yourself
+            </Text>
+          </View>
+
+          {/* Avatar Section */}
+          <View style={styles.avatarSection}>
+            <TouchableOpacity
+              style={styles.avatarContainer}
+              onPress={pickAndUploadImage}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <View style={styles.avatar}>
+                  <ActivityIndicator
+                    size="large"
+                    color={Constants.whiteCOLOR}
+                  />
+                </View>
+              ) : avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={48} color="#fff" />
+                </View>
+              )}
+
+              <View style={styles.editOverlay}>
+                <Ionicons name="camera" size={20} color="#fff" />
               </View>
-            )}
-            <View style={styles.avatarOverlay}>
-              <Ionicons name="camera" size={24} color="#fff" />
+            </TouchableOpacity>
+
+            <Text variant="bodyMedium" style={styles.avatarLabel}>
+              Tap to add a photo
+            </Text>
+          </View>
+
+          {/* Form Section */}
+          <View style={styles.formSection}>
+            <Text variant="headlineSmall" style={styles.formTitle}>
+              Personal Information
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <TextInput
+                placeholder="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                left={
+                  <TextInput.Icon
+                    icon="account"
+                    color="rgba(255,255,255,0.7)"
+                  />
+                }
+              />
+
+              <TextInput
+                placeholder="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                left={
+                  <TextInput.Icon
+                    icon="account"
+                    color="rgba(255,255,255,0.7)"
+                  />
+                }
+              />
             </View>
-          </TouchableOpacity>
 
-          <Input
-            placeholder="First Name"
-            leftIcon={<Ionicons name="person-outline" size={20} color="#fff" />}
-            onChangeText={setFirstName}
-            value={firstName}
-            inputStyle={styles.input}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            containerStyle={styles.inputContainer}
-          />
-
-          <Input
-            placeholder="Last Name"
-            leftIcon={<Ionicons name="person-outline" size={20} color="#fff" />}
-            onChangeText={setLastName}
-            value={lastName}
-            inputStyle={styles.input}
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            containerStyle={styles.inputContainer}
-          />
-
-          {loading || uploading ? (
-            <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
-          ) : (
-            <Button
-              title="Create Account"
-              onPress={handleSubmit}
-              buttonStyle={styles.submitButton}
-              titleStyle={styles.buttonText}
-            />
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {loading ? (
+              <ActivityIndicator
+                size="large"
+                color={Constants.purpleCOLOR}
+                style={styles.loader}
+              />
+            ) : (
+              <Button
+                mode="contained"
+                onPress={handleSubmit}
+                style={styles.submitButton}
+                labelStyle={styles.buttonText}
+                contentStyle={styles.buttonContent}
+              >
+                Create Account
+              </Button>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -230,83 +291,147 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: 300,
     zIndex: 1,
+  },
+  content: {
+    flex: 1,
+    zIndex: 2,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
-  logoContainer: {
+  headerSection: {
     alignItems: "center",
     marginBottom: 40,
   },
   title: {
     color: "#fff",
-    fontSize: 42,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: "center",
   },
   subtitle: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 16,
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
   },
-  formContainer: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+  avatarSection: {
     alignItems: "center",
+    marginBottom: 40,
   },
   avatarContainer: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  avatar: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    marginBottom: 30,
-    position: "relative",
-  },
-  avatar: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: Constants.purpleCOLOR,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   avatarPlaceholder: {
-    width: "100%",
-    height: "100%",
+    width: 120,
+    height: 120,
     borderRadius: 60,
     backgroundColor: "rgba(255,255,255,0.1)",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 4,
+    borderColor: Constants.purpleCOLOR,
+    borderStyle: "dashed",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  avatarOverlay: {
+  editOverlay: {
     position: "absolute",
     bottom: 0,
     right: 0,
     backgroundColor: Constants.purpleCOLOR,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 3,
+    borderColor: Constants.backgroundCOLOR,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  avatarLabel: {
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center",
+  },
+  formSection: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 24,
+    padding: 32,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  formTitle: {
+    color: "#fff",
+    fontWeight: "600",
+    marginBottom: 32,
+    textAlign: "center",
+  },
+  inputGroup: {
+    marginBottom: 32,
   },
   input: {
-    color: "#fff",
-    fontSize: 16,
+    marginBottom: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
-  inputContainer: {
-    paddingHorizontal: 0,
-    width: "100%",
+  loader: {
+    marginVertical: 20,
   },
   submitButton: {
     backgroundColor: Constants.purpleCOLOR,
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginTop: 20,
-    width: "100%",
+    borderRadius: 16,
+    shadowColor: Constants.purpleCOLOR,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonContent: {
+    paddingVertical: 8,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: "#fff",
   },
 });
