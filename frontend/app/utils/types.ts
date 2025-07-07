@@ -62,11 +62,7 @@ export type GlobalStackParamList = {
   UserProfile: { user: UserProfile };
 };
 
-export type FriendStatus =
-  | "none"
-  | "pending_sent"
-  | "pending_received"
-  | "friends";
+export type FriendStatus = "none" | "pending" | "friends";
 
 export interface RegularOpeningHours {
   openNow?: boolean; // Provided flag (we won't rely on it for dynamic computation)

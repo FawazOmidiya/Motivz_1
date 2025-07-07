@@ -295,7 +295,7 @@ export async function sendFriendRequest(
     {
       requester_id: currentUserId,
       receiver_id: targetUserId,
-      status: "friends",
+      status: "pending",
     },
   ]);
   return { data, error };
@@ -307,12 +307,26 @@ export async function cancelFriendRequest(
   currentUserId: string,
   targetUserId: string
 ) {
-  const { data, error } = await supabase
-    .from("friendships")
-    .delete()
-    .or(
-      `(requester_id.eq.${currentUserId} and receiver_id.eq.${targetUserId}),(requester_id.eq.${targetUserId} and receiver_id.eq.${currentUserId})`
-    );
+  // Try to delete a request sent by the current user (unsend)
+  let { data, error } = await supabase.from("friendships").delete().match({
+    requester_id: currentUserId,
+    receiver_id: targetUserId,
+    status: "pending",
+  });
+
+  // If nothing was deleted, try to delete a request received by the current user (decline)
+  const nothingDeleted =
+    !data || (Array.isArray(data) && (data as any[]).length === 0);
+  if (nothingDeleted && !error) {
+    const res = await supabase.from("friendships").delete().match({
+      requester_id: targetUserId,
+      receiver_id: currentUserId,
+      status: "pending",
+    });
+    data = res.data;
+    error = res.error;
+  }
+
   return { data, error };
 }
 
@@ -322,6 +336,22 @@ export async function acceptFriendRequest(
   currentUserId: string,
   targetUserId: string
 ) {
+  // First, let's check if the friendship record exists
+  const { data: existingRecord, error: checkError } = await supabase
+    .from("friendships")
+    .select("*")
+    .match({ requester_id: targetUserId, receiver_id: currentUserId });
+
+  if (checkError) {
+    console.error("Error checking existing record:", checkError);
+    return { data: null, error: checkError };
+  }
+
+  if (!existingRecord || existingRecord.length === 0) {
+    console.error("No friendship record found to update");
+    return { data: null, error: new Error("No friendship record found") };
+  }
+
   const { data, error } = await supabase
     .from("friendships")
     .update({ status: "friends" })
@@ -377,15 +407,11 @@ export async function fetchFriendshipStatus(
   // Assuming there is only one friendship row for a pair of users
   const friendship = combined[0];
 
+  if (!friendship) return "none";
+
   if (friendship.status === "friends") return "friends";
-  if (friendship.status === "pending") {
-    // If the current user is the one who sent the request, status is pending_sent.
-    if (friendship.requester_id === currentUserId) {
-      return "pending_sent";
-    } else {
-      return "pending_received";
-    }
-  }
+  if (friendship.status === "pending") return "pending";
+
   return "none";
 }
 
@@ -694,6 +720,54 @@ export async function fetchUserFriends(
     return allFriends;
   } catch (error) {
     console.error("Error fetching user friends:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch pending friend requests for a user
+ */
+export async function fetchPendingFriendRequests(
+  userId: string
+): Promise<types.UserProfile[]> {
+  try {
+    const { data, error } = await supabase
+      .from("friendships")
+      .select(
+        `
+        requester:profiles!requester_id (
+          id,
+          username,
+          avatar_url,
+          first_name,
+          last_name,
+          active_club_id,
+          active_club_closed,
+          active_club:Clubs!active_club_id (
+            id,
+            Name,
+            Image
+          )
+        )
+      `
+      )
+      .eq("receiver_id", userId)
+      .eq("status", "pending");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) return [];
+
+    // Extract the requester profiles
+    const requesters: types.UserProfile[] = data.map(
+      (friendship: any) => friendship.requester
+    );
+
+    return requesters;
+  } catch (error) {
+    console.error("Error fetching pending friend requests:", error);
     return [];
   }
 }
