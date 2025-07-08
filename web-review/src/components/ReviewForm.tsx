@@ -174,8 +174,7 @@ export default function ReviewForm({ club, onSubmit }: ReviewFormProps) {
             </p>
           </div>
         </div>
-
-        {/* Music Genres Section */}
+        X{/* Music Genres Section */}
         <div className="space-y-4">
           <label className="block text-lg font-semibold text-gray-700 flex items-center gap-2">
             <Music className="w-5 h-5" />
@@ -198,7 +197,6 @@ export default function ReviewForm({ club, onSubmit }: ReviewFormProps) {
             ))}
           </div>
         </div>
-
         {/* Crowd Level Section */}
         <div className="space-y-4">
           <label className="block text-lg font-semibold text-gray-700 flex items-center gap-2">
@@ -230,7 +228,6 @@ export default function ReviewForm({ club, onSubmit }: ReviewFormProps) {
             ))}
           </div>
         </div>
-
         {/* Review Text Section */}
         <div className="space-y-4">
           <label
@@ -245,10 +242,9 @@ export default function ReviewForm({ club, onSubmit }: ReviewFormProps) {
             onChange={(e) => setReviewText(e.target.value)}
             placeholder="How were the vibes? Any highlights or lowlights?"
             rows={4}
-            className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-base"
+            className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 text-black focus:ring-purple-500 focus:border-transparent resize-none text-base"
           />
         </div>
-
         {/* Submit Button */}
         <div className="pt-4">
           <button
