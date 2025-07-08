@@ -31,6 +31,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if Supabase client is available
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Database configuration not available" },
+        { status: 500 }
+      );
+    }
+
     // Submit review to Supabase (anonymous review)
     const { data, error } = await supabase
       .from("club_reviews")
