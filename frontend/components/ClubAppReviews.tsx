@@ -33,10 +33,10 @@ interface Review {
   user: {
     username: string;
     avatar_url: string | null;
-  };
+  } | null; // null for anonymous reviews
   genres: string[];
   like_ids: string[];
-  user_id: string;
+  user_id: string | null; // null for anonymous reviews
 }
 
 export default function ClubAppReviews({ clubId, isLiveOnly = true }: Props) {
@@ -209,10 +209,13 @@ export default function ClubAppReviews({ clubId, isLiveOnly = true }: Props) {
         genres: review.genres,
         like_ids: review.like_ids || [],
         user_id: review.user_id,
-        user: {
-          username: review.user.username,
-          avatar_url: review.user.avatar_url,
-        },
+        user:
+          review.user_id && review.user
+            ? {
+                username: review.user.username || "Unknown User",
+                avatar_url: review.user.avatar_url || null,
+              }
+            : null, // null for anonymous reviews
       }));
 
       setReviews(transformedReviews);
@@ -271,10 +274,13 @@ export default function ClubAppReviews({ clubId, isLiveOnly = true }: Props) {
         genres: review.genres,
         like_ids: review.like_ids || [],
         user_id: review.user_id,
-        user: {
-          username: review.user.username,
-          avatar_url: review.user.avatar_url,
-        },
+        user:
+          review.user_id && review.user
+            ? {
+                username: review.user.username || "Unknown User",
+                avatar_url: review.user.avatar_url || null,
+              }
+            : null, // null for anonymous reviews
       }));
 
       setReviews(transformedReviews);
@@ -469,7 +475,7 @@ export default function ClubAppReviews({ clubId, isLiveOnly = true }: Props) {
       <View style={styles.reviewCard}>
         <View style={styles.reviewHeaderRow}>
           <View style={styles.avatarShadow}>
-            {item.user.avatar_url ? (
+            {item.user && item.user.avatar_url ? (
               <Image
                 source={{ uri: item.user.avatar_url }}
                 style={styles.avatar}
@@ -481,7 +487,9 @@ export default function ClubAppReviews({ clubId, isLiveOnly = true }: Props) {
             )}
           </View>
           <View style={styles.headerTextCol}>
-            <Text style={styles.username}>{item.user.username}</Text>
+            <Text style={styles.username}>
+              {item.user ? item.user.username : "Anonymous"}
+            </Text>
             <Text style={styles.reviewDate}>{dateStr}</Text>
             <Text style={styles.reviewTime}>{timeStr}</Text>
           </View>

@@ -115,12 +115,12 @@ export default function ReviewForm({ club, onSubmit }: ReviewFormProps) {
         rating,
         genres: selectedGenres,
         review_text: reviewText.trim() || undefined,
-        crowd_level: crowdLevel as
-          | "empty"
-          | "quiet"
-          | "moderate"
-          | "busy"
-          | "packed",
+        // crowd_level: crowdLevel as
+        //   | "empty"
+        //   | "quiet"
+        //   | "moderate"
+        //   | "busy"
+        //   | "packed",
       };
 
       const { error } = await submitReview(review);

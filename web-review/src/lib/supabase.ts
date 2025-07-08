@@ -81,11 +81,12 @@ export const submitReview = async (review: Review) => {
 
     const { data, error } = await supabase
       .from("club_reviews")
-      .insert([reviewData])
+      .insert(reviewData)
       .select();
 
     if (error) {
       throw new Error(error.message);
+      console.error("Error submitting review:", error);
     }
 
     return { data, error: null };

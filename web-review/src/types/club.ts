@@ -31,7 +31,7 @@ export interface Review {
   rating: number;
   genres: string[];
   review_text?: string;
-  crowd_level: "empty" | "quiet" | "moderate" | "busy" | "packed";
+  //   crowd_level: "empty" | "quiet" | "moderate" | "busy" | "packed";
   user_id?: string; // Can be null for anonymous reviews
 }
 
