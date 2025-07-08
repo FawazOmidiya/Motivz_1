@@ -60,7 +60,7 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">
+      <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">
         Find Your Club
       </h2>
 
@@ -73,7 +73,7 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Search for a club..."
-            className="w-full pl-10 pr-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base"
+            className="w-full pl-10 pr-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base text-black"
           />
         </div>
         <button
@@ -95,17 +95,17 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
           {loading ? (
             <div className="text-center py-8">
               <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Searching for clubs...</p>
+              <p className="text-black">Searching for clubs...</p>
             </div>
           ) : clubs.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-600">
+              <p className="text-black">
                 No clubs found. Try a different search term.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-gray-600 mb-3 sm:mb-4 px-1">
+              <p className="text-sm text-black mb-3 sm:mb-4 px-1">
                 Found {clubs.length} club{clubs.length !== 1 ? "s" : ""}
               </p>
               {clubs.map((club) => (
@@ -116,14 +116,14 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-800 mb-2 text-base truncate">
+                      <h3 className="font-semibold text-black mb-2 text-base truncate">
                         {club.Name}
                       </h3>
-                      <div className="flex items-center text-gray-600 text-sm mb-2">
+                      <div className="flex items-center text-black text-sm mb-2">
                         <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
                         <span className="truncate">{club.Address}</span>
                       </div>
-                      <div className="flex items-center text-gray-600 text-sm">
+                      <div className="flex items-center text-black text-sm">
                         <Star className="w-4 h-4 mr-1 text-yellow-400 fill-current flex-shrink-0" />
                         <span className="font-medium">
                           {club.Rating.toFixed(1)}
