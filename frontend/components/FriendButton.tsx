@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from "react";
-import { View, Button, Alert, ActivityIndicator } from "react-native";
+import {
+  View,
+  Alert,
+  ActivityIndicator,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+} from "react-native";
 import {
   sendFriendRequest,
   cancelFriendRequest,
   acceptFriendRequest,
   unfriend,
   fetchUserProfile,
-  fetchFriendshipStatus, // Import the helper function we just built
+  fetchFriendshipStatus,
+  supabase,
 } from "@/app/utils/supabaseService";
 import { useSession } from "@/components/SessionContext";
 import * as types from "@/app/utils/types";
+import * as Constants from "@/constants/Constants";
 
-type FriendStatus = "none" | "pending_sent" | "pending_received" | "friends";
+type FriendStatus = "none" | "pending" | "friends";
 
 export default function FriendButton({
   targetUserId,
@@ -21,6 +30,7 @@ export default function FriendButton({
   const session = useSession();
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
   const [friendStatus, setFriendStatus] = useState<FriendStatus>("none");
+  const [isRequester, setIsRequester] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Fetch the current user's profile on mount or when session changes.
@@ -60,7 +70,24 @@ export default function FriendButton({
         targetUserId
       );
       setFriendStatus(status);
-    } catch (error) {}
+
+      // If status is pending, check who is the requester
+      if (status === "pending") {
+        const { data } = await supabase
+          .from("friendships")
+          .select("requester_id")
+          .or(
+            `requester_id.eq.${currentUserId},requester_id.eq.${targetUserId}`
+          )
+          .or(`receiver_id.eq.${currentUserId},receiver_id.eq.${targetUserId}`)
+          .eq("status", "pending")
+          .single();
+
+        setIsRequester(data?.requester_id === currentUserId);
+      }
+    } catch (error) {
+      console.error("Error checking friendship status:", error);
+    }
   }
 
   const handleSend = async () => {
@@ -71,7 +98,8 @@ export default function FriendButton({
     if (error) {
       Alert.alert("Error", error.message);
     } else {
-      setFriendStatus("friends");
+      setFriendStatus("pending");
+      setIsRequester(true);
     }
   };
 
@@ -84,6 +112,7 @@ export default function FriendButton({
       Alert.alert("Error", error.message);
     } else {
       setFriendStatus("none");
+      setIsRequester(false);
     }
   };
 
@@ -96,6 +125,7 @@ export default function FriendButton({
       Alert.alert("Error", error.message);
     } else {
       setFriendStatus("friends");
+      setIsRequester(false);
     }
   };
 
@@ -108,29 +138,130 @@ export default function FriendButton({
       Alert.alert("Error", error.message);
     } else {
       setFriendStatus("none");
+      setIsRequester(false);
     }
   };
 
   const renderButton = () => {
-    if (loading) return <ActivityIndicator size="small" />;
+    if (loading) {
+      return (
+        <View style={styles.buttonContainer}>
+          <ActivityIndicator size="small" color={Constants.whiteCOLOR} />
+        </View>
+      );
+    }
+
     switch (friendStatus) {
       case "none":
-        return <Button title="Send Friend Request" onPress={handleSend} />;
-      case "pending_sent":
-        return <Button title="Cancel Request" onPress={handleCancel} />;
-      case "pending_received":
         return (
-          <>
-            <Button title="Accept Request" onPress={handleAccept} />
-            <Button title="Decline Request" onPress={handleCancel} />
-          </>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleSend}>
+            <Text style={styles.primaryButtonText}>Send Friend Request</Text>
+          </TouchableOpacity>
         );
+      case "pending":
+        if (isRequester) {
+          // Current user sent the request
+          return (
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleCancel}
+            >
+              <Text style={styles.secondaryButtonText}>Request Sent</Text>
+            </TouchableOpacity>
+          );
+        } else {
+          // Current user received the request
+          return (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handleAccept}
+              >
+                <Text style={styles.primaryButtonText}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.dangerButton}
+                onPress={handleCancel}
+              >
+                <Text style={styles.dangerButtonText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }
       case "friends":
-        return <Button title="Unfriend" onPress={handleUnfriend} />;
+        return (
+          <TouchableOpacity
+            style={styles.dangerButton}
+            onPress={handleUnfriend}
+          >
+            <Text style={styles.dangerButtonText}>Unfriend</Text>
+          </TouchableOpacity>
+        );
       default:
         return null;
     }
   };
 
-  return <View>{renderButton()}</View>;
+  return <View style={styles.container}>{renderButton()}</View>;
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginVertical: 8,
+  },
+  buttonContainer: {
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  primaryButton: {
+    backgroundColor: Constants.purpleCOLOR,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minHeight: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  secondaryButton: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minHeight: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  secondaryButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  dangerButton: {
+    backgroundColor: "rgba(244, 67, 54, 0.1)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minHeight: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(244, 67, 54, 0.3)",
+  },
+  dangerButtonText: {
+    color: "#F44336",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+});
