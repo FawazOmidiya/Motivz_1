@@ -1,5 +1,5 @@
 export interface Club {
-  id: string;
+  id: string; // This is the primary key from Supabase
   Name: string;
   Address: string;
   Description?: string;
@@ -18,10 +18,16 @@ export interface Club {
       };
     }>;
   };
+  // Additional fields that might exist in your database
+  latitude?: number;
+  longitude?: number;
+  Image?: string;
+  website?: string;
+  google_id?: string;
 }
 
 export interface Review {
-  club_id: string;
+  club_id: string; // This should match the club's id field
   rating: number;
   genres: string[];
   review_text?: string;

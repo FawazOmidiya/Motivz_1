@@ -8,11 +8,11 @@ import {
   ScrollView,
 } from "react-native";
 import { Button, TextInput, Text } from "react-native-paper";
-import { storage, supabase } from "../utils/supabaseService";
+import { storage, supabase, deleteUserAccount } from "../utils/supabaseService";
 import * as ImagePicker from "expo-image-picker";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
-import { supabaseAuth } from "../utils/supabaseAuth";
+import { supabaseAuth, signOut } from "../utils/supabaseAuth";
 import { decode } from "base64-arraybuffer";
 import {
   backgroundCOLOR,
@@ -34,6 +34,7 @@ export default function ProfileSettings() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [cameraPermission, setCameraPermission] = useState(false);
   const [imagePickerPermission, setImagePickerPermission] = useState(false);
 
@@ -170,6 +171,78 @@ export default function ProfileSettings() {
     }
   }
 
+  async function handleDeleteAccount() {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            // Second confirmation
+            Alert.alert(
+              "Final Confirmation",
+              "This is your final warning. Your account and all associated data will be permanently deleted. Are you absolutely sure?",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Yes, Delete My Account",
+                  style: "destructive",
+                  onPress: deleteAccount,
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  }
+
+  async function deleteAccount() {
+    if (!session?.user) {
+      Alert.alert("Error", "No user session found.");
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await deleteUserAccount(session.user.id);
+
+      // Sign out the user after successful deletion
+      await signOut();
+
+      Alert.alert(
+        "Account Deleted",
+        "Your account has been successfully deleted. You will be signed out.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              // The sign out will automatically redirect to auth screen
+              // No need for manual navigation
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      Alert.alert(
+        "Error",
+        "Failed to delete account. Please try again or contact support."
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -258,6 +331,28 @@ export default function ProfileSettings() {
             >
               {loading ? "Updating..." : "Update Profile"}
             </Button>
+
+            <View style={styles.separator} />
+
+            <View style={styles.dangerZone}>
+              <Text style={styles.dangerZoneTitle}>Danger Zone</Text>
+              <Text style={styles.warningText}>
+                ⚠️ Deleting your account will permanently remove all your data
+                including profile, favorites, reviews, and friendships. This
+                action cannot be undone.
+              </Text>
+
+              <Button
+                mode="outlined"
+                onPress={handleDeleteAccount}
+                disabled={deleting}
+                style={styles.deleteButton}
+                labelStyle={styles.deleteButtonText}
+                textColor="#FF4444"
+              >
+                {deleting ? "Deleting..." : "Delete Account"}
+              </Button>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -393,5 +488,41 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 8,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    marginVertical: 24,
+  },
+  deleteButton: {
+    borderColor: "#FF4444",
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FF4444",
+  },
+  warningText: {
+    color: "#FFAA00",
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  dangerZone: {
+    backgroundColor: "rgba(255, 68, 68, 0.05)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 68, 68, 0.2)",
+  },
+  dangerZoneTitle: {
+    color: "#FF4444",
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 12,
   },
 });

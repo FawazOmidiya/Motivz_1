@@ -1166,3 +1166,49 @@ export async function checkAndClearAllExpiredAttendance(): Promise<{
     };
   }
 }
+
+export async function deleteUserAccount(userId: string): Promise<boolean> {
+  try {
+    // Delete user avatar from storage if it exists (not handled by CASCADE)
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", userId)
+        .single();
+
+      if (profile?.avatar_url) {
+        const avatarPath = profile.avatar_url.split("/").pop();
+        if (avatarPath) {
+          await storage.remove([avatarPath]);
+        }
+      }
+    } catch (storageError) {
+      console.warn("Could not delete avatar from storage:", storageError);
+      // Don't throw error for storage deletion failure
+    }
+
+    // Call the delete-user Edge Function to delete the user and all associated data
+    const { error: edgeFunctionError } = await supabase.functions.invoke(
+      "delete-user",
+      {
+        body: { user_id: userId },
+      }
+    );
+
+    if (edgeFunctionError) {
+      console.error(
+        "Error calling delete-user Edge Function:",
+        edgeFunctionError
+      );
+      throw new Error(edgeFunctionError.message);
+    }
+
+    console.log("User account and all data deleted successfully.");
+
+    return true;
+  } catch (error) {
+    console.error("Error deleting user account:", error);
+    throw error;
+  }
+}

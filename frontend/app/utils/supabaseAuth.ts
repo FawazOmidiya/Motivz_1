@@ -22,5 +22,19 @@ export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
 // only be registered once.
 
 export async function signOut() {
-  const { error } = await supabaseAuth.auth.signOut();
+  try {
+    const { error } = await supabaseAuth.auth.signOut();
+    if (error) {
+      console.error("Error signing out:", error);
+      throw error;
+    }
+
+    // Clear any stored session data
+    await AsyncStorage.removeItem("supabase.auth.token");
+
+    return true;
+  } catch (error) {
+    console.error("Error during sign out:", error);
+    throw error;
+  }
 }
