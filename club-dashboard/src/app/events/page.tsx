@@ -69,7 +69,7 @@ export default function EventsPage() {
       const { data, error } = await supabase
         .from("ClubMusicSchedules")
         .select("*")
-        .eq("club_id", "ChIJHUs0vJ01K4gRys6H5F8MkGY");
+        .eq("club_id", CLUB_ID);
 
       if (error) {
         console.error("Error fetching music schedules:", error);
@@ -87,7 +87,7 @@ export default function EventsPage() {
       let query = supabase
         .from("events")
         .select("*")
-        .eq("club_id", "ChIJHUs0vJ01K4gRys6H5F8MkGY")
+        .eq("club_id", CLUB_ID)
         .order("start_date", { ascending: true });
 
       if (filter === "upcoming") {

@@ -49,6 +49,9 @@ import { Badge } from "@/components/ui/badge";
 export default function CreateEventPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  // Test club ID for development
+  const CLUB_ID = "test-123";
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [startTime, setStartTime] = useState("12:00");
@@ -102,9 +105,9 @@ export default function CreateEventPage() {
   const fetchClubHours = async () => {
     try {
       const { data, error } = await supabase
-        .from("Clubs")
+        .from("test-clubs")
         .select("hours")
-        .eq("id", "ChIJHUs0vJ01K4gRys6H5F8MkGY")
+        .eq("id", CLUB_ID)
         .single();
 
       if (error) {
@@ -174,7 +177,7 @@ export default function CreateEventPage() {
       const { data, error } = await supabase
         .from("events")
         .select("*")
-        .eq("club_id", "ChIJHUs0vJ01K4gRys6H5F8MkGY")
+        .eq("club_id", CLUB_ID)
         .gte("start_date", new Date().toISOString());
 
       if (error) {
@@ -277,7 +280,7 @@ export default function CreateEventPage() {
       console.log("End ISO:", endDateTime.toISOString());
 
       const eventData = {
-        club_id: "ChIJHUs0vJ01K4gRys6H5F8MkGY", // Hardcoded club ID
+        club_id: CLUB_ID,
         title: formData.title,
         caption: formData.caption || null,
         poster_url: formData.poster_url || null,

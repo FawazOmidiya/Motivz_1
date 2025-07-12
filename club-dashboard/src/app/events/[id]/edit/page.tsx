@@ -44,6 +44,9 @@ export default function EditEventPage() {
   const params = useParams();
   const eventId = params.id as string;
 
+  // Test club ID for development
+  const CLUB_ID = "test-123";
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [startDate, setStartDate] = useState<Date>();
@@ -146,7 +149,7 @@ export default function EditEventPage() {
       const { data, error } = await supabase
         .from("events")
         .select("*")
-        .eq("club_id", "ChIJHUs0vJ01K4gRys6H5F8MkGY")
+        .eq("club_id", CLUB_ID)
         .gte("start_date", new Date().toISOString())
         .neq("id", eventId); // Exclude current event from overlap check
 
@@ -164,9 +167,9 @@ export default function EditEventPage() {
   const fetchClubHours = async () => {
     try {
       const { data, error } = await supabase
-        .from("Clubs")
+        .from("test-clubs")
         .select("hours")
-        .eq("id", "ChIJHUs0vJ01K4gRys6H5F8MkGY")
+        .eq("id", CLUB_ID)
         .single();
 
       if (error) {
