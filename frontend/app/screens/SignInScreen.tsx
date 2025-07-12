@@ -155,6 +155,14 @@ export default function SignInScreen() {
                   Sign In
                 </Button>
 
+                <View style={styles.dividerContainer}>
+                  <View style={styles.divider} />
+                  <Text variant="bodyMedium" style={styles.dividerText}>
+                    or
+                  </Text>
+                  <View style={styles.divider} />
+                </View>
+
                 <View style={styles.signUpContainer}>
                   <Text variant="bodyMedium" style={styles.signUpText}>
                     Don't have an account?{" "}
@@ -167,6 +175,15 @@ export default function SignInScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("AnonymousHome")}
+                  style={styles.anonymousLinkContainer}
+                >
+                  <Text variant="bodyMedium" style={styles.anonymousLink}>
+                    Continue Without Account
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -280,6 +297,28 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.7)",
   },
   signUpLink: {
+    color: Constants.purpleCOLOR,
+    fontWeight: "600",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 24,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  dividerText: {
+    color: "rgba(255,255,255,0.6)",
+    marginHorizontal: 16,
+  },
+  anonymousLinkContainer: {
+    alignItems: "center",
+    marginTop: 24,
+  },
+  anonymousLink: {
     color: Constants.purpleCOLOR,
     fontWeight: "600",
   },

@@ -494,6 +494,7 @@ export default function ClubDetailScreen() {
       </Modal>
 
       {/* Schedule Popup */}
+      {/* TODO: The popup modal for club hours is too small (300x400). Need to increase size for better readability */}
       {showSchedulePopup && (
         <Pressable
           style={styles.popupOverlay}
