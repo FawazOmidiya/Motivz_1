@@ -53,12 +53,10 @@ export default function SuccessScreen({ onSubmitAnother }: SuccessScreenProps) {
             Want to see all reviews and discover clubs?
           </p>
           <a
-            href="#"
+            href="https://apps.apple.com/us/app/motivz/id6741746676"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-purple-600 hover:text-purple-700 font-medium text-sm sm:text-base"
-            onClick={(e) => {
-              e.preventDefault();
-              alert("This would link to the main app or website");
-            }}
           >
             Download the full app →
           </a>
