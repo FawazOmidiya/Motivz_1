@@ -10,42 +10,37 @@ import {
   TouchableOpacity,
   Modal,
   StatusBar,
+  SafeAreaView,
 } from "react-native";
-import { Text, Button, TextInput } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { fetchUserFavourites, fetchSingleClub } from "../utils/supabaseService";
+import { fetchUserFavourites } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
-import FavouriteClub from "@/components/ClubFavourite";
 import BackButton from "@/components/BackButton";
-import FriendButton from "@/components/FriendButton"; // Import your FriendButton component
-import { useSession } from "@/components/SessionContext";
 import * as Constants from "@/constants/Constants";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { fetchUserPosts } from "../utils/postService";
 import { Video } from "expo-av";
 
-type UserProfileScreenNavigationProp =
+type AnonymousUserProfileScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
 
-export default function UserProfileScreen() {
+export default function AnonymousUserProfileScreen() {
   // Assume the user profile is passed via route params:
   const route = useRoute();
   const { user } = route.params as { user: types.UserProfile };
-  const session = useSession();
-  const navigation = useNavigation<UserProfileScreenNavigationProp>();
+  const navigation = useNavigation<AnonymousUserProfileScreenNavigationProp>();
   const [favourites, setFavourites] = useState<types.Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeClub, setActiveClub] = useState<types.Club | null>(null);
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [posts, setPosts] = useState<types.Post[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<{
     url: string;
-    type: "photo" | "video";
+    type: "photo";
   } | null>(null);
   const [mediaModalVisible, setMediaModalVisible] = useState(false);
 
@@ -69,15 +64,10 @@ export default function UserProfileScreen() {
 
   useEffect(() => {
     loadFavourites();
-    if (user.active_club_id) {
-      fetchSingleClub(user.active_club_id)
-        .then((club) => setActiveClub(club))
-        .catch((error) => console.error("Error fetching active club:", error));
-    }
     if (user?.id) {
       fetchUserPosts(user.id).then(setPosts);
     }
-  }, [loadFavourites, user.active_club_id, user]);
+  }, [loadFavourites, user]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -86,21 +76,11 @@ export default function UserProfileScreen() {
   }
 
   const renderFavouriteClub = ({ item }: { item: types.Club }) => (
-    <TouchableOpacity
-      style={styles.favouriteClubItem}
-      onPress={() => navigation.navigate("ClubDetail", { club: item })}
-    >
+    <View style={styles.favouriteClubItem}>
       <Image source={{ uri: item.Image }} style={styles.favouriteClubImage} />
       <Text style={styles.favouriteClubName} numberOfLines={1}>
         {item.Name}
       </Text>
-    </TouchableOpacity>
-  );
-
-  const renderPostItem = ({ item }: { item: types.Post }) => (
-    // Placeholder for post item
-    <View>
-      <Text style={{ color: "#fff" }}>{item.caption || "Untitled Post"}</Text>
     </View>
   );
 
@@ -135,48 +115,18 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
         </View>
         <Text style={styles.username}>{user.username}</Text>
-        {/* Name and Friends button row */}
-        <View style={styles.nameAndFriendsRow}>
-          <Text style={styles.fullName}>
-            {user.first_name} {user.last_name}
-          </Text>
-          <TouchableOpacity
-            style={styles.friendsButton}
-            onPress={() =>
-              navigation.navigate("FriendsList", { userId: user.id })
-            }
-          >
-            <Ionicons
-              name="people-outline"
-              size={22}
-              color={Constants.whiteCOLOR}
-            />
-            <Text style={styles.friendsButtonText}>Friends</Text>
-          </TouchableOpacity>
+        <Text style={styles.fullName}>
+          {user.first_name} {user.last_name}
+        </Text>
+        {/* Anonymous badge */}
+        <View style={styles.anonymousBadge}>
+          <Ionicons
+            name="eye-outline"
+            size={16}
+            color="rgba(255,255,255,0.7)"
+          />
+          <Text style={styles.anonymousText}>View Only</Text>
         </View>
-        {/* Only show friend button if current user is not viewing their own profile */}
-        {session?.user.id && session.user.id !== user.id && (
-          <FriendButton targetUserId={user.id} />
-        )}
-        {activeClub && (
-          <TouchableOpacity
-            style={styles.activeClubContainer}
-            onPress={() =>
-              navigation.navigate("ClubDetail", { club: activeClub })
-            }
-          >
-            <View style={styles.activeClubContent}>
-              <Image
-                source={{ uri: activeClub.Image }}
-                style={styles.activeClubImage}
-              />
-              <View style={styles.activeClubInfo}>
-                <Text style={styles.activeClubTitle}>Currently at</Text>
-                <Text style={styles.activeClubName}>{activeClub.Name}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        )}
       </View>
       <Text style={styles.sectionTitle}>Favourites</Text>
       {/* Horizontal FlatList for Favourites with circular images */}
@@ -190,8 +140,9 @@ export default function UserProfileScreen() {
       />
     </View>
   );
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       <Modal
         visible={isImageModalVisible}
@@ -266,11 +217,11 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
         )}
         ListHeaderComponent={ListHeaderComponent}
-        // ListEmptyComponent={
-        //   <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
-        //     No posts yet.
-        //   </Text>
-        // }
+        ListEmptyComponent={
+          <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
+            No posts yet.
+          </Text>
+        }
         contentContainerStyle={styles.gridList}
       />
       <Modal
@@ -311,11 +262,9 @@ export default function UserProfileScreen() {
           )}
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
-
-const imageSize = (Constants.screenWidth - 60) / 2; // Adjust based on margins
 
 const styles = StyleSheet.create({
   container: {
@@ -375,31 +324,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: Constants.whiteCOLOR,
   },
-  profileButtonsContainer: {
-    width: "100%",
-    paddingHorizontal: 20,
-    marginTop: 16,
+  fullName: {
+    fontSize: 18,
+    color: Constants.whiteCOLOR,
+    marginBottom: 12,
+    fontWeight: "500",
   },
-  nameAndButtonsRow: {
+  anonymousBadge: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.1)",
-    padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  nameContainer: {
-    flex: 1,
-  },
-  firstName: {
-    color: Constants.whiteCOLOR,
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  lastName: {
-    color: Constants.whiteCOLOR,
-    fontSize: 18,
-    opacity: 0.8,
+  anonymousText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    marginLeft: 6,
+    fontWeight: "500",
   },
   sectionTitle: {
     fontSize: 24,
@@ -408,127 +351,6 @@ const styles = StyleSheet.create({
     color: Constants.whiteCOLOR,
     paddingHorizontal: 20,
     marginTop: 24,
-  },
-  favouritesList: {
-    paddingBottom: 20,
-  },
-  favouritesRow: {
-    justifyContent: "space-between",
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  favouriteItem: {
-    backgroundColor: Constants.greyCOLOR,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    flex: 1,
-    marginHorizontal: 8,
-    width: "45%",
-  },
-  favouriteImage: {
-    width: "100%",
-    height: 120,
-    resizeMode: "cover",
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  favouriteTitle: {
-    fontSize: 16,
-    color: Constants.whiteCOLOR,
-    fontWeight: "600",
-  },
-  loadingText: {
-    textAlign: "center",
-    fontSize: 16,
-    color: "gray",
-  },
-  activeClubContainer: {
-    marginTop: 20,
-    backgroundColor: Constants.greyCOLOR,
-    borderRadius: 12,
-    padding: 12,
-    width: "100%",
-  },
-  activeClubContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  activeClubImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  activeClubInfo: {
-    flex: 1,
-  },
-  activeClubTitle: {
-    color: Constants.whiteCOLOR,
-    opacity: 0.7,
-    fontSize: 12,
-  },
-  activeClubName: {
-    color: Constants.whiteCOLOR,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    width: "90%",
-    height: "90%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalImage: {
-    width: "100%",
-    height: "100%",
-  },
-  modalPlaceholder: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: Constants.greyCOLOR,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalPlaceholderText: {
-    fontSize: 80,
-    color: Constants.whiteCOLOR,
-  },
-  nameAndFriendsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    gap: 12,
-  },
-  fullName: {
-    fontSize: 18,
-    color: Constants.whiteCOLOR,
-    marginBottom: 8,
-    fontWeight: "500",
-  },
-  friendsButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginLeft: 10,
-  },
-  friendsButtonText: {
-    color: Constants.whiteCOLOR,
-    fontSize: 15,
-    marginLeft: 6,
-    fontWeight: "500",
   },
   favouritesHorizontalList: {
     paddingVertical: 8,
@@ -567,5 +389,33 @@ const styles = StyleSheet.create({
   gridImage: {
     width: "100%",
     height: "100%",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    height: "90%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalImage: {
+    width: "100%",
+    height: "100%",
+  },
+  modalPlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalPlaceholderText: {
+    fontSize: 80,
+    color: Constants.whiteCOLOR,
   },
 });

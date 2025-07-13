@@ -141,9 +141,9 @@ export default function SearchScreen() {
         {/* Results List */}
         {results.length === 0 ? (
           <View style={styles.centeredContainer}>
-            <Text variant="bodyLarge" style={styles.centeredText}>
+            {/* <Text variant="bodyLarge" style={styles.centeredText}>
               Explore Page Coming Soon...
-            </Text>
+            </Text> */}
             <Text variant="bodyMedium" style={styles.centeredText}>
               Find your friends above
             </Text>

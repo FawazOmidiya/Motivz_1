@@ -227,7 +227,9 @@ export default function SignUpScreen() {
                   <Text variant="bodyMedium" style={styles.signInText}>
                     Already have an account?{" "}
                   </Text>
-                  <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("SignIn")}
+                  >
                     <Text variant="bodyMedium" style={styles.signInLink}>
                       Sign In
                     </Text>

@@ -772,11 +772,11 @@ export default function Account() {
           </View>
         )}
         ListHeaderComponent={ListHeaderComponent}
-        ListEmptyComponent={
-          <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
-            More features coming soon!
-          </Text>
-        }
+        // ListEmptyComponent={
+        //   <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
+        //     More features coming soon!
+        //   </Text>
+        // }
         contentContainerStyle={styles.gridList}
       />
       <Modal

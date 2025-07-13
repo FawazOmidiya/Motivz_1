@@ -151,7 +151,9 @@ export default function RootLayout() {
           </SafeAreaView>
         </SessionProvider>
       ) : (
-        <AuthNavigator />
+        <SafeAreaView style={styles.safeArea}>
+          <AuthNavigator />
+        </SafeAreaView>
       )}
     </>
   );
