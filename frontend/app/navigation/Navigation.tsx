@@ -29,4 +29,12 @@ export type RootStackParamList = {
   UserProfile: { user: types.UserProfile };
   ClubDetail: { club: types.Club };
   ProfileSettings: undefined;
+  // Anonymous screens
+  AnonymousHome: undefined;
+  AnonymousExplore: undefined;
+  AnonymousProfile: undefined;
+  AnonymousUserProfile: { user: types.UserProfile };
+  SignIn: undefined;
+  SignUp: undefined;
+  ProfileCompletion: undefined;
 };

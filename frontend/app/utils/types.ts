@@ -11,6 +11,8 @@ export type Club = {
   Address: string;
   hours?: RegularOpeningHours;
   music_schedule?: musicGenres;
+  live_rating?: number;
+  instagram_handle?: string | null;
 };
 
 export type UserProfile = {
@@ -20,6 +22,7 @@ export type UserProfile = {
   last_name: string;
   avatar_url?: string | null;
   active_club_id?: string | null;
+  active_club_closed?: string | null; // ISO datetime string when the club closes
   // add any additional fields you need
 };
 
@@ -59,11 +62,7 @@ export type GlobalStackParamList = {
   UserProfile: { user: UserProfile };
 };
 
-export type FriendStatus =
-  | "none"
-  | "pending_sent"
-  | "pending_received"
-  | "friends";
+export type FriendStatus = "none" | "pending" | "friends";
 
 export interface RegularOpeningHours {
   openNow?: boolean; // Provided flag (we won't rely on it for dynamic computation)
@@ -94,6 +93,8 @@ export interface AppReview {
   rating: number;
   text: string;
   created_at: string;
+  like_ids: string[];
+  genres: string[];
 }
 
 export interface musicGenres {

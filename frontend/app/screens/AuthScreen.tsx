@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Alert, StyleSheet, View, AppState } from "react-native";
 import { supabaseAuth } from "../utils/supabaseAuth";
-import { Button, Input } from "@rneui/themed";
+import { Button, TextInput } from "react-native-paper";
 
 // Tells Supabase Auth to continuously refresh the session automatically if
 // the app is in the foreground. When this is added, you will continue to receive
@@ -50,39 +50,45 @@ export default function Auth() {
   return (
     <View style={styles.container}>
       <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Input
+        <TextInput
           label="Email"
-          leftIcon={{ type: "font-awesome", name: "envelope" }}
+          left={<TextInput.Icon icon="email" />}
           onChangeText={(text) => setEmail(text)}
           value={email}
           placeholder="email@address.com"
           autoCapitalize={"none"}
+          mode="outlined"
         />
       </View>
       <View style={styles.verticallySpaced}>
-        <Input
+        <TextInput
           label="Password"
-          leftIcon={{ type: "font-awesome", name: "lock" }}
+          left={<TextInput.Icon icon="lock" />}
           onChangeText={(text) => setPassword(text)}
           value={password}
           secureTextEntry={true}
           placeholder="Password"
           autoCapitalize={"none"}
+          mode="outlined"
         />
       </View>
       <View style={[styles.verticallySpaced, styles.mt20]}>
         <Button
-          title="Sign in"
+          mode="contained"
           disabled={loading}
           onPress={() => signInWithEmail()}
-        />
+        >
+          Sign in
+        </Button>
       </View>
       <View style={styles.verticallySpaced}>
         <Button
-          title="Sign up"
+          mode="contained"
           disabled={loading}
           onPress={() => signUpWithEmail()}
-        />
+        >
+          Sign up
+        </Button>
       </View>
     </View>
   );

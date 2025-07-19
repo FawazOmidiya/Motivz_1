@@ -6,10 +6,17 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Text,
+  ScrollView,
 } from "react-native";
 import { useSession } from "@/components/SessionContext";
 import { useState, useEffect } from "react";
-import { fetchUserFriends, fetchSingleClub } from "../utils/supabaseService";
+import {
+  fetchUserFriends,
+  fetchSingleClub,
+  fetchPendingFriendRequests,
+  acceptFriendRequest,
+  cancelFriendRequest,
+} from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -28,6 +35,9 @@ type FriendsListRouteProp = {
 
 export default function FriendsList() {
   const [friends, setFriends] = useState<types.UserProfile[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<types.UserProfile[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [clubs, setClubs] = useState<{ [key: string]: types.Club }>({});
   const session = useSession();
@@ -38,12 +48,12 @@ export default function FriendsList() {
   useEffect(() => {
     if (userId) {
       getFriends(userId);
+      getPendingRequests(userId);
     }
   }, [userId]);
 
   async function getFriends(uid: string) {
     try {
-      setLoading(true);
       const data = await fetchUserFriends(uid);
       if (data) {
         setFriends(data);
@@ -60,10 +70,95 @@ export default function FriendsList() {
       }
     } catch (error) {
       console.error("Error fetching friends:", error);
+    }
+  }
+
+  async function getPendingRequests(uid: string) {
+    try {
+      const data = await fetchPendingFriendRequests(uid);
+      if (data) {
+        setPendingRequests(data);
+      }
+    } catch (error) {
+      console.error("Error fetching pending requests:", error);
     } finally {
       setLoading(false);
     }
   }
+
+  const handleAcceptRequest = async (requesterId: string) => {
+    if (!session?.user?.id) return;
+    try {
+      const { error } = await acceptFriendRequest(session.user.id, requesterId);
+      if (error) {
+        console.error("Error accepting friend request:", error);
+      } else {
+        setPendingRequests((prev) => {
+          return prev.filter((req) => req.id !== requesterId);
+        });
+        await getFriends(userId!);
+      }
+    } catch (error) {
+      console.error("Error accepting friend request:", error);
+    }
+  };
+
+  const handleDeclineRequest = async (requesterId: string) => {
+    if (!session?.user?.id) return;
+    try {
+      const { error } = await cancelFriendRequest(requesterId, session.user.id);
+      if (error) {
+        console.error("Error declining friend request:", error);
+      } else {
+        // Remove from pending requests
+        setPendingRequests((prev) =>
+          prev.filter((req) => req.id !== requesterId)
+        );
+      }
+    } catch (error) {
+      console.error("Error declining friend request:", error);
+    }
+  };
+
+  const renderFriendRequest = ({ item }: { item: types.UserProfile }) => (
+    <View style={styles.friendRequestItem}>
+      <TouchableOpacity
+        style={styles.friendRequestInfo}
+        onPress={() => navigation.navigate("UserProfile", { user: item })}
+      >
+        <View style={styles.avatarContainer}>
+          {item.avatar_url ? (
+            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          ) : (
+            <Image
+              source={require("@/assets/images/default-avatar.png")}
+              style={styles.avatar}
+            />
+          )}
+        </View>
+        <View style={styles.nameContainer}>
+          <Text style={styles.username}>{item.username}</Text>
+          <Text style={styles.name}>
+            {item.first_name} {item.last_name}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      <View style={styles.requestButtons}>
+        <TouchableOpacity
+          style={styles.acceptButton}
+          onPress={() => handleAcceptRequest(item.id)}
+        >
+          <Text style={styles.acceptButtonText}>Accept</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.declineButton}
+          onPress={() => handleDeclineRequest(item.id)}
+        >
+          <Text style={styles.declineButtonText}>Decline</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   const renderFriend = ({ item }: { item: types.UserProfile }) => (
     <TouchableOpacity
@@ -110,6 +205,13 @@ export default function FriendsList() {
     </TouchableOpacity>
   );
 
+  const renderSectionHeader = (title: string, count: number) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionCount}>({count})</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -119,18 +221,40 @@ export default function FriendsList() {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
-          <Text style={styles.loadingText}>Loading friends...</Text>
-        </View>
-      ) : friends.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No friends yet</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : (
-        <FlatList
-          data={friends}
-          renderItem={renderFriend}
-          keyExtractor={(item) => item.id}
-        />
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Friend Requests Section */}
+          {pendingRequests.length > 0 && (
+            <View style={styles.section}>
+              {renderSectionHeader("Friend Requests", pendingRequests.length)}
+              <FlatList
+                data={pendingRequests}
+                renderItem={renderFriendRequest}
+                keyExtractor={(item) => `request-${item.id}`}
+                scrollEnabled={false}
+              />
+            </View>
+          )}
+
+          {/* Friends Section */}
+          <View style={styles.section}>
+            {renderSectionHeader("Friends", friends.length)}
+            {friends.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No friends yet</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={friends}
+                renderItem={renderFriend}
+                keyExtractor={(item) => `friend-${item.id}`}
+                scrollEnabled={false}
+              />
+            )}
+          </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -163,14 +287,75 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
   },
-  emptyContainer: {
+  content: {
     flex: 1,
-    justifyContent: "center",
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+  },
+  sectionCount: {
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    opacity: 0.7,
+    marginLeft: 8,
+  },
+  emptyContainer: {
+    padding: 20,
     alignItems: "center",
   },
   emptyText: {
     color: Constants.whiteCOLOR,
     fontSize: 16,
+    opacity: 0.7,
+  },
+  friendRequestItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: Constants.purpleCOLOR,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  friendRequestInfo: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  requestButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  acceptButton: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  acceptButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  declineButton: {
+    backgroundColor: "#F44336",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  declineButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
   },
   friendItem: {
     flexDirection: "row",
