@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Lock, AlertCircle } from "lucide-react";
+import { Building2, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -39,7 +39,7 @@ export default function LoginPage() {
       } else {
         setError("Invalid email or password");
       }
-    } catch (error) {
+    } catch {
       setError("An error occurred during login");
     } finally {
       setIsLoading(false);
@@ -58,7 +58,7 @@ export default function LoginPage() {
               Club Dashboard
             </CardTitle>
             <CardDescription className="text-gray-600">
-              Sign in to access your club's dashboard
+              Sign in to access your club&apos;s dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>

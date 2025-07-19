@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { AuthService, ClubInfo } from "@/lib/authService";
+import { AuthService } from "@/lib/authService";
 
 interface Club {
   id: string;

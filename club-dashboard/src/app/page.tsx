@@ -115,7 +115,7 @@ export default function DashboardPage() {
             {club?.name || "Club Dashboard"}
           </h1>
           <p className="text-muted-foreground">
-            Manage your club's events, music, and hours
+            Manage your club&apos;s events, music, and hours
           </p>
         </div>
         <div className="flex gap-2">

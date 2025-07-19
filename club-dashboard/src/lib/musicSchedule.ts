@@ -139,8 +139,7 @@ export async function getCurrentMusicSchedule(
  */
 export async function getEffectiveMusicSchedule(
   clubId: string,
-  date: Date,
-  time?: string
+  date: Date
 ): Promise<MusicSchedule | null> {
   try {
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.

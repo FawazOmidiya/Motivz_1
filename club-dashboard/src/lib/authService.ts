@@ -101,7 +101,7 @@ export class AuthService {
         name: clubData.Name,
         email: authData.email,
       };
-    } catch (error) {
+    } catch {
       return null;
     }
   }
