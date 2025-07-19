@@ -99,10 +99,10 @@ export default function ClubSchedulePage() {
       // Initialize day schedules
       const schedules: DaySchedule[] = DAYS_OF_WEEK.map((day) => {
         const dayPeriod = hours.periods.find(
-          (p: any) => p.open.day === day.value
+          (p: { open: { day: number } }) => p.open.day === day.value
         );
         const musicSchedule = musicSchedules.find(
-          (m: any) => parseInt(m.day_of_week) === day.value
+          (m: { day_of_week: string }) => parseInt(m.day_of_week) === day.value
         );
 
         // Extract selected genres from individual genre columns

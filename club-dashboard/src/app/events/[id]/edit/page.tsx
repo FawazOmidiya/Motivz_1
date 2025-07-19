@@ -26,14 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  CalendarIcon,
-  ArrowLeft,
-  Clock,
-  Music,
-  AlertTriangle,
-} from "lucide-react";
-import { format, setHours, setMinutes, isAfter, parseISO } from "date-fns";
+import { CalendarIcon, ArrowLeft, Music, AlertTriangle } from "lucide-react";
+import { format, isAfter, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
 import Link from "next/link";
@@ -44,8 +38,8 @@ export default function EditEventPage() {
   const params = useParams();
   const eventId = params.id as string;
 
-  // Test club ID for development
-  const CLUB_ID = "test-123";
+  // Use authenticated club ID
+  const CLUB_ID = "test-123"; // TODO: Replace with authenticated club ID
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,7 +48,12 @@ export default function EditEventPage() {
   const [startTime, setStartTime] = useState("12:00");
   const [endTime, setEndTime] = useState("13:00");
   const [existingEvents, setExistingEvents] = useState<Event[]>([]);
-  const [clubHours, setClubHours] = useState<any>(null);
+  const [clubHours, setClubHours] = useState<{
+    periods: Array<{
+      open: { day: number; hour: number; minute: number };
+      close: { day: number; hour: number; minute: number };
+    }>;
+  } | null>(null);
   const [hoursWarning, setHoursWarning] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateEventData>({
     title: "",
@@ -195,7 +194,7 @@ export default function EditEventPage() {
 
     // Find operating periods for this day
     const dayPeriods = clubHours.periods.filter(
-      (period: any) => period.open.day === dayOfWeek
+      (period: { open: { day: number } }) => period.open.day === dayOfWeek
     );
 
     if (dayPeriods.length === 0) {
@@ -211,7 +210,7 @@ export default function EditEventPage() {
       const periodStart = new Date(startDate);
       periodStart.setHours(period.open.hour, period.open.minute, 0, 0);
 
-      let periodEnd = new Date(startDate);
+      const periodEnd = new Date(startDate);
       periodEnd.setHours(period.close.hour, period.close.minute, 0, 0);
 
       // Handle midnight spanning

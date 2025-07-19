@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Music, Clock, Plus, LogOut, Settings } from "lucide-react";
+import { Calendar, Clock, Plus, LogOut, Settings } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -66,9 +66,11 @@ export default function DashboardPage() {
           console.error("Error fetching club hours:", hoursError);
         } else if (clubData?.hours?.periods) {
           const daysWithPeriods = new Set();
-          clubData.hours.periods.forEach((period: any) => {
-            daysWithPeriods.add(period.open.day);
-          });
+          clubData.hours.periods.forEach(
+            (period: { open: { day: number } }) => {
+              daysWithPeriods.add(period.open.day);
+            }
+          );
           configuredDays = daysWithPeriods.size;
         }
       } catch (error) {
@@ -78,20 +80,16 @@ export default function DashboardPage() {
       // Fetch reviews count
       let reviewsCount = 0;
       try {
-        console.log("Fetching reviews for club:", CLUB_ID);
+        // Fetch reviews for club
         const { data: reviews, error: reviewsError } = await supabase
           .from("club_reviews")
           .select("id")
           .eq("club_id", CLUB_ID);
 
-        console.log("Reviews data:", reviews);
-        console.log("Reviews error:", reviewsError);
-
         if (reviewsError) {
           console.error("Error fetching reviews:", reviewsError);
         } else {
           reviewsCount = reviews?.length || 0;
-          console.log("Reviews count:", reviewsCount);
         }
       } catch (error) {
         console.error("Error in reviews query:", error);

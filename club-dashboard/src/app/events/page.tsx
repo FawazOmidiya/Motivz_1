@@ -26,6 +26,7 @@ import { supabase } from "@/lib/supabase";
 import { Event } from "@/types/event";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function EventsPage() {
   const router = useRouter();
@@ -34,8 +35,15 @@ export default function EventsPage() {
   const { club } = useAuth();
 
   const [events, setEvents] = useState<Event[]>([]);
-  const [clubHours, setClubHours] = useState<any>(null);
-  const [musicSchedules, setMusicSchedules] = useState<any[]>([]);
+  const [clubHours, setClubHours] = useState<{
+    periods: Array<{
+      open: { day: number; hour: number; minute: number };
+      close: { day: number; hour: number; minute: number };
+    }>;
+  } | null>(null);
+  const [musicSchedules, setMusicSchedules] = useState<
+    Array<{ day_of_week: string; genres: string[] }>
+  >([]);
   const [loading, setLoading] = useState(true);
 
   // Use authenticated club ID
@@ -160,7 +168,7 @@ export default function EventsPage() {
       const periodStart = new Date(startDate);
       periodStart.setHours(period.open.hour, period.open.minute, 0, 0);
 
-      let periodEnd = new Date(startDate);
+      const periodEnd = new Date(startDate);
       periodEnd.setHours(period.close.hour, period.close.minute, 0, 0);
 
       // Handle overnight periods
@@ -361,9 +369,11 @@ export default function EventsPage() {
                     )}
                     {event.poster_url && (
                       <div className="mt-4">
-                        <img
+                        <Image
                           src={event.poster_url}
                           alt={event.title}
+                          width={320}
+                          height={128}
                           className="w-full max-w-xs h-32 object-cover rounded-lg"
                         />
                       </div>
