@@ -7,7 +7,7 @@ export interface MusicSchedule {
   start_time: string;
   end_time: string;
   genres: string[];
-  [key: string]: any; // For individual genre columns
+  [key: string]: string | number | string[] | undefined; // For individual genre columns
 }
 
 export interface Event {
@@ -68,7 +68,7 @@ export async function getCurrentMusicSchedule(
       const periodStart = new Date(currentTime);
       periodStart.setHours(period.open.hour, period.open.minute, 0, 0);
 
-      let periodEnd = new Date(currentTime);
+      const periodEnd = new Date(currentTime);
       periodEnd.setHours(period.close.hour, period.close.minute, 0, 0);
 
       // Handle overnight periods
@@ -144,12 +144,6 @@ export async function getEffectiveMusicSchedule(
 ): Promise<MusicSchedule | null> {
   try {
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const targetTime =
-      time ||
-      `${date.getHours().toString().padStart(2, "0")}:${date
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}`;
 
     // First, check if there's an event on this date/time
     const eventStart = new Date(date);

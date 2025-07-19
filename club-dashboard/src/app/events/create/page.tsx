@@ -26,38 +26,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  CalendarIcon,
-  ArrowLeft,
-  Clock,
-  Music,
-  AlertTriangle,
-} from "lucide-react";
-import {
-  format,
-  setHours,
-  setMinutes,
-  isAfter,
-  isBefore,
-  parseISO,
-} from "date-fns";
+import { CalendarIcon, ArrowLeft, Music, AlertTriangle } from "lucide-react";
+import { format, isAfter, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
+import { useAuth } from "@/contexts/AuthContext";
+
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 export default function CreateEventPage() {
   const router = useRouter();
+  const { club } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Test club ID for development
-  const CLUB_ID = "test-123";
+  // Use authenticated club ID
+  const CLUB_ID = club?.id;
+
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [startTime, setStartTime] = useState("12:00");
   const [endTime, setEndTime] = useState("13:00");
   const [existingEvents, setExistingEvents] = useState<Event[]>([]);
-  const [clubHours, setClubHours] = useState<any>(null);
+  const [clubHours, setClubHours] = useState<{
+    periods: Array<{
+      open: { day: number; hour: number; minute: number };
+      close: { day: number; hour: number; minute: number };
+    }>;
+  } | null>(null);
   const [hoursWarning, setHoursWarning] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateEventData>({
     title: "",
@@ -105,7 +101,8 @@ export default function CreateEventPage() {
   const fetchClubHours = async () => {
     try {
       const { data, error } = await supabase
-        .from("test-clubs")
+        .from("Clubs")
+
         .select("hours")
         .eq("id", CLUB_ID)
         .single();
@@ -133,7 +130,8 @@ export default function CreateEventPage() {
 
     // Find operating periods for this day
     const dayPeriods = clubHours.periods.filter(
-      (period: any) => period.open.day === dayOfWeek
+      (period: { open: { day: number } }) => period.open.day === dayOfWeek
+
     );
 
     if (dayPeriods.length === 0) {
@@ -149,7 +147,8 @@ export default function CreateEventPage() {
       const periodStart = new Date(startDate);
       periodStart.setHours(period.open.hour, period.open.minute, 0, 0);
 
-      let periodEnd = new Date(startDate);
+      const periodEnd = new Date(startDate);
+
       periodEnd.setHours(period.close.hour, period.close.minute, 0, 0);
 
       // Handle midnight spanning
@@ -295,18 +294,20 @@ export default function CreateEventPage() {
 
       console.log("Event Data:", eventData);
 
-      const { error } = await supabase.from("events").insert(eventData);
+      const { data, error } = await supabase.from("events").insert(eventData);
 
       if (error) {
         console.error("Supabase Error:", error);
-        throw error;
+        throw new Error(`Database error: ${error.message}`);
       }
 
       alert("Event created successfully!");
       router.push("/events");
     } catch (error) {
       console.error("Error creating event:", error);
-      alert("Failed to create event. Please try again.");
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      alert(`Failed to create event: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
