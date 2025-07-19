@@ -131,7 +131,6 @@ export default function CreateEventPage() {
     // Find operating periods for this day
     const dayPeriods = clubHours.periods.filter(
       (period: { open: { day: number } }) => period.open.day === dayOfWeek
-
     );
 
     if (dayPeriods.length === 0) {
@@ -292,9 +291,7 @@ export default function CreateEventPage() {
         created_by: null, // Set to null for now since we don't have user authentication
       };
 
-      console.log("Event Data:", eventData);
-
-      const { data, error } = await supabase.from("events").insert(eventData);
+      const { error } = await supabase.from("events").insert(eventData);
 
       if (error) {
         console.error("Supabase Error:", error);

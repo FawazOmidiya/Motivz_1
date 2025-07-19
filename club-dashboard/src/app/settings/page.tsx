@@ -82,7 +82,7 @@ export default function SettingsPage() {
           text: result.error || "Failed to change password",
         });
       }
-    } catch (error) {
+    } catch {
       setMessage({
         type: "error",
         text: "An error occurred while changing password",
@@ -123,7 +123,7 @@ export default function SettingsPage() {
           text: result.error || "Failed to update club name",
         });
       }
-    } catch (error) {
+    } catch {
       setMessage({
         type: "error",
         text: "An error occurred while updating club name",
@@ -146,7 +146,7 @@ export default function SettingsPage() {
         </div>
         <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground">
-          Manage your club's account settings
+          Manage your club&apos;s account settings
         </p>
       </div>
 
@@ -157,7 +157,7 @@ export default function SettingsPage() {
             Club Information
           </CardTitle>
           <CardDescription>
-            Update your club's basic information
+            Update your club&apos;s basic information
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -200,7 +200,7 @@ export default function SettingsPage() {
             Change Password
           </CardTitle>
           <CardDescription>
-            Update your club's login password securely
+            Update your club&apos;s login password securely
           </CardDescription>
         </CardHeader>
         <CardContent>
