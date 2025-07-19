@@ -24,31 +24,35 @@ import {
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { Event } from "@/types/event";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 
 export default function EventsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter");
+  const { club } = useAuth();
 
   const [events, setEvents] = useState<Event[]>([]);
   const [clubHours, setClubHours] = useState<any>(null);
   const [musicSchedules, setMusicSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Test club ID for development
-  const CLUB_ID = "test-123";
+  // Use authenticated club ID
+  const CLUB_ID = club?.id;
 
   useEffect(() => {
-    fetchEvents();
-    fetchClubHours();
-    fetchMusicSchedules();
-  }, [filter]);
+    if (CLUB_ID) {
+      fetchEvents();
+      fetchClubHours();
+      fetchMusicSchedules();
+    }
+  }, [CLUB_ID, filter]);
 
   const fetchClubHours = async () => {
     try {
       const { data, error } = await supabase
-        .from("test-clubs")
+        .from("Clubs")
         .select("hours")
         .eq("id", CLUB_ID)
         .single();

@@ -167,7 +167,7 @@ export default function EditEventPage() {
   const fetchClubHours = async () => {
     try {
       const { data, error } = await supabase
-        .from("test-clubs")
+        .from("Clubs")
         .select("hours")
         .eq("id", CLUB_ID)
         .single();

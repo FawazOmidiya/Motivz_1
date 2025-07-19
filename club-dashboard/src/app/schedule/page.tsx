@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Clock, Save, ArrowLeft, Music } from "lucide-react";
 
 const DAYS_OF_WEEK = [
@@ -56,21 +57,24 @@ interface DaySchedule {
 }
 
 export default function ClubSchedulePage() {
+  const { club } = useAuth();
   const [daySchedules, setDaySchedules] = useState<DaySchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeDay, setActiveDay] = useState(0);
 
-  const CLUB_ID = "test-123";
+  const CLUB_ID = club?.id;
 
   useEffect(() => {
-    loadSchedule();
-  }, []);
+    if (CLUB_ID) {
+      loadSchedule();
+    }
+  }, [CLUB_ID]);
 
   const loadSchedule = async () => {
     try {
       const [hoursData, musicData] = await Promise.all([
-        supabase.from("test-clubs").select("hours").eq("id", CLUB_ID).single(),
+        supabase.from("Clubs").select("hours").eq("id", CLUB_ID).single(),
         supabase
           .from("ClubMusicSchedules")
           .select("*")
@@ -284,7 +288,7 @@ export default function ClubSchedulePage() {
 
       // Save hours
       const { error: hoursError } = await supabase
-        .from("test-clubs")
+        .from("Clubs")
         .update({
           hours: { periods, weekdayDescriptions },
         })

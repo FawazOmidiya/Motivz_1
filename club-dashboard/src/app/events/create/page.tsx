@@ -43,15 +43,17 @@ import {
 } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 export default function CreateEventPage() {
   const router = useRouter();
+  const { club } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Test club ID for development
-  const CLUB_ID = "test-123";
+  // Use authenticated club ID
+  const CLUB_ID = club?.id;
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [startTime, setStartTime] = useState("12:00");
@@ -105,7 +107,7 @@ export default function CreateEventPage() {
   const fetchClubHours = async () => {
     try {
       const { data, error } = await supabase
-        .from("test-clubs")
+        .from("Clubs")
         .select("hours")
         .eq("id", CLUB_ID)
         .single();
@@ -295,18 +297,19 @@ export default function CreateEventPage() {
 
       console.log("Event Data:", eventData);
 
-      const { error } = await supabase.from("events").insert(eventData);
+      const { data, error } = await supabase.from("events").insert(eventData);
 
       if (error) {
         console.error("Supabase Error:", error);
-        throw error;
+        throw new Error(`Database error: ${error.message}`);
       }
-
       alert("Event created successfully!");
       router.push("/events");
     } catch (error) {
       console.error("Error creating event:", error);
-      alert("Failed to create event. Please try again.");
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      alert(`Failed to create event: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
