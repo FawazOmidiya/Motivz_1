@@ -43,7 +43,6 @@ export default function EditEventPage() {
 
   // Use authenticated club ID
   const CLUB_ID = club?.id;
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [startDate, setStartDate] = useState<Date>();
