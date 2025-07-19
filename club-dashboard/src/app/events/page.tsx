@@ -56,7 +56,6 @@ export default function EventsPage() {
       fetchMusicSchedules();
     }
   }, [CLUB_ID, filter]);
-
   const fetchClubHours = async () => {
     try {
       const { data, error } = await supabase

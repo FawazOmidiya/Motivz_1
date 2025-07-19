@@ -71,6 +71,7 @@ export default function ClubSchedulePage() {
     }
   }, [CLUB_ID]);
 
+
   const loadSchedule = async () => {
     try {
       const [hoursData, musicData] = await Promise.all([

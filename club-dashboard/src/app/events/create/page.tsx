@@ -31,6 +31,7 @@ import { format, isAfter, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
 import { useAuth } from "@/contexts/AuthContext";
+
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
@@ -41,6 +42,7 @@ export default function CreateEventPage() {
 
   // Use authenticated club ID
   const CLUB_ID = club?.id;
+
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [startTime, setStartTime] = useState("12:00");
@@ -100,6 +102,7 @@ export default function CreateEventPage() {
     try {
       const { data, error } = await supabase
         .from("Clubs")
+
         .select("hours")
         .eq("id", CLUB_ID)
         .single();
@@ -128,6 +131,7 @@ export default function CreateEventPage() {
     // Find operating periods for this day
     const dayPeriods = clubHours.periods.filter(
       (period: { open: { day: number } }) => period.open.day === dayOfWeek
+
     );
 
     if (dayPeriods.length === 0) {
@@ -144,6 +148,7 @@ export default function CreateEventPage() {
       periodStart.setHours(period.open.hour, period.open.minute, 0, 0);
 
       const periodEnd = new Date(startDate);
+
       periodEnd.setHours(period.close.hour, period.close.minute, 0, 0);
 
       // Handle midnight spanning
@@ -295,6 +300,7 @@ export default function CreateEventPage() {
         console.error("Supabase Error:", error);
         throw new Error(`Database error: ${error.message}`);
       }
+
       alert("Event created successfully!");
       router.push("/events");
     } catch (error) {

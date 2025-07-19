@@ -80,7 +80,6 @@ export default function DashboardPage() {
       // Fetch reviews count
       let reviewsCount = 0;
       try {
-        // Fetch reviews for club
         const { data: reviews, error: reviewsError } = await supabase
           .from("club_reviews")
           .select("id")

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { CalendarIcon, ArrowLeft, Music, AlertTriangle } from "lucide-react";
 import { format, isAfter, parseISO } from "date-fns";
+
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
 import Link from "next/link";
@@ -37,9 +38,6 @@ export default function EditEventPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
-
-  // Use authenticated club ID
-  const CLUB_ID = "test-123"; // TODO: Replace with authenticated club ID
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,6 +52,7 @@ export default function EditEventPage() {
       close: { day: number; hour: number; minute: number };
     }>;
   } | null>(null);
+
   const [hoursWarning, setHoursWarning] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateEventData>({
     title: "",
@@ -167,6 +166,7 @@ export default function EditEventPage() {
     try {
       const { data, error } = await supabase
         .from("Clubs")
+
         .select("hours")
         .eq("id", CLUB_ID)
         .single();
@@ -195,6 +195,7 @@ export default function EditEventPage() {
     // Find operating periods for this day
     const dayPeriods = clubHours.periods.filter(
       (period: { open: { day: number } }) => period.open.day === dayOfWeek
+
     );
 
     if (dayPeriods.length === 0) {
@@ -211,6 +212,7 @@ export default function EditEventPage() {
       periodStart.setHours(period.open.hour, period.open.minute, 0, 0);
 
       const periodEnd = new Date(startDate);
+
       periodEnd.setHours(period.close.hour, period.close.minute, 0, 0);
 
       // Handle midnight spanning
