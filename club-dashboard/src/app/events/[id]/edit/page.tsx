@@ -31,6 +31,7 @@ import { format, isAfter, parseISO } from "date-fns";
 
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
@@ -38,6 +39,10 @@ export default function EditEventPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
+  const { club } = useAuth();
+
+  // Use authenticated club ID
+  const CLUB_ID = club?.id;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -195,7 +200,6 @@ export default function EditEventPage() {
     // Find operating periods for this day
     const dayPeriods = clubHours.periods.filter(
       (period: { open: { day: number } }) => period.open.day === dayOfWeek
-
     );
 
     if (dayPeriods.length === 0) {
