@@ -89,10 +89,11 @@ export const searchClubsByName = async (ClubName: string) => {
   }
 };
 
-// #TODO: Add a return type for the events
-export async function fetchEventsByClub(clubId: string) {
+export async function fetchEventsByClub(
+  clubId: string
+): Promise<types.Event[]> {
   const { data, error } = await supabase
-    .from("Events")
+    .from("events")
     .select("*")
     .eq("club_id", clubId);
 
@@ -101,7 +102,7 @@ export async function fetchEventsByClub(clubId: string) {
     return [];
   }
 
-  return data;
+  return data || [];
 }
 
 /**

@@ -48,7 +48,7 @@ export default function ClubDetailScreen() {
   const route = useRoute();
   const { club: clubData } = route.params as { club: types.Club };
   const [club, setClub] = useState<Club | null>(null);
-  const [events, setEvents] = useState<any>([]);
+  const [events, setEvents] = useState<types.Event[]>([]);
   const [musicSchedule, setMusicSchedule] = useState<string[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
@@ -446,22 +446,97 @@ export default function ClubDetailScreen() {
         {/* Upcoming Events */}
         <Text style={styles.sectionTitle}>Upcoming Events</Text>
         {events.length === 0 ? (
-          <Text style={styles.noEvents}>No Events</Text>
+          <View style={styles.noEventsContainer}>
+            <Ionicons
+              name="calendar-outline"
+              size={48}
+              color="rgba(255, 255, 255, 0.3)"
+            />
+            <Text style={styles.noEvents}>No upcoming events</Text>
+            <Text style={styles.noEventsSubtext}>
+              Check back later for new events
+            </Text>
+          </View>
         ) : (
-          <FlatList
-            data={events}
-            renderItem={({ item }) => (
-              <View style={styles.eventCard}>
-                <Text style={styles.eventName}>{item.event_name}</Text>
-                <Text style={styles.eventDate}>
-                  {new Date(item.date).toDateString()}
-                </Text>
-              </View>
-            )}
-            keyExtractor={(item) => item.id.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          />
+          <View style={styles.eventsContainer}>
+            {events.map((item: types.Event) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.eventCard}
+                onPress={() =>
+                  navigation.navigate("EventDetail", { event: item })
+                }
+                activeOpacity={0.7}
+              >
+                {item.poster_url && (
+                  <Image
+                    source={{ uri: item.poster_url }}
+                    style={styles.eventPoster}
+                  />
+                )}
+                <View style={styles.eventContent}>
+                  <View style={styles.eventHeader}>
+                    <View style={styles.eventDateContainer}>
+                      <Text style={styles.eventDay}>
+                        {new Date(item.start_date).getDate()}
+                      </Text>
+                      <Text style={styles.eventMonth}>
+                        {new Date(item.start_date).toLocaleDateString("en-US", {
+                          month: "short",
+                        })}
+                      </Text>
+                    </View>
+                    <View style={styles.eventInfo}>
+                      <Text style={styles.eventName} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <View style={styles.eventTimeContainer}>
+                        <Ionicons
+                          name="time-outline"
+                          size={14}
+                          color="rgba(255, 255, 255, 0.7)"
+                        />
+                        <Text style={styles.eventTime}>
+                          {new Date(item.start_date).toLocaleTimeString(
+                            "en-US",
+                            {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            }
+                          )}
+                          {" - "}
+                          {new Date(item.end_date).toLocaleTimeString("en-US", {
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                        </Text>
+                      </View>
+                      {item.caption && (
+                        <Text style={styles.eventDescription} numberOfLines={2}>
+                          {item.caption}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  {item.music_genres && item.music_genres.length > 0 && (
+                    <View style={styles.musicGenresContainer}>
+                      <Ionicons
+                        name="musical-notes-outline"
+                        size={14}
+                        color="rgba(255, 255, 255, 0.7)"
+                      />
+                      <Text style={styles.musicGenresText}>
+                        {item.music_genres.slice(0, 3).join(", ")}
+                        {item.music_genres.length > 3 && " + more"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
       </View>
 
@@ -771,11 +846,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   eventCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    padding: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    padding: 16,
     borderRadius: 12,
-    marginRight: 10,
-    width: width * 0.7,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   eventName: {
     fontSize: 16,
@@ -903,5 +978,87 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  // New event styles
+  noEventsContainer: {
+    alignItems: "center",
+    paddingVertical: 30,
+  },
+  noEventsSubtext: {
+    textAlign: "center",
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.4)",
+    marginTop: 5,
+  },
+  eventsContainer: {
+    gap: 12,
+  },
+  eventHeader: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  eventDateContainer: {
+    backgroundColor: Constants.purpleCOLOR,
+    borderRadius: 8,
+    padding: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 50,
+    marginRight: 12,
+  },
+  eventDay: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+    lineHeight: 20,
+  },
+  eventMonth: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
+    fontWeight: "500",
+    textTransform: "uppercase",
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  eventTime: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginLeft: 4,
+  },
+  eventDescription: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.6)",
+    lineHeight: 18,
+  },
+  musicGenresContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  musicGenresText: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginLeft: 4,
+    fontWeight: "500",
+  },
+  eventPoster: {
+    width: "100%",
+    height: 120,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  eventContent: {
+    flex: 1,
   },
 });

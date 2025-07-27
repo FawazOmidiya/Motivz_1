@@ -35,7 +35,7 @@ export default function AnonymousHomeScreen() {
   const fetchClubs = async () => {
     try {
       const { data, error } = await supabase
-        .from("test-clubs")
+        .from("Clubs")
         .select("*")
         .order("Name");
 
@@ -111,7 +111,7 @@ export default function AnonymousHomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>🧪 Test Clubs</Text>
+        <Text style={styles.title}>Clubs</Text>
         <TouchableOpacity onPress={handleSignUp} style={styles.signUpButton}>
           <Text style={styles.signUpText}>Sign Up</Text>
         </TouchableOpacity>

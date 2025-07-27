@@ -19,12 +19,13 @@ import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { SessionProvider } from "@/components/SessionContext";
 import { PaperProvider } from "react-native-paper";
-import { theme } from "@/constants/Colors";
+import * as Colors from "@/constants/Colors";
 import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
 import MapScreen from "./screens/MapScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import ClubDetail from "./screens/ClubDetail";
+import EventDetail from "./screens/EventDetail";
 import UserProfileScreen from "./screens/UserProfileScreen";
 import FriendsList from "./screens/FriendsList";
 import AuthScreen from "./screens/AuthScreen";
@@ -53,6 +54,7 @@ function HomeStackScreen() {
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeMain" component={HomeScreen} />
       <HomeStack.Screen name="ClubDetail" component={ClubDetail} />
+      <HomeStack.Screen name="EventDetail" component={EventDetail} />
       <HomeStack.Screen name="UserProfile" component={UserProfileScreen} />
     </HomeStack.Navigator>
   );
@@ -63,6 +65,7 @@ function ExploreStackScreen() {
     <ExploreStack.Navigator screenOptions={{ headerShown: false }}>
       <ExploreStack.Screen name="ExploreMain" component={ExploreScreen} />
       <ExploreStack.Screen name="ClubDetail" component={ClubDetail} />
+      <ExploreStack.Screen name="EventDetail" component={EventDetail} />
       <ExploreStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ExploreStack.Screen name="FriendsList" component={FriendsList} />
     </ExploreStack.Navigator>
@@ -74,6 +77,7 @@ function MapStackScreen() {
     <MapStack.Navigator screenOptions={{ headerShown: false }}>
       <MapStack.Screen name="MapMain" component={MapScreen} />
       <MapStack.Screen name="ClubDetail" component={ClubDetail} />
+      <MapStack.Screen name="EventDetail" component={EventDetail} />
       <MapStack.Screen name="UserProfile" component={UserProfileScreen} />
     </MapStack.Navigator>
   );
@@ -86,6 +90,7 @@ function ProfileStackScreen() {
       <ProfileStack.Screen name="ProfileSettings" component={ProfileSettings} />
       <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ProfileStack.Screen name="ClubDetail" component={ClubDetail} />
+      <ProfileStack.Screen name="EventDetail" component={EventDetail} />
       <ProfileStack.Screen name="FriendsList" component={FriendsList} />
     </ProfileStack.Navigator>
   );
