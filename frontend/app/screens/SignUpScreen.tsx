@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
 import { supabase } from "../utils/supabaseService";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation";
+import { RootStackParamList } from "../utils/types";
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,

@@ -17,15 +17,18 @@ import {
   searchUsersByName,
 } from "../utils/supabaseService"; // or supabaseAuth
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
-import defaultAvatar from "../../assets/images/default-avatar.png";
+import defaultAvatar from "@/assets/images/default-avatar.png";
+
+type NavigationProp = NativeStackNavigationProp<any, "UserProfile">;
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<types.UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
 
   async function handleTextChange(text: string) {
     setQuery(text);
