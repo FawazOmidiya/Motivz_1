@@ -21,7 +21,7 @@ import FriendButton from "@/components/FriendButton"; // Import your FriendButto
 import { useSession } from "@/components/SessionContext";
 import * as Constants from "@/constants/Constants";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation";
+import { RootStackParamList } from "../utils/types";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";

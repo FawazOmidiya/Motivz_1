@@ -61,7 +61,7 @@ export default function ClubDetailScreen() {
   const [userLocation, setUserLocation] = useState<types.LocationCoords | null>(
     null
   );
-  const [isGoing, setIsGoing] = useState(false);
+  // Remove the isGoing state since we'll derive it from profile.active_club_id
   const [showSchedulePopup, setShowSchedulePopup] = useState(false);
   const [liveRating, setLiveRating] = useState<number | null>(null);
   const [showLiveOnly, setShowLiveOnly] = useState(true);
@@ -111,7 +111,6 @@ export default function ClubDetailScreen() {
     getLocation();
     loadEvents();
     loadFriendsAtClub();
-    setIsGoing(profile?.active_club_id === club?.id);
     getMusicSchedule();
   }, [club?.id, profile, session?.user?.id]);
 
@@ -143,12 +142,7 @@ export default function ClubDetailScreen() {
     checkFavourite();
   }, [session, club]);
 
-  useEffect(() => {
-    // Check if this is the user's active club
-    if (profile?.active_club_id === club?.id) {
-      setIsGoing(true);
-    }
-  }, [session, club?.id]);
+  // Remove this useEffect since we'll compute isGoing directly
 
   async function handleAddToFavourites() {
     if (!club) return;
@@ -188,7 +182,6 @@ export default function ClubDetailScreen() {
 
   const setActiveClub = async (club_id: string | null) => {
     if (!session?.user) return;
-    setIsGoing(!isGoing);
     await updateUserActiveClub(session.user.id, club_id);
 
     // Refresh friends at club list after checking in/out
@@ -302,18 +295,30 @@ export default function ClubDetailScreen() {
           <TouchableOpacity
             style={[
               styles.actionButton,
-              isGoing ? styles.goingButton : styles.notGoingButton,
+              profile?.active_club_id === club?.id
+                ? styles.goingButton
+                : styles.notGoingButton,
             ]}
-            onPress={() => setActiveClub(isGoing ? null : club?.id)}
+            onPress={() =>
+              setActiveClub(
+                profile?.active_club_id === club?.id ? null : club?.id
+              )
+            }
           >
             <Ionicons
-              name={isGoing ? "checkmark-circle" : "location"}
+              name={
+                profile?.active_club_id === club?.id
+                  ? "checkmark-circle"
+                  : "location"
+              }
               size={24}
               color="white"
               style={styles.buttonIcon}
             />
             <Text style={styles.actionButtonText}>
-              {isGoing ? "You're Here!" : "Check In"}
+              {profile?.active_club_id === club?.id
+                ? "You're Here!"
+                : "Check In"}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

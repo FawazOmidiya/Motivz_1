@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { Club } from "../app/utils/types";
 import * as Constants from "@/constants/Constants";
 
@@ -15,8 +16,10 @@ type FavouriteClubProps = {
   club: Club;
 };
 
+type NavigationProp = NativeStackNavigationProp<any, "ClubDetail">;
+
 const FavouriteClub: React.FC<FavouriteClubProps> = ({ club }) => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
 
   const handlePress = () => {
     navigation.navigate("ClubDetail", { club });

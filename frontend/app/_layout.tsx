@@ -19,7 +19,6 @@ import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { SessionProvider } from "@/components/SessionContext";
 import { PaperProvider } from "react-native-paper";
-import { theme } from "@/constants/Colors";
 import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
 import MapScreen from "./screens/MapScreen";

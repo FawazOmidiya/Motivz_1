@@ -51,6 +51,7 @@ export type RootStackParamList = {
     };
   };
   ClubDetail: { club: Club };
+  EventDetail: { event: Event };
   ProfileSettings: undefined;
   UserProfile: { profile: UserProfile };
   FriendsList: { userId: string };
@@ -175,4 +176,17 @@ export interface PostComment {
     last_name: string;
     avatar_url: string | null;
   };
+}
+
+export interface Event {
+  id: string;
+  club_id: string;
+  title: string;
+  caption?: string;
+  poster_url?: string;
+  start_date: string;
+  end_date: string;
+  music_genres?: string[];
+  created_at: string;
+  updated_at: string;
 }
