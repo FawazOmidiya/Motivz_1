@@ -59,6 +59,7 @@ export default function CreateEventPage() {
     title: "",
     caption: "",
     poster_url: "",
+    ticket_link: "",
     start_date: "",
     end_date: "",
     music_genres: [],
@@ -282,6 +283,7 @@ export default function CreateEventPage() {
         title: formData.title,
         caption: formData.caption || null,
         poster_url: formData.poster_url || null,
+        ticket_link: formData.ticket_link || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         music_genres:
@@ -398,6 +400,23 @@ export default function CreateEventPage() {
                   }
                   placeholder="https://example.com/poster.jpg"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ticket_link">Ticket Purchase Link</Label>
+                <Input
+                  id="ticket_link"
+                  type="url"
+                  value={formData.ticket_link}
+                  onChange={(e) =>
+                    setFormData({ ...formData, ticket_link: e.target.value })
+                  }
+                  placeholder="https://example.com/tickets"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Optional: Add a link where users can purchase tickets for this
+                  event
+                </p>
               </div>
 
               <div className="space-y-4">
