@@ -40,7 +40,12 @@ import { LinearGradient } from "expo-linear-gradient";
 const { width } = Dimensions.get("window");
 
 type ClubDetailNavigationProp = NativeStackNavigationProp<
-  types.RootTabParamList,
+  {
+    HomeMain: undefined;
+    ClubDetail: { club: types.Club };
+    EventDetail: { event: types.Event };
+    UserProfile: { user: types.UserProfile };
+  },
   "ClubDetail"
 >;
 
@@ -220,6 +225,53 @@ export default function ClubDetailScreen() {
     }
   };
 
+  // Helper function to categorize events
+  const categorizeEvents = (events: types.Event[]) => {
+    const now = new Date();
+    const hundredHoursFromNow = new Date(now.getTime() + 100 * 60 * 60 * 1000);
+
+    const todaysEvents: types.Event[] = [];
+    const upcomingEvents: types.Event[] = [];
+
+    events.forEach((event) => {
+      const eventStart = new Date(event.start_date);
+      const eventEnd = new Date(event.end_date);
+
+      // Check if event is happening now or within 100 hours
+      if (eventStart <= hundredHoursFromNow && eventEnd >= now) {
+        todaysEvents.push(event);
+      } else if (eventStart > hundredHoursFromNow) {
+        upcomingEvents.push(event);
+      }
+    });
+
+    return { todaysEvents, upcomingEvents };
+  };
+
+  // Helper function to get event status text
+  const getEventStatusText = (event: types.Event) => {
+    const now = new Date();
+    const eventStart = new Date(event.start_date);
+    const eventEnd = new Date(event.end_date);
+
+    if (now >= eventStart && now <= eventEnd) {
+      return "Happening Now";
+    } else if (eventStart > now) {
+      const timeDiff = eventStart.getTime() - now.getTime();
+      const hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
+      const minutesDiff = Math.floor(
+        (timeDiff % (1000 * 60 * 60)) / (1000 * 60)
+      );
+
+      if (hoursDiff > 0) {
+        return `Starts in ${hoursDiff}h ${minutesDiff}m`;
+      } else {
+        return `Starts in ${minutesDiff}m`;
+      }
+    }
+    return "Today's Event";
+  };
+
   const handleLongPress = () => {
     setShowSchedulePopup(true);
   };
@@ -315,6 +367,42 @@ export default function ClubDetailScreen() {
             <Text style={styles.actionButtonText}>
               {isGoing ? "You're Here!" : "Check In"}
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.ticketButton]}
+            onPress={() => {
+              // Check if there are any events with ticket links
+              const eventsWithTickets = events.filter(
+                (event) => event.ticket_link
+              );
+              if (eventsWithTickets.length > 0) {
+                // If there are multiple events with tickets, show a list
+                if (eventsWithTickets.length > 1) {
+                  Alert.alert(
+                    "Purchase Tickets",
+                    "Multiple events have tickets available. Please view individual events to purchase tickets.",
+                    [{ text: "OK" }]
+                  );
+                } else {
+                  // If there's only one event with tickets, open the link
+                  Linking.openURL(eventsWithTickets[0].ticket_link!);
+                }
+              } else {
+                Alert.alert(
+                  "Purchase Tickets",
+                  "No tickets available for upcoming events at this time.",
+                  [{ text: "OK" }]
+                );
+              }
+            }}
+          >
+            <Ionicons
+              name="ticket"
+              size={24}
+              color="white"
+              style={styles.buttonIcon}
+            />
+            <Text style={styles.actionButtonText}>Tickets</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, styles.externalActionButton]}
@@ -443,101 +531,236 @@ export default function ClubDetailScreen() {
           })()}
         </View>
 
-        {/* Upcoming Events */}
-        <Text style={styles.sectionTitle}>Upcoming Events</Text>
-        {events.length === 0 ? (
-          <View style={styles.noEventsContainer}>
-            <Ionicons
-              name="calendar-outline"
-              size={48}
-              color="rgba(255, 255, 255, 0.3)"
-            />
-            <Text style={styles.noEvents}>No upcoming events</Text>
-            <Text style={styles.noEventsSubtext}>
-              Check back later for new events
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.eventsContainer}>
-            {events.map((item: types.Event) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.eventCard}
-                onPress={() =>
-                  navigation.navigate("EventDetail", { event: item })
-                }
-                activeOpacity={0.7}
-              >
-                {item.poster_url && (
-                  <Image
-                    source={{ uri: item.poster_url }}
-                    style={styles.eventPoster}
-                  />
-                )}
-                <View style={styles.eventContent}>
-                  <View style={styles.eventHeader}>
-                    <View style={styles.eventDateContainer}>
-                      <Text style={styles.eventDay}>
-                        {new Date(item.start_date).getDate()}
-                      </Text>
-                      <Text style={styles.eventMonth}>
-                        {new Date(item.start_date).toLocaleDateString("en-US", {
-                          month: "short",
-                        })}
-                      </Text>
-                    </View>
-                    <View style={styles.eventInfo}>
-                      <Text style={styles.eventName} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-                      <View style={styles.eventTimeContainer}>
-                        <Ionicons
-                          name="time-outline"
-                          size={14}
-                          color="rgba(255, 255, 255, 0.7)"
-                        />
-                        <Text style={styles.eventTime}>
-                          {new Date(item.start_date).toLocaleTimeString(
-                            "en-US",
-                            {
-                              hour: "numeric",
-                              minute: "2-digit",
-                              hour12: true,
-                            }
-                          )}
-                          {" - "}
-                          {new Date(item.end_date).toLocaleTimeString("en-US", {
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hour12: true,
-                          })}
-                        </Text>
-                      </View>
-                      {item.caption && (
-                        <Text style={styles.eventDescription} numberOfLines={2}>
-                          {item.caption}
-                        </Text>
-                      )}
-                    </View>
+        {/* Events Section */}
+        {(() => {
+          const { todaysEvents, upcomingEvents } = categorizeEvents(events);
+
+          return (
+            <>
+              {/* Today's Events / Happening Now */}
+              {todaysEvents.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>
+                    {todaysEvents.some((event) => {
+                      const now = new Date();
+                      const eventStart = new Date(event.start_date);
+                      const eventEnd = new Date(event.end_date);
+                      return now >= eventStart && now <= eventEnd;
+                    })
+                      ? "Happening Now"
+                      : "Upcoming Events"}
+                  </Text>
+                  <View style={styles.eventsContainer}>
+                    {todaysEvents.map((item: types.Event) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.eventCard, styles.todaysEventCard]}
+                        onPress={() =>
+                          navigation.navigate("EventDetail", { event: item })
+                        }
+                        activeOpacity={0.7}
+                      >
+                        {item.poster_url && (
+                          <Image
+                            source={{ uri: item.poster_url }}
+                            style={styles.eventPoster}
+                          />
+                        )}
+                        <View style={styles.eventContent}>
+                          <View style={styles.eventHeader}>
+                            <View style={styles.eventDateContainer}>
+                              <Text style={styles.eventDay}>
+                                {new Date(item.start_date).getDate()}
+                              </Text>
+                              <Text style={styles.eventMonth}>
+                                {new Date(item.start_date).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                  }
+                                )}
+                              </Text>
+                            </View>
+                            <View style={styles.eventInfo}>
+                              <Text style={styles.eventName} numberOfLines={2}>
+                                {item.title}
+                              </Text>
+                              <View style={styles.eventTimeContainer}>
+                                <Ionicons
+                                  name="time-outline"
+                                  size={14}
+                                  color="rgba(255, 255, 255, 0.7)"
+                                />
+                                <Text style={styles.eventTime}>
+                                  {new Date(item.start_date).toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    }
+                                  )}
+                                  {" - "}
+                                  {new Date(item.end_date).toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    }
+                                  )}
+                                </Text>
+                              </View>
+                              <Text style={styles.eventStatusText}>
+                                {getEventStatusText(item)}
+                              </Text>
+                              {item.caption && (
+                                <Text
+                                  style={styles.eventDescription}
+                                  numberOfLines={2}
+                                >
+                                  {item.caption}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                          {item.music_genres &&
+                            item.music_genres.length > 0 && (
+                              <View style={styles.musicGenresContainer}>
+                                <Ionicons
+                                  name="musical-notes-outline"
+                                  size={14}
+                                  color="rgba(255, 255, 255, 0.7)"
+                                />
+                                <Text style={styles.musicGenresText}>
+                                  {item.music_genres.slice(0, 3).join(", ")}
+                                  {item.music_genres.length > 3 && " + more"}
+                                </Text>
+                              </View>
+                            )}
+                        </View>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                  {item.music_genres && item.music_genres.length > 0 && (
-                    <View style={styles.musicGenresContainer}>
-                      <Ionicons
-                        name="musical-notes-outline"
-                        size={14}
-                        color="rgba(255, 255, 255, 0.7)"
-                      />
-                      <Text style={styles.musicGenresText}>
-                        {item.music_genres.slice(0, 3).join(", ")}
-                        {item.music_genres.length > 3 && " + more"}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+                </>
+              )}
+
+              {/* Future Events */}
+              {upcomingEvents.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Future Events</Text>
+                  <View style={styles.eventsContainer}>
+                    {upcomingEvents.map((item: types.Event) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.eventCard}
+                        onPress={() =>
+                          navigation.navigate("EventDetail", { event: item })
+                        }
+                        activeOpacity={0.7}
+                      >
+                        {item.poster_url && (
+                          <Image
+                            source={{ uri: item.poster_url }}
+                            style={styles.eventPoster}
+                          />
+                        )}
+                        <View style={styles.eventContent}>
+                          <View style={styles.eventHeader}>
+                            <View style={styles.eventDateContainer}>
+                              <Text style={styles.eventDay}>
+                                {new Date(item.start_date).getDate()}
+                              </Text>
+                              <Text style={styles.eventMonth}>
+                                {new Date(item.start_date).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                  }
+                                )}
+                              </Text>
+                            </View>
+                            <View style={styles.eventInfo}>
+                              <Text style={styles.eventName} numberOfLines={2}>
+                                {item.title}
+                              </Text>
+                              <View style={styles.eventTimeContainer}>
+                                <Ionicons
+                                  name="time-outline"
+                                  size={14}
+                                  color="rgba(255, 255, 255, 0.7)"
+                                />
+                                <Text style={styles.eventTime}>
+                                  {new Date(item.start_date).toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    }
+                                  )}
+                                  {" - "}
+                                  {new Date(item.end_date).toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    }
+                                  )}
+                                </Text>
+                              </View>
+                              {item.caption && (
+                                <Text
+                                  style={styles.eventDescription}
+                                  numberOfLines={2}
+                                >
+                                  {item.caption}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                          {item.music_genres &&
+                            item.music_genres.length > 0 && (
+                              <View style={styles.musicGenresContainer}>
+                                <Ionicons
+                                  name="musical-notes-outline"
+                                  size={14}
+                                  color="rgba(255, 255, 255, 0.7)"
+                                />
+                                <Text style={styles.musicGenresText}>
+                                  {item.music_genres.slice(0, 3).join(", ")}
+                                  {item.music_genres.length > 3 && " + more"}
+                                </Text>
+                              </View>
+                            )}
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* No Events */}
+              {events.length === 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Events</Text>
+                  <View style={styles.noEventsContainer}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={48}
+                      color="rgba(255, 255, 255, 0.3)"
+                    />
+                    <Text style={styles.noEvents}>No upcoming events</Text>
+                    <Text style={styles.noEventsSubtext}>
+                      Check back later for new events
+                    </Text>
+                  </View>
+                </>
+              )}
+            </>
+          );
+        })()}
       </View>
 
       {/* Review Form Modal */}
@@ -935,6 +1158,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     marginHorizontal: 2,
   },
+  ticketButton: {
+    backgroundColor: "#FF6B35",
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1060,5 +1286,16 @@ const styles = StyleSheet.create({
   },
   eventContent: {
     flex: 1,
+  },
+  todaysEventCard: {
+    borderColor: Constants.purpleCOLOR,
+    borderWidth: 2,
+    backgroundColor: "rgba(147, 51, 234, 0.1)",
+  },
+  eventStatusText: {
+    fontSize: 12,
+    color: Constants.purpleCOLOR,
+    fontWeight: "600",
+    marginTop: 2,
   },
 });
