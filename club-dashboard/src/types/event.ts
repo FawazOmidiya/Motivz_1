@@ -4,6 +4,7 @@ export interface Event {
   title: string;
   caption?: string;
   poster_url?: string;
+  ticket_link?: string;
   start_date: string;
   end_date: string;
   music_genres?: string[];
@@ -24,6 +25,7 @@ export interface CreateEventData {
   title: string;
   caption?: string;
   poster_url?: string;
+  ticket_link?: string;
   start_date: string;
   end_date: string;
   music_genres?: string[];

@@ -71,7 +71,6 @@ export default function ClubSchedulePage() {
     }
   }, [CLUB_ID]);
 
-
   const loadSchedule = async () => {
     try {
       const [hoursData, musicData] = await Promise.all([
@@ -274,16 +273,23 @@ export default function ClubSchedulePage() {
       const weekdayDescriptions = daySchedules.map((schedule) => {
         if (!schedule.isOpen) return `${schedule.label}: Closed`;
 
-        const openTime = schedule.openTime;
-        const closeTime = schedule.closeTime;
-        const closeDayLabel =
-          DAYS_OF_WEEK.find((d) => d.value === schedule.closeDay)?.label ||
-          schedule.label;
+        // Convert 24-hour format to 12-hour format with AM/PM
+        const formatTime = (timeString: string) => {
+          const [hour, minute] = timeString.split(":").map(Number);
+          const period = hour >= 12 ? "PM" : "AM";
+          const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+          return `${displayHour}:${minute
+            .toString()
+            .padStart(2, "0")} ${period}`;
+        };
+
+        const openTime = formatTime(schedule.openTime);
+        const closeTime = formatTime(schedule.closeTime);
 
         if (schedule.closeDay === schedule.day) {
-          return `${schedule.label}: ${openTime} - ${closeTime}`;
+          return `${schedule.label}: ${openTime} – ${closeTime}`;
         } else {
-          return `${schedule.label}: ${openTime} - ${closeDayLabel} ${closeTime}`;
+          return `${schedule.label}: ${openTime} – ${closeTime}`;
         }
       });
 
