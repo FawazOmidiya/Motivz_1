@@ -3,14 +3,15 @@ import { getClubById } from "@/lib/supabase";
 
 interface ClubLayoutProps {
   children: React.ReactNode;
-  params: { clubId: string };
+  params: Promise<{ clubId: string }>;
 }
 
 export async function generateMetadata({
   params,
 }: ClubLayoutProps): Promise<Metadata> {
   try {
-    const club = await getClubById(await params.clubId);
+    const { clubId } = await params;
+    const club = await getClubById(clubId);
 
     if (!club) {
       return {
