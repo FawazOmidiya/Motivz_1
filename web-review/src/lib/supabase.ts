@@ -65,6 +65,30 @@ export const searchClubsByName = async (searchTerm: string) => {
   }
 };
 
+export const getClubById = async (clubId: string) => {
+  try {
+    // Check if Supabase client is available
+    if (!supabase) {
+      throw new Error("Supabase configuration not available");
+    }
+
+    const { data, error } = await supabase
+      .from("Clubs")
+      .select("*")
+      .eq("id", clubId)
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching club by ID:", error);
+    return null;
+  }
+};
+
 export const submitReview = async (review: Review) => {
   try {
     // Check if Supabase client is available

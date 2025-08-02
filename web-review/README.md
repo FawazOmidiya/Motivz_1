@@ -5,6 +5,8 @@ A standalone web application that allows users to review clubs without needing t
 ## Features
 
 - **Club Search**: Search for clubs by name
+- **Personalized Club Links**: Each club has its own unique review URL (e.g., `/club-id`)
+- **Share Review Links**: Copy direct links to share with customers for instant reviews
 - **Club Confirmation**: Verify you're at the right club before reviewing
 - **Rating System**: 1-5 star rating with descriptive labels
 - **Music Genres**: Select from 18 different music genres
@@ -59,6 +61,18 @@ A standalone web application that allows users to review clubs without needing t
 5. **Open your browser**:
    Navigate to [http://localhost:3000](http://localhost:3000)
 
+## URL Structure
+
+The app supports two main URL patterns:
+
+- **Home Page**: `/` - Search for clubs and copy review links
+- **Club Review Page**: `/{clubId}` - Direct review page for a specific club
+
+### Example URLs
+
+- `https://yoursite.com/` - Main search page
+- `https://yoursite.com/abc123` - Review page for club with ID "abc123"
+
 ## Database Schema
 
 ### Clubs Table
@@ -87,13 +101,28 @@ user_id: string (optional, for authenticated users)
 
 ## Usage
 
-1. **Search for a Club**: Enter the club name in the search bar
+### For Club Owners/Staff
+
+1. **Search for Your Club**: Enter your club name in the search bar
+2. **Copy Review Link**: Click the link icon next to your club to copy a direct review URL
+3. **Share with Customers**: Share the link via QR codes, social media, or in-person
+4. **Track Reviews**: Monitor incoming reviews through your dashboard
+
+### For Customers
+
+1. **Direct Link Access**: Visit a club-specific review link (e.g., `yoursite.com/club-id`)
 2. **Confirm Selection**: Verify you're at the correct club
 3. **Rate Your Experience**: Give a 1-5 star rating
 4. **Select Music Genres**: Choose what music is playing
 5. **Indicate Crowd Level**: Show how full the venue is
 6. **Add Review Text**: Optional written feedback
 7. **Submit**: Your review is saved to the database
+
+### Traditional Search Flow
+
+1. **Search for a Club**: Enter the club name in the search bar
+2. **Select Club**: Click on the desired club from search results
+3. **Follow Review Process**: Complete the same review steps as above
 
 ## Deployment
 

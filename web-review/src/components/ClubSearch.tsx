@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, MapPin, Star } from "lucide-react";
+import { Search, MapPin, Star, Link, Copy, Check } from "lucide-react";
 import { Club } from "@/types/club";
 import { searchClubsByName } from "@/lib/supabase";
 
@@ -14,6 +14,7 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [copiedClubId, setCopiedClubId] = useState<string | null>(null);
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
@@ -35,6 +36,17 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleSearch();
+    }
+  };
+
+  const copyReviewLink = async (clubId: string) => {
+    const reviewUrl = `${window.location.origin}/${clubId}`;
+    try {
+      await navigator.clipboard.writeText(reviewUrl);
+      setCopiedClubId(clubId);
+      setTimeout(() => setCopiedClubId(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
     }
   };
 
@@ -63,6 +75,21 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
       <h2 className="text-xl sm:text-2xl font-bold text-black mb-4 sm:mb-6">
         Find Your Club
       </h2>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 sm:mb-6">
+        <div className="flex items-start gap-3">
+          <Link className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <h4 className="font-semibold text-blue-800 mb-1">
+              Share Review Links
+            </h4>
+            <p className="text-sm text-blue-700">
+              Click the link icon next to any club to copy a direct review link.
+              Share this link with others for instant reviews!
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4 sm:mb-6">
         <div className="flex-1 relative">
@@ -111,11 +138,13 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
               {clubs.map((club) => (
                 <div
                   key={club.id}
-                  onClick={() => onClubSelect(club)}
-                  className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 cursor-pointer transition-colors active:bg-purple-100"
+                  className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => onClubSelect(club)}
+                    >
                       <h3 className="font-semibold text-black mb-2 text-base truncate">
                         {club.Name}
                       </h3>
@@ -134,20 +163,39 @@ export default function ClubSearch({ onClubSelect }: ClubSearchProps) {
                         </span>
                       </div>
                     </div>
-                    <div className="text-purple-600 ml-3 flex-shrink-0">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyReviewLink(club.id);
+                        }}
+                        className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                        title="Copy review link"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
+                        {copiedClubId === club.id ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Link className="w-4 h-4" />
+                        )}
+                      </button>
+                      <div
+                        className="text-purple-600 cursor-pointer"
+                        onClick={() => onClubSelect(club)}
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
