@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, MapPin, Star, Link, Copy, Check } from "lucide-react";
+import { Search, MapPin, Star, Link, Check } from "lucide-react";
 import { Club } from "@/types/club";
 import { searchClubsByName } from "@/lib/supabase";
 

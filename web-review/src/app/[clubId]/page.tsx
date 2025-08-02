@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ClubConfirmation from "@/components/ClubConfirmation";
 import ReviewForm from "@/components/ReviewForm";
@@ -18,13 +18,7 @@ export default function ClubReviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (clubId) {
-      loadClub();
-    }
-  }, [clubId]);
-
-  const loadClub = async () => {
+  const loadClub = useCallback(async () => {
     try {
       setLoading(true);
       const clubData = await getClubById(clubId);
@@ -40,7 +34,13 @@ export default function ClubReviewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clubId]);
+
+  useEffect(() => {
+    if (clubId) {
+      loadClub();
+    }
+  }, [clubId, loadClub]);
 
   const handleClubConfirm = () => {
     setCurrentStep(3);

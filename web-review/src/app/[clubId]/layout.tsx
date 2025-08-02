@@ -29,7 +29,7 @@ export async function generateMetadata({
         type: "website",
       },
     };
-  } catch (error) {
+  } catch {
     return {
       title: "Club Review - Rate Your Night Out",
       description: "Rate your night out and help others discover great clubs!",
