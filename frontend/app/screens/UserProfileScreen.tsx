@@ -11,7 +11,7 @@ import {
   Modal,
   StatusBar,
 } from "react-native";
-import { Text, Button, Input } from "@rneui/themed";
+import { Text, Button, TextInput } from "react-native-paper";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { fetchUserFavourites, fetchSingleClub } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
@@ -21,7 +21,7 @@ import FriendButton from "@/components/FriendButton"; // Import your FriendButto
 import { useSession } from "@/components/SessionContext";
 import * as Constants from "@/constants/Constants";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation";
+import { RootStackParamList } from "../utils/types";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -266,11 +266,11 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
         )}
         ListHeaderComponent={ListHeaderComponent}
-        ListEmptyComponent={
-          <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
-            No posts yet.
-          </Text>
-        }
+        // ListEmptyComponent={
+        //   <Text style={{ color: "#fff", textAlign: "center", marginTop: 40 }}>
+        //     No posts yet.
+        //   </Text>
+        // }
         contentContainerStyle={styles.gridList}
       />
       <Modal

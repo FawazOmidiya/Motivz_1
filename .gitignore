@@ -48,7 +48,7 @@ backend/test.py
 firebase.json
 google-services.json
 GoogleService-Info.plist
-
+*.env
 # Jest & Detox Test Artifacts
 coverage/
 *.lcov

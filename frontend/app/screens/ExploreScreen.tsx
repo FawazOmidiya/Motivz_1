@@ -10,22 +10,25 @@ import {
   TouchableWithoutFeedback,
   Image,
 } from "react-native";
-import { Text, Button } from "@rneui/themed";
+import { Text, Button } from "react-native-paper";
 import {
   supabase,
   searchClubsByName,
   searchUsersByName,
 } from "../utils/supabaseService"; // or supabaseAuth
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
-import defaultAvatar from "../../assets/images/default-avatar.png";
+import defaultAvatar from "@/assets/images/default-avatar.png";
+
+type NavigationProp = NativeStackNavigationProp<any, "UserProfile">;
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<types.UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
 
   async function handleTextChange(text: string) {
     setQuery(text);
@@ -76,7 +79,9 @@ export default function SearchScreen() {
           ) : (
             <Image source={defaultAvatar} style={styles.avatar} />
           )}
-          <Text style={styles.resultTitle}>{item.username}</Text>
+          <Text variant="bodyMedium" style={styles.resultTitle}>
+            {item.username}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -112,31 +117,39 @@ export default function SearchScreen() {
           />
           {results.length > 0 && (
             <Button
-              title="Cancel"
+              mode="contained"
               onPress={() => {
                 setQuery("");
                 setResults([]);
                 Keyboard.dismiss();
               }}
-              containerStyle={styles.btn}
-              color={Constants.purpleCOLOR}
-            />
+              style={styles.btn}
+              buttonColor={Constants.purpleCOLOR}
+            >
+              Cancel
+            </Button>
           )}
           {results.length === 0 && (
             <Button
-              title="Search"
+              mode="contained"
               onPress={searchItems}
-              containerStyle={styles.btn}
-              color={Constants.purpleCOLOR}
-            />
+              style={styles.btn}
+              buttonColor={Constants.purpleCOLOR}
+            >
+              Search
+            </Button>
           )}
         </View>
         {/* Segmented Control (toggle clubs/users) */}
         {/* Results List */}
         {results.length === 0 ? (
           <View style={styles.centeredContainer}>
-            <Text style={styles.centeredText}>Explore Page Coming Soon...</Text>
-            <Text style={styles.centeredText}>Find your friends above</Text>
+            {/* <Text variant="bodyLarge" style={styles.centeredText}>
+              Explore Page Coming Soon...
+            </Text> */}
+            <Text variant="bodyMedium" style={styles.centeredText}>
+              Find your friends above
+            </Text>
           </View>
         ) : loading ? (
           <ActivityIndicator size="large" style={{ marginTop: 20 }} />
