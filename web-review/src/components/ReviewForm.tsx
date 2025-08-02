@@ -174,7 +174,7 @@ export default function ReviewForm({ club, onSubmit }: ReviewFormProps) {
             </p>
           </div>
         </div>
-        X{/* Music Genres Section */}
+        {/* Music Genres Section */}
         <div className="space-y-4">
           <label className="block text-lg font-semibold text-gray-700 flex items-center gap-2">
             <Music className="w-5 h-5" />
