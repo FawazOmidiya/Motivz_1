@@ -17,6 +17,7 @@ import * as Constants from "@/constants/Constants";
 import { supabase } from "../utils/supabaseService";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -223,6 +224,27 @@ export default function SignUpScreen() {
                   Continue
                 </Button>
 
+                {/* Divider */}
+                <View style={styles.dividerContainer}>
+                  <View style={styles.divider} />
+                  <Text variant="bodyMedium" style={styles.dividerText}>
+                    or
+                  </Text>
+                  <View style={styles.divider} />
+                </View>
+
+                {/* Google Sign In Button */}
+                <GoogleSignInButton
+                  onSuccess={(data) => {
+                    console.log("Google sign-in successful:", data);
+                    // Handle successful sign-in - navigate to main app
+                  }}
+                  onError={(error) => {
+                    console.error("Google sign-in error:", error);
+                    // Handle error if needed
+                  }}
+                />
+
                 <View style={styles.signInContainer}>
                   <Text variant="bodyMedium" style={styles.signInText}>
                     Already have an account?{" "}
@@ -342,5 +364,19 @@ const styles = StyleSheet.create({
   signInLink: {
     color: Constants.purpleCOLOR,
     fontWeight: "600",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 24,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  dividerText: {
+    color: "rgba(255,255,255,0.7)",
+    marginHorizontal: 16,
   },
 });
