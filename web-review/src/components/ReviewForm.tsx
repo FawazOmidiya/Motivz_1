@@ -26,9 +26,9 @@ const GENRES = [
   "Afrobeats",
   "Reggae",
   "Blues",
-  "Soul",
   "Amapiano",
   "Country",
+  "DanceHall",
 ];
 
 const CROWD_LEVELS: CrowdLevel[] = [
