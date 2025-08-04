@@ -32,6 +32,7 @@ import {
   searchClubsByName,
   fetchFriendsAttending,
 } from "../utils/supabaseService";
+
 import * as Constants from "@/constants/Constants";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import BottomSheet, {
@@ -235,6 +236,28 @@ export default function HomeScreen() {
   );
 
   // Apply filters and sort by open status
+  const [trendingLoading, setTrendingLoading] = useState(false);
+
+  // Load trending status for all clubs
+  useEffect(() => {
+    const loadTrendingStatus = async () => {
+      setTrendingLoading(true);
+      try {
+        // Load trending status for all clubs in parallel
+        await Promise.all(clubs.map((club) => club.loadTrendingStatus()));
+      } catch (error) {
+        console.error("Error loading trending status:", error);
+      } finally {
+        setTrendingLoading(false);
+      }
+    };
+
+    if (clubs.length > 0) {
+      loadTrendingStatus();
+    }
+  }, [clubs]);
+
+  // Filter and combine clubs with trending logic
   const filteredClubs = useMemo(() => {
     const filtered = clubs.filter((club) => {
       if (filterOpen) {
@@ -266,36 +289,20 @@ export default function HomeScreen() {
       return true;
     });
 
-    // Sort clubs: open clubs first, then by rating (highest first)
+    // Sort: trending first (by score), then alphabetically
     return filtered.sort((a, b) => {
-      // First, check if clubs are open
-      let aIsOpen = false;
-      let bIsOpen = false;
+      // First sort by trending status
+      if (a.isTrending === true && b.isTrending !== true) return -1;
+      if (a.isTrending !== true && b.isTrending === true) return 1;
 
-      try {
-        aIsOpen = a.hours ? isClubOpenDynamic(a.hours) : false;
-        bIsOpen = b.hours ? isClubOpenDynamic(b.hours) : false;
-      } catch (e) {
-        // If there's an error checking open status, treat as closed
-        aIsOpen = false;
-        bIsOpen = false;
+      // If both have same trending status, sort by trending score (if trending)
+      if (a.isTrending === true && b.isTrending === true) {
+        const scoreDiff = (b.trendingScore || 0) - (a.trendingScore || 0);
+        if (scoreDiff !== 0) return scoreDiff;
       }
 
-      // If one is open and the other isn't, open club comes first
-      if (aIsOpen && !bIsOpen) return -1;
-      if (!aIsOpen && bIsOpen) return 1;
-
-      // If both have the same open status, sort by rating (highest first)
-      const aRating =
-        a.live_rating !== undefined && a.live_rating !== null
-          ? a.live_rating
-          : a.rating;
-      const bRating =
-        b.live_rating !== undefined && b.live_rating !== null
-          ? b.live_rating
-          : b.rating;
-
-      return bRating - aRating;
+      // Finally sort alphabetically
+      return a.name.localeCompare(b.name);
     });
   }, [clubs, filterOpen, selectedGenres, minRating]);
 
@@ -341,7 +348,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {loading && !isLoadingMore ? (
+      {(loading || trendingLoading) && !isLoadingMore ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
         </View>
@@ -391,6 +398,17 @@ export default function HomeScreen() {
                 style={styles.imageGradient}
               />
               <View style={styles.clubInfo}>
+                {item.isTrending === true && (
+                  <View style={styles.trendingBadge}>
+                    <LinearGradient
+                      colors={["#FF6B35", "#FF8E53"]}
+                      style={styles.trendingGradient}
+                    >
+                      <Ionicons name="flame" size={12} color="#fff" />
+                      <Text style={styles.trendingText}>HOT</Text>
+                    </LinearGradient>
+                  </View>
+                )}
                 <Text style={styles.clubName}>{item.name}</Text>
                 <View style={styles.ratingContainer}>
                   <Ionicons name="star" size={16} color="#FFD700" />
@@ -890,4 +908,95 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   plusText: { color: "#fff", fontWeight: "bold" },
+  // Trending styles
+  trendingBadge: {
+    position: "absolute",
+    top: 15,
+    right: 15,
+    zIndex: 10,
+  },
+  trendingGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  trendingText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
+    marginLeft: 4,
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  // Trending section styles
+  trendingSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  trendingHeader: {
+    marginBottom: 15,
+  },
+  trendingSectionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  trendingScrollContainer: {
+    flexGrow: 0,
+  },
+  trendingClubCard: {
+    width: 200,
+    height: 150,
+    marginRight: 15,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: Constants.greyCOLOR,
+  },
+  trendingClubImage: {
+    width: "100%",
+    height: "100%",
+  },
+  trendingImageGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+  },
+  trendingClubInfo: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+  },
+  trendingClubName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  trendingRatingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  trendingRatingText: {
+    fontSize: 12,
+    color: "#FFD700",
+    marginLeft: 4,
+    fontWeight: "bold",
+  },
+  trendingStats: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.7)",
+  },
 });
