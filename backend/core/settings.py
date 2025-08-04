@@ -34,12 +34,17 @@ AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-f7rb5f#2p@4!zv2mycslt00ypbfm_3#*!l*z&)1qckjz6y-$$p'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-f7rb5f#2p@4!zv2mycslt00ypbfm_3#*!l*z&)1qckjz6y-$$p')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'motivz1-production.up.railway.app',
+    '.railway.app',
+]
 
 
 # Application definition
@@ -77,8 +82,16 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8081",  # Expo development server
     "http://localhost:3000",  # Web frontend (if applicable)
+    "https://motivz1-production.up.railway.app",  # Railway backend
+    "exp://localhost:8081",  # Expo Go
+    "exp://192.168.1.100:8081",  # Expo Go on local network
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+
+# Allow all origins in development, but be more restrictive in production
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
 
 ROOT_URLCONF = 'core.urls'
 
@@ -153,10 +166,32 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Extra places for collectstatic to find static files.
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Security settings for production
+if not DEBUG:
+    # HTTPS settings
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
+    # HSTS settings
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Other security settings
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
 
