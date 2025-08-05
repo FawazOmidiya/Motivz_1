@@ -272,6 +272,186 @@ def add_club_review(club_id: str, user_id: str, rating: int, music_genre: str, r
         print(f"Error adding club review: {e}")
         raise e
 
+def get_user_profile(user_id: str):
+    """Get user profile by ID"""
+    try:
+        response = supabase.table("user_profiles").select("*").eq("id", user_id).execute()
+        
+        if response.data:
+            return response.data[0]
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"Error getting user profile: {e}")
+        return None
+
+def update_user_profile(user_id: str, updates: dict):
+    """Update user profile"""
+    try:
+        response = supabase.table("user_profiles").update(updates).eq("id", user_id).execute()
+        
+        if response.data:
+            return response.data[0]
+        else:
+            raise Exception("Failed to update profile")
+            
+    except Exception as e:
+        print(f"Error updating user profile: {e}")
+        raise e
+
+def get_user_friends(user_id: str):
+    """Get user's friends"""
+    try:
+        # Get friends where user is the requester
+        requester_response = supabase.table("friendships").select(
+            "receiver:user_profiles!receiver_id(*)"
+        ).eq("requester_id", user_id).eq("status", "friends").execute()
+        
+        # Get friends where user is the receiver
+        receiver_response = supabase.table("friendships").select(
+            "requester:user_profiles!requester_id(*)"
+        ).eq("receiver_id", user_id).eq("status", "friends").execute()
+        
+        friends = []
+        
+        if requester_response.data:
+            friends.extend([item["receiver"] for item in requester_response.data])
+        
+        if receiver_response.data:
+            friends.extend([item["requester"] for item in receiver_response.data])
+        
+        return friends
+        
+    except Exception as e:
+        print(f"Error getting user friends: {e}")
+        return []
+
+def get_pending_friend_requests(user_id: str):
+    """Get pending friend requests for a user"""
+    try:
+        response = supabase.table("friendships").select(
+            "requester:user_profiles!requester_id(*)"
+        ).eq("receiver_id", user_id).eq("status", "pending").execute()
+        
+        if response.data:
+            return [item["requester"] for item in response.data]
+        else:
+            return []
+            
+    except Exception as e:
+        print(f"Error getting pending friend requests: {e}")
+        return []
+
+def send_friend_request(requester_id: str, receiver_id: str):
+    """Send a friend request"""
+    try:
+        response = supabase.table("friendships").insert({
+            "requester_id": requester_id,
+            "receiver_id": receiver_id,
+            "status": "pending"
+        }).execute()
+        
+        if response.data:
+            return response.data[0]
+        else:
+            raise Exception("Failed to send friend request")
+            
+    except Exception as e:
+        print(f"Error sending friend request: {e}")
+        raise e
+
+def accept_friend_request(requester_id: str, receiver_id: str):
+    """Accept a friend request"""
+    try:
+        response = supabase.table("friendships").update({
+            "status": "friends"
+        }).eq("requester_id", requester_id).eq("receiver_id", receiver_id).execute()
+        
+        if response.data:
+            return response.data[0]
+        else:
+            raise Exception("Failed to accept friend request")
+            
+    except Exception as e:
+        print(f"Error accepting friend request: {e}")
+        raise e
+
+def unfriend_user(user_id_1: str, user_id_2: str):
+    """Unfriend a user (delete friendship)"""
+    try:
+        # Delete friendship in both directions - try both combinations
+        try:
+            response1 = supabase.table("friendships").delete().eq("requester_id", user_id_1).eq("receiver_id", user_id_2).execute()
+        except:
+            pass
+            
+        try:
+            response2 = supabase.table("friendships").delete().eq("requester_id", user_id_2).eq("receiver_id", user_id_1).execute()
+        except:
+            pass
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error unfriending user: {e}")
+        raise e
+
+def get_user_favourites(user_id: str):
+    """Get user's favourite clubs"""
+    try:
+        response = supabase.table("user_favourites").select(
+            "club:Clubs(*)"
+        ).eq("user_id", user_id).execute()
+        
+        if response.data:
+            return [item["club"] for item in response.data]
+        else:
+            return []
+            
+    except Exception as e:
+        print(f"Error getting user favourites: {e}")
+        return []
+
+def add_club_to_favourites(user_id: str, club_id: str):
+    """Add a club to user's favourites"""
+    try:
+        response = supabase.table("user_favourites").insert({
+            "user_id": user_id,
+            "club_id": club_id
+        }).execute()
+        
+        if response.data:
+            return response.data[0]
+        else:
+            raise Exception("Failed to add club to favourites")
+            
+    except Exception as e:
+        print(f"Error adding club to favourites: {e}")
+        raise e
+
+def remove_club_from_favourites(user_id: str, club_id: str):
+    """Remove a club from user's favourites"""
+    try:
+        response = supabase.table("user_favourites").delete().eq("user_id", user_id).eq("club_id", club_id).execute()
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error removing club from favourites: {e}")
+        raise e
+
+def check_favourite_exists(user_id: str, club_id: str):
+    """Check if a club is in user's favourites"""
+    try:
+        response = supabase.table("user_favourites").select("*").eq("user_id", user_id).eq("club_id", club_id).execute()
+        
+        return len(response.data) > 0
+        
+    except Exception as e:
+        print(f"Error checking favourite exists: {e}")
+        return False
+
 def print_all_clubs_json():
     """Fetch all clubs and print them in JSON format"""
     import json

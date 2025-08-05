@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from services.supabase_service import get_clubs, add_club, get_trending_clubs, get_club_by_id, get_club_trending_status, get_filtered_clubs, search_clubs, get_friends_attending, get_club_music_schedule, get_club_reviews, add_club_review, print_all_clubs_json
+from services.supabase_service import get_clubs, add_club, get_trending_clubs, get_club_by_id, get_club_trending_status, get_filtered_clubs, search_clubs, get_friends_attending, get_club_music_schedule, get_club_reviews, add_club_review, get_user_profile, update_user_profile, get_user_friends, get_pending_friend_requests, send_friend_request, accept_friend_request, unfriend_user, get_user_favourites, add_club_to_favourites, remove_club_from_favourites, check_favourite_exists, print_all_clubs_json
 from .models import Club
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -138,5 +138,138 @@ def add_club_review_view(request, club_id):
         
         review = add_club_review(club_id, user_id, rating, music_genre, review_text)
         return Response({"review": review})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["GET"])
+def get_user_profile_view(request, user_id):
+    """Get user profile by ID"""
+    try:
+        profile = get_user_profile(user_id)
+        if profile:
+            return Response({"profile": profile})
+        else:
+            return Response({"error": "User not found"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["PUT"])
+def update_user_profile_view(request, user_id):
+    """Update user profile"""
+    try:
+        updates = request.data
+        profile = update_user_profile(user_id, updates)
+        return Response({"profile": profile})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["GET"])
+def get_user_friends_view(request, user_id):
+    """Get user's friends"""
+    try:
+        friends = get_user_friends(user_id)
+        return Response({"friends": friends})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["GET"])
+def get_pending_friend_requests_view(request, user_id):
+    """Get pending friend requests for a user"""
+    try:
+        requests = get_pending_friend_requests(user_id)
+        return Response({"requests": requests})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["POST"])
+def send_friend_request_view(request):
+    """Send a friend request"""
+    try:
+        requester_id = request.data.get('requester_id')
+        receiver_id = request.data.get('receiver_id')
+        
+        if not requester_id or not receiver_id:
+            return Response({"error": "requester_id and receiver_id are required"}, status=400)
+        
+        friendship = send_friend_request(requester_id, receiver_id)
+        return Response({"friendship": friendship})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["POST"])
+def accept_friend_request_view(request):
+    """Accept a friend request"""
+    try:
+        requester_id = request.data.get('requester_id')
+        receiver_id = request.data.get('receiver_id')
+        
+        if not requester_id or not receiver_id:
+            return Response({"error": "requester_id and receiver_id are required"}, status=400)
+        
+        friendship = accept_friend_request(requester_id, receiver_id)
+        return Response({"friendship": friendship})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["DELETE"])
+def unfriend_user_view(request):
+    """Unfriend a user"""
+    try:
+        user_id_1 = request.data.get('user_id_1')
+        user_id_2 = request.data.get('user_id_2')
+        
+        if not user_id_1 or not user_id_2:
+            return Response({"error": "user_id_1 and user_id_2 are required"}, status=400)
+        
+        unfriend_user(user_id_1, user_id_2)
+        return Response({"success": True})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["GET"])
+def get_user_favourites_view(request, user_id):
+    """Get user's favourite clubs"""
+    try:
+        favourites = get_user_favourites(user_id)
+        return Response({"favourites": favourites})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["POST"])
+def add_club_to_favourites_view(request):
+    """Add a club to user's favourites"""
+    try:
+        user_id = request.data.get('user_id')
+        club_id = request.data.get('club_id')
+        
+        if not user_id or not club_id:
+            return Response({"error": "user_id and club_id are required"}, status=400)
+        
+        favourite = add_club_to_favourites(user_id, club_id)
+        return Response({"favourite": favourite})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["DELETE"])
+def remove_club_from_favourites_view(request):
+    """Remove a club from user's favourites"""
+    try:
+        user_id = request.data.get('user_id')
+        club_id = request.data.get('club_id')
+        
+        if not user_id or not club_id:
+            return Response({"error": "user_id and club_id are required"}, status=400)
+        
+        remove_club_from_favourites(user_id, club_id)
+        return Response({"success": True})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["GET"])
+def check_favourite_exists_view(request, user_id, club_id):
+    """Check if a club is in user's favourites"""
+    try:
+        exists = check_favourite_exists(user_id, club_id)
+        return Response({"exists": exists})
     except Exception as e:
         return Response({"error": str(e)}, status=500)
