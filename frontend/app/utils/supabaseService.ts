@@ -89,6 +89,78 @@ export const searchClubsByName = async (ClubName: string) => {
   }
 };
 
+/**
+ * Fetch recent reviews for a club (last 5 hours)
+ */
+export const fetchRecentClubReviews = async (clubId: string) => {
+  try {
+    // Calculate timestamp for 5 hours ago
+    const fiveHoursAgo = new Date(
+      Date.now() - 5 * 60 * 60 * 1000
+    ).toISOString();
+
+    const { data, error } = await supabase
+      .from("club_reviews")
+      .select("rating, created_at")
+      .eq("club_id", clubId)
+      .gte("created_at", fiveHoursAgo);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching recent reviews:", error);
+    return [];
+  }
+};
+
+/**
+ * Calculate trending clubs based on recent reviews and ratings (last 5 hours)
+ * Similar to the backend algorithm
+ */
+export const calculateTrendingClubs = async (clubs: any[]) => {
+  try {
+    const trendingClubs = [];
+
+    for (const club of clubs) {
+      // Get recent reviews for this club (last 5 hours)
+      const recentReviews = await fetchRecentClubReviews(club.id);
+
+      if (recentReviews.length >= 3) {
+        // Minimum 3 reviews in last 5 hours
+        // Calculate average rating
+        const totalRating = recentReviews.reduce(
+          (sum, review) => sum + review.rating,
+          0
+        );
+        const avgRating = totalRating / recentReviews.length;
+
+        if (avgRating >= 3.5) {
+          // Minimum 3.5 average rating
+          const trendingScore = recentReviews.length * avgRating;
+
+          trendingClubs.push({
+            ...club,
+            trending_score: trendingScore,
+            recent_reviews_count: recentReviews.length,
+            avg_rating: Math.round(avgRating * 10) / 10, // Round to 1 decimal
+            is_trending: true,
+          });
+        }
+      }
+    }
+
+    // Sort by trending score (reviews count * average rating)
+    trendingClubs.sort((a, b) => b.trending_score - a.trending_score);
+
+    return trendingClubs;
+  } catch (error) {
+    console.error("Error calculating trending clubs:", error);
+    return [];
+  }
+};
+
 // #TODO: Add a return type for the events
 export async function fetchEventsByClub(clubId: string) {
   const { data, error } = await supabase

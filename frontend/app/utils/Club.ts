@@ -1,6 +1,5 @@
 import * as types from "./types";
 import { fetchClubMusicSchedules, supabase } from "./supabaseService";
-import { fetchClubTrendingStatus } from "./backendService";
 
 export class Club {
   private _id: string;
@@ -85,24 +84,6 @@ export class Club {
     if (!this._isLoaded) {
       this._musicSchedule = await fetchClubMusicSchedules(this._id, day);
       this._isLoaded = true;
-    }
-  }
-
-  async loadTrendingStatus(): Promise<void> {
-    if (this._isTrending === null) {
-      try {
-        const trendingData = await fetchClubTrendingStatus(this._id);
-        this._isTrending = trendingData.is_trending;
-        this._trendingScore = trendingData.trending_score || 0;
-        this._recentReviewsCount = trendingData.recent_reviews_count || 0;
-        this._avgRating = trendingData.avg_rating || 0;
-      } catch (error) {
-        console.error(
-          `Error loading trending status for club ${this._id}:`,
-          error
-        );
-        this._isTrending = false;
-      }
     }
   }
 
