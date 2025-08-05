@@ -65,7 +65,6 @@ INSTALLED_APPS = [
     'accounts',
     'api',
     'clubs',
-    "auth_app",
 ]
 
 MIDDLEWARE = [

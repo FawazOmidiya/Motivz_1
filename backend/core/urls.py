@@ -23,5 +23,4 @@ urlpatterns = [
     # path('auth/', include('accounts.urls')),
     # path('api/', include('api.urls')),
     path('clubs/', include('clubs.urls')),
-    path("auth_app/", include("auth_app.urls")),
 ]
