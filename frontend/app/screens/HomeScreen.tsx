@@ -22,6 +22,7 @@ import React, {
   useRef,
   useCallback,
 } from "react";
+import { Animated } from "react-native";
 import * as types from "@/app/utils/types";
 import { Club } from "@/app/utils/Club";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -31,6 +32,7 @@ import {
   isClubOpenDynamic,
   searchClubsByName,
   fetchFriendsAttending,
+  calculateTrendingClubs,
 } from "../utils/supabaseService";
 
 import * as Constants from "@/constants/Constants";
@@ -52,6 +54,9 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<
 
 export default function HomeScreen() {
   const [clubs, setClubs] = useState<Club[]>([]);
+  const [trendingClubs, setTrendingClubs] = useState<Club[]>([]);
+  const [regularClubs, setRegularClubs] = useState<Club[]>([]);
+  const [trendingClubsData, setTrendingClubsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -142,10 +147,26 @@ export default function HomeScreen() {
       // Load live ratings in parallel
       await Promise.all(clubObjects.map((club) => club.initLiveRating()));
 
+      // Calculate trending clubs using the proper algorithm
+      const trendingClubsData = await calculateTrendingClubs(clubData);
+      const trendingClubIds = new Set(trendingClubsData.map((club) => club.id));
+
+      // Convert trending clubs data to Club objects
+      const trendingClubs = trendingClubsData.map((data) => new Club(data));
+
+      // Regular clubs are those not in trending
+      const regularClubs = clubObjects.filter(
+        (club) => !trendingClubIds.has(club.id)
+      );
+
       if (pageNum === 1) {
-        setClubs(clubObjects);
+        setTrendingClubsData(trendingClubsData);
+        setTrendingClubs(trendingClubs);
+        setRegularClubs(regularClubs);
+        setClubs([...trendingClubs, ...regularClubs]);
       } else {
-        setClubs((prevClubs) => [...prevClubs, ...clubObjects]);
+        setRegularClubs((prevRegular) => [...prevRegular, ...regularClubs]);
+        setClubs((prevClubs) => [...prevClubs, ...regularClubs]);
       }
 
       setHasMore(clubData.length === 10);
@@ -235,28 +256,6 @@ export default function HomeScreen() {
     []
   );
 
-  // Apply filters and sort by open status
-  const [trendingLoading, setTrendingLoading] = useState(false);
-
-  // Load trending status for all clubs
-  useEffect(() => {
-    const loadTrendingStatus = async () => {
-      setTrendingLoading(true);
-      try {
-        // Load trending status for all clubs in parallel
-        await Promise.all(clubs.map((club) => club.loadTrendingStatus()));
-      } catch (error) {
-        console.error("Error loading trending status:", error);
-      } finally {
-        setTrendingLoading(false);
-      }
-    };
-
-    if (clubs.length > 0) {
-      loadTrendingStatus();
-    }
-  }, [clubs]);
-
   // Filter and combine clubs with trending logic
   const filteredClubs = useMemo(() => {
     const filtered = clubs.filter((club) => {
@@ -289,22 +288,103 @@ export default function HomeScreen() {
       return true;
     });
 
-    // Sort: trending first (by score), then alphabetically
+    // Sort: trending first (by rating), then alphabetically
     return filtered.sort((a, b) => {
-      // First sort by trending status
-      if (a.isTrending === true && b.isTrending !== true) return -1;
-      if (a.isTrending !== true && b.isTrending === true) return 1;
+      // First sort by trending status (using our local trending logic)
+      const aIsTrending = trendingClubs.some(
+        (trendingClub) => trendingClub.id === a.id
+      );
+      const bIsTrending = trendingClubs.some(
+        (trendingClub) => trendingClub.id === b.id
+      );
+
+      if (aIsTrending && !bIsTrending) return -1;
+      if (!aIsTrending && bIsTrending) return 1;
 
       // If both have same trending status, sort by trending score (if trending)
-      if (a.isTrending === true && b.isTrending === true) {
-        const scoreDiff = (b.trendingScore || 0) - (a.trendingScore || 0);
+      if (aIsTrending && bIsTrending) {
+        const aTrendingData = trendingClubsData.find((tc) => tc.id === a.id);
+        const bTrendingData = trendingClubsData.find((tc) => tc.id === b.id);
+        const scoreDiff =
+          (bTrendingData?.trending_score || 0) -
+          (aTrendingData?.trending_score || 0);
         if (scoreDiff !== 0) return scoreDiff;
       }
 
       // Finally sort alphabetically
       return a.name.localeCompare(b.name);
     });
-  }, [clubs, filterOpen, selectedGenres, minRating]);
+  }, [
+    clubs,
+    filterOpen,
+    selectedGenres,
+    minRating,
+    trendingClubs,
+    trendingClubsData,
+  ]);
+
+  // Skeleton component for club cards with pulse animation
+  const ClubSkeleton = () => {
+    const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+    useEffect(() => {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0.3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }, []);
+
+    return (
+      <View style={styles.clubCardContainer}>
+        <Animated.View style={[styles.skeletonImage, { opacity: pulseAnim }]} />
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.8)"]}
+          style={styles.imageGradient}
+        />
+        <View style={styles.clubInfo}>
+          <Animated.View
+            style={[styles.skeletonBadge, { opacity: pulseAnim }]}
+          />
+          <Animated.View
+            style={[styles.skeletonTitle, { opacity: pulseAnim }]}
+          />
+          <Animated.View
+            style={[styles.skeletonRating, { opacity: pulseAnim }]}
+          />
+          <Animated.View
+            style={[styles.skeletonFriends, { opacity: pulseAnim }]}
+          />
+          <Animated.View
+            style={[styles.skeletonGenre, { opacity: pulseAnim }]}
+          />
+          <Animated.View
+            style={[styles.skeletonHours, { opacity: pulseAnim }]}
+          />
+        </View>
+      </View>
+    );
+  };
+
+  // Render skeleton loading
+  const renderSkeletonLoading = () => (
+    <ScrollView style={styles.listContent}>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <ClubSkeleton key={index} />
+      ))}
+    </ScrollView>
+  );
 
   return (
     <View style={styles.container}>
@@ -348,10 +428,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {(loading || trendingLoading) && !isLoadingMore ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
-        </View>
+      {loading && !isLoadingMore ? (
+        renderSkeletonLoading()
       ) : filteredClubs.length === 0 ? (
         <View style={styles.noMatchesContainer}>
           <Ionicons
@@ -398,7 +476,9 @@ export default function HomeScreen() {
                 style={styles.imageGradient}
               />
               <View style={styles.clubInfo}>
-                {item.isTrending === true && (
+                {trendingClubs.some(
+                  (trendingClub) => trendingClub.id === item.id
+                ) && (
                   <View style={styles.trendingBadge}>
                     <LinearGradient
                       colors={["#FF6B35", "#FF8E53"]}
@@ -998,5 +1078,58 @@ const styles = StyleSheet.create({
   trendingStats: {
     fontSize: 10,
     color: "rgba(255,255,255,0.7)",
+  },
+  // Skeleton styles
+  skeletonImage: {
+    width: "100%",
+    height: 200,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+  },
+  skeletonBadge: {
+    position: "absolute",
+    top: 15,
+    right: 15,
+    width: 60,
+    height: 24,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+  },
+  skeletonTitle: {
+    width: "80%",
+    height: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonRating: {
+    width: 60,
+    height: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonFriends: {
+    flexDirection: "row",
+    marginTop: 4,
+    height: 32,
+    position: "absolute",
+    bottom: 15,
+    right: "5%",
+    zIndex: 3,
+    alignItems: "center",
+  },
+  skeletonGenre: {
+    width: "60%",
+    height: 14,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  skeletonHours: {
+    width: "40%",
+    height: 12,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 4,
   },
 });
