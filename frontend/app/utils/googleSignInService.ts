@@ -13,7 +13,9 @@ export function configureGoogleSignIn() {
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/userinfo.profile",
     ],
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    webClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+      "973030992974-a00q54c5i2vor0i2ggdtovtcaklgnbb2.apps.googleusercontent.com",
     iosClientId:
       "973030992974-a00q54c5i2vor0i2ggdtovtcaklgnbb2.apps.googleusercontent.com",
     offlineAccess: true,
@@ -82,9 +84,17 @@ export async function signInWithGoogleAndGetTokens() {
     // Check if Play Services are available (Android only)
     await GoogleSignin.hasPlayServices();
 
+    // Clear any cached sign-in to ensure fresh authentication
+    await GoogleSignin.signOut();
+
     // Sign in with Google
     const response = await GoogleSignin.signIn();
     console.log("Google Sign-In response:", response);
+
+    // Check if the response indicates a cancelled sign-in
+    if (!response || !response.data) {
+      throw new Error("Sign-in was cancelled or failed");
+    }
 
     // Get the ID token
     const tokens = await GoogleSignin.getTokens();

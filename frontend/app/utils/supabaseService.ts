@@ -285,6 +285,27 @@ export const fetchUserProfile = async (userId: string): Promise<any> => {
   return data;
 };
 
+// Check if user profile exists and is complete
+export const checkUserProfileComplete = async (
+  userId: string
+): Promise<{ exists: boolean; isComplete: boolean; profile?: any }> => {
+  try {
+    const profile = await fetchUserProfile(userId);
+
+    if (!profile) {
+      return { exists: false, isComplete: false };
+    }
+
+    // Use the is_complete field from the database
+    const isComplete = !!profile.is_complete;
+
+    return { exists: true, isComplete, profile };
+  } catch (error) {
+    // Profile doesn't exist
+    return { exists: false, isComplete: false };
+  }
+};
+
 // Friend Functions
 
 // 1. Send Friend Request

@@ -13,6 +13,7 @@ import {
 import { supabaseAuth } from "../utils/supabaseAuth";
 import { Button, TextInput, Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -162,6 +163,18 @@ export default function SignInScreen() {
                   </Text>
                   <View style={styles.divider} />
                 </View>
+
+                {/* Google Sign In Button */}
+                <GoogleSignInButton
+                  onSuccess={(data) => {
+                    console.log("Google sign-in successful:", data);
+                    // Handle successful sign-in - navigate to main app
+                  }}
+                  onError={(error) => {
+                    console.error("Google sign-in error:", error);
+                    // Handle error if needed
+                  }}
+                />
 
                 <View style={styles.signUpContainer}>
                   <Text variant="bodyMedium" style={styles.signUpText}>
