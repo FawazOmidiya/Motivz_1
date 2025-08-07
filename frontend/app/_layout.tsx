@@ -19,6 +19,7 @@ import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { SessionProvider } from "@/components/SessionContext";
 import { PaperProvider } from "react-native-paper";
+import { configureGoogleSignIn } from "./utils/googleSignInService";
 import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
 import MapScreen from "./screens/MapScreen";
@@ -37,6 +38,7 @@ import { Session } from "@supabase/supabase-js";
 import * as Constants from "@/constants/Constants";
 import * as types from "@/app/utils/types";
 import { SafeAreaView, StatusBar, StyleSheet } from "react-native";
+import { checkUserProfileComplete } from "./utils/supabaseService";
 
 // Create a Bottom Tab Navigator
 const Tab = createBottomTabNavigator<types.RootTabParamList>();
@@ -130,19 +132,43 @@ function MainTabs() {
 
 export default function RootLayout() {
   const [session, setSession] = React.useState<Session | null>(null);
+  const [profileComplete, setProfileComplete] = React.useState<boolean | null>(
+    null
+  );
+
+  const checkProfileStatus = async (userId: string) => {
+    try {
+      const profileCheck = await checkUserProfileComplete(userId);
+      setProfileComplete(profileCheck.isComplete);
+    } catch (error) {
+      setProfileComplete(false);
+    }
+  };
 
   React.useEffect(() => {
+    // Configure Google Sign-In
+    configureGoogleSignIn();
+
     supabaseAuth.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) {
+        checkProfileStatus(session.user.id);
+      }
     });
+
     supabaseAuth.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user) {
+        checkProfileStatus(session.user.id);
+      } else {
+        setProfileComplete(null);
+      }
     });
   }, []);
 
   return (
     <>
-      {session && session.user ? (
+      {session && session.user && profileComplete === true ? (
         <SessionProvider>
           <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="light-content" />

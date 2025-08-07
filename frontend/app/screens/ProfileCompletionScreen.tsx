@@ -36,17 +36,35 @@ type RouteParams = {
     email: string;
     password: string;
   };
+  googleUserData?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  googleTokens?: {
+    idToken: string;
+    accessToken: string;
+  };
 };
 
 export default function ProfileCompletionScreen() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const navigation = useNavigation<ProfileCompletionScreenNavigationProp>();
+  const route = useRoute();
+  const params = route.params as RouteParams;
+  const signUpInfo = params?.signUpInfo || {
+    username: "",
+    email: "",
+    password: "",
+  };
+  const googleUserData = params?.googleUserData;
+  const googleTokens = params?.googleTokens;
+
+  const [firstName, setFirstName] = useState(googleUserData?.firstName || "");
+  const [lastName, setLastName] = useState(googleUserData?.lastName || "");
+  const [username, setUsername] = useState(signUpInfo?.username || "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const navigation = useNavigation<ProfileCompletionScreenNavigationProp>();
-  const route = useRoute();
-  const { signUpInfo } = route.params as RouteParams;
 
   async function pickAndUploadImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -111,37 +129,63 @@ export default function ProfileCompletionScreen() {
   }
 
   const handleSubmit = async () => {
-    if (!firstName || !lastName) {
+    if (!firstName || !lastName || !username) {
       Alert.alert("Error", "Please fill in all required fields");
       return;
     }
 
     setLoading(true);
     try {
-      // 1. Create the user account
-      const { data: authData, error: authError } =
-        await supabaseAuth.auth.signUp({
-          email: signUpInfo.email,
-          password: signUpInfo.password,
+      let userId: string;
+
+      if (googleUserData && googleTokens) {
+        const { data, error } = await supabaseAuth.auth.signInWithIdToken({
+          provider: "google",
+          token: googleTokens.idToken,
         });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Failed to create user account");
+        if (error) throw error;
+        if (!data.user) throw new Error("Failed to authenticate with Google");
 
-      // 2. Create the user profile with avatar URL if selected
-      const { error: profileError } = await supabase
+        userId = data.user.id;
+      } else if (googleUserData) {
+        const {
+          data: { user },
+        } = await supabaseAuth.auth.getUser();
+        if (!user) throw new Error("No authenticated user found");
+        userId = user.id;
+      } else {
+        // Regular sign-up flow
+        const { data: authData, error: authError } =
+          await supabaseAuth.auth.signUp({
+            email: signUpInfo.email,
+            password: signUpInfo.password,
+          });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error("Failed to create user account");
+        userId = authData.user.id;
+      }
+
+      // Create or update the user profile
+      const { error: profileError } = await supabaseAuth
         .from("profiles")
-        .update({
-          username: signUpInfo.username,
+        .upsert({
+          id: userId,
+          username: username,
           first_name: firstName,
           last_name: lastName,
           avatar_url: avatarUrl,
-        })
-        .eq("id", authData.user.id);
+          is_complete: true,
+        });
 
       if (profileError) throw profileError;
 
-      Alert.alert("Success", "Account created successfully!");
+      // Trigger a session refresh to update the profile status
+      const { data: refreshedSession } =
+        await supabaseAuth.auth.refreshSession();
+
+      Alert.alert("Success", "Profile completed successfully!");
     } catch (error) {
       if (error instanceof Error) {
         Alert.alert("Error", error.message);
@@ -177,7 +221,9 @@ export default function ProfileCompletionScreen() {
               Complete Your Profile
             </Text>
             <Text variant="titleMedium" style={styles.subtitle}>
-              Tell us a bit about yourself
+              {googleUserData
+                ? "Welcome! Let's set up your profile"
+                : "Tell us a bit about yourself"}
             </Text>
           </View>
 
@@ -255,7 +301,46 @@ export default function ProfileCompletionScreen() {
                   />
                 }
               />
+
+              <TextInput
+                placeholder="Username"
+                value={username}
+                onChangeText={(text) => {
+                  // Check if the text contains only valid characters
+                  const validPattern = /^[a-z0-9\-_.]*$/;
+                  const lowercaseText = text.toLowerCase();
+
+                  if (validPattern.test(lowercaseText)) {
+                    setUsername(lowercaseText);
+                  } else {
+                    Alert.alert(
+                      "Invalid Username",
+                      "Username can only contain lowercase letters, numbers, hyphens (-), underscores (_), and periods (.)"
+                    );
+                  }
+                }}
+                style={styles.input}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                textColor="#fff"
+                mode="outlined"
+                outlineColor="rgba(255,255,255,0.2)"
+                activeOutlineColor={Constants.purpleCOLOR}
+                autoComplete="off"
+                textContentType="username"
+                autoCapitalize="none"
+                left={
+                  <TextInput.Icon icon="at" color="rgba(255,255,255,0.7)" />
+                }
+              />
             </View>
+
+            {googleUserData && (
+              <View style={styles.googleNote}>
+                <Text variant="bodySmall" style={styles.googleNoteText}>
+                  Your name has been pre-filled from your Google account
+                </Text>
+              </View>
+            )}
 
             {loading ? (
               <ActivityIndicator
@@ -271,7 +356,7 @@ export default function ProfileCompletionScreen() {
                 labelStyle={styles.buttonText}
                 contentStyle={styles.buttonContent}
               >
-                Create Account
+                {googleUserData ? "Complete Profile" : "Create Account"}
               </Button>
             )}
           </View>
@@ -433,5 +518,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#fff",
+  },
+  googleNote: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: "#4CAF50",
+  },
+  googleNoteText: {
+    color: "#4CAF50",
+    textAlign: "center",
+    fontSize: 12,
   },
 });

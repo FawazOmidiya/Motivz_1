@@ -49,6 +49,15 @@ export type RootStackParamList = {
       email: string;
       password: string;
     };
+    googleUserData?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+    googleTokens?: {
+      idToken: string;
+      accessToken: string;
+    };
   };
   ClubDetail: { club: Club };
   EventDetail: { event: Event };
