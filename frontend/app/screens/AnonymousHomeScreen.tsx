@@ -11,7 +11,11 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "../utils/supabaseService";
+import {
+  supabase,
+  isClubOpenDynamic,
+  getTimeUntilOpen,
+} from "../utils/supabaseService";
 import { Club } from "../utils/Club";
 import * as Constants from "@/constants/Constants";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -35,7 +39,7 @@ export default function AnonymousHomeScreen() {
   const fetchClubs = async () => {
     try {
       const { data, error } = await supabase
-        .from("test-clubs")
+        .from("Clubs")
         .select("*")
         .order("Name");
 
@@ -75,7 +79,6 @@ export default function AnonymousHomeScreen() {
       <View style={styles.clubHeader}>
         <View style={styles.clubInfo}>
           <Text style={styles.clubName}>{item.name}</Text>
-          <Text style={styles.clubAddress}>{item.toJSON().Address}</Text>
         </View>
         <View style={styles.ratingContainer}>
           <Ionicons name="star" size={16} color="#FFD700" />
@@ -84,18 +87,37 @@ export default function AnonymousHomeScreen() {
       </View>
 
       <View style={styles.clubStatus}>
-        <View
-          style={[
-            styles.statusDot,
-            { backgroundColor: item.isOpen() ? "#4CAF50" : "#F44336" },
-          ]}
-        />
-        <Text style={styles.statusText}>
-          {item.isOpen() ? "Open" : "Closed"}
-        </Text>
-        {item.isOpen() && (
-          <Text style={styles.hoursText}>• {item.getCurrentDayHours()}</Text>
-        )}
+        {(() => {
+          const isOpen = item.hours ? isClubOpenDynamic(item.hours) : false;
+          const timeUntilOpen = item.hours
+            ? getTimeUntilOpen(item.hours)
+            : null;
+
+          let statusText = "Closed Today";
+          let statusColor = "#F44336"; // Red for closed
+
+          if (isOpen) {
+            statusText = "Open";
+            statusColor = "#4CAF50"; // Green for open
+          } else if (timeUntilOpen) {
+            statusText = timeUntilOpen.formatted;
+            statusColor = "#FFA500"; // Orange for opening soon
+          }
+
+          return (
+            <>
+              <View
+                style={[styles.statusDot, { backgroundColor: statusColor }]}
+              />
+              <Text style={styles.statusText}>{statusText}</Text>
+              {isOpen && (
+                <Text style={styles.hoursText}>
+                  • {item.getCurrentDayHours()}
+                </Text>
+              )}
+            </>
+          );
+        })()}
       </View>
     </View>
   );
@@ -111,7 +133,7 @@ export default function AnonymousHomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>🧪 Test Clubs</Text>
+        <Text style={styles.title}> Clubs</Text>
         <TouchableOpacity onPress={handleSignUp} style={styles.signUpButton}>
           <Text style={styles.signUpText}>Sign Up</Text>
         </TouchableOpacity>

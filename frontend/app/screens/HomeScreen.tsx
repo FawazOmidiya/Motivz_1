@@ -33,6 +33,7 @@ import {
   searchClubsByName,
   fetchFriendsAttending,
   calculateTrendingClubs,
+  loadLiveRatingsForClubs,
 } from "../utils/supabaseService";
 
 import * as Constants from "@/constants/Constants";
@@ -134,39 +135,38 @@ export default function HomeScreen() {
   const loadClubs = async (pageNum = 1) => {
     try {
       const clubData = await fetchClubs();
-      const today = new Date().getDay();
 
-      // Convert raw club data to Club objects
+      // Convert raw club data to Club objects (without loading music schedules or live ratings)
       const clubObjects = clubData.map((data) => new Club(data));
 
-      // Load music schedules in parallel
-      await Promise.all(
-        clubObjects.map((club) => club.loadMusicSchedule(today))
-      );
-
-      // Load live ratings in parallel
-      await Promise.all(clubObjects.map((club) => club.initLiveRating()));
-
-      // Calculate trending clubs using the proper algorithm
-      const trendingClubsData = await calculateTrendingClubs(clubData);
-      const trendingClubIds = new Set(trendingClubsData.map((club) => club.id));
-
-      // Convert trending clubs data to Club objects
-      const trendingClubs = trendingClubsData.map((data) => new Club(data));
-
-      // Regular clubs are those not in trending
-      const regularClubs = clubObjects.filter(
-        (club) => !trendingClubIds.has(club.id)
-      );
-
       if (pageNum === 1) {
-        setTrendingClubsData(trendingClubsData);
-        setTrendingClubs(trendingClubs);
-        setRegularClubs(regularClubs);
-        setClubs([...trendingClubs, ...regularClubs]);
+        // For the first page, show clubs immediately and calculate trending in background
+        setClubs(clubObjects);
+
+        // Load live ratings efficiently in the background
+        loadLiveRatingsForClubs(clubObjects).then(() => {
+          // Update clubs with live ratings
+          setClubs([...clubObjects]);
+        });
+
+        // Calculate trending clubs in the background
+        calculateTrendingClubs(clubData).then((trendingClubsData) => {
+          const trendingClubIds = new Set(
+            trendingClubsData.map((club) => club.id)
+          );
+          const trendingClubs = trendingClubsData.map((data) => new Club(data));
+          const regularClubs = clubObjects.filter(
+            (club) => !trendingClubIds.has(club.id)
+          );
+
+          setTrendingClubsData(trendingClubsData);
+          setTrendingClubs(trendingClubs);
+          setRegularClubs(regularClubs);
+          setClubs([...trendingClubs, ...regularClubs]);
+        });
       } else {
-        setRegularClubs((prevRegular) => [...prevRegular, ...regularClubs]);
-        setClubs((prevClubs) => [...prevClubs, ...regularClubs]);
+        // For subsequent pages, just add to existing clubs
+        setClubs((prevClubs) => [...prevClubs, ...clubObjects]);
       }
 
       setHasMore(clubData.length === 10);
