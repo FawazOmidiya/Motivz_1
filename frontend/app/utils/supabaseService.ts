@@ -116,22 +116,160 @@ export const fetchRecentClubReviews = async (clubId: string) => {
 };
 
 /**
+ * Load live ratings for multiple clubs efficiently using a single query
+ * @param clubs Array of club objects with id and rating properties
+ * @returns Promise that resolves when all live ratings are loaded
+ */
+export const loadLiveRatingsForClubs = async (clubs: any[]) => {
+  try {
+    if (clubs.length === 0) return;
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    // Get all club IDs that are currently open
+    const openClubIds = [];
+    const clubRatings = new Map(); // Store base ratings
+
+    for (const club of clubs) {
+      clubRatings.set(club.id, club.rating);
+
+      // Check if club is currently open
+      if (club.hours?.periods) {
+        for (const period of club.hours.periods) {
+          const openAbs =
+            period.open.day * 1440 + period.open.hour * 60 + period.open.minute;
+          const closeAbs =
+            period.close.day * 1440 +
+            period.close.hour * 60 +
+            period.close.minute;
+
+          let adjustedCloseAbs = closeAbs;
+          if (closeAbs <= openAbs) {
+            adjustedCloseAbs += 7 * 1440;
+          }
+
+          let currentAbs = currentDay * 1440 + currentTime;
+          if (currentAbs < openAbs) {
+            currentAbs += 7 * 1440;
+          }
+
+          if (currentAbs >= openAbs && currentAbs < adjustedCloseAbs) {
+            openClubIds.push(club.id);
+            break;
+          }
+        }
+      }
+    }
+
+    if (openClubIds.length === 0) return;
+
+    // Calculate the earliest open time for any club (5 hours ago as fallback)
+    const fiveHoursAgo = new Date(
+      Date.now() - 5 * 60 * 60 * 1000
+    ).toISOString();
+
+    // Fetch all reviews for open clubs since the earliest open time
+    const { data: allReviews, error } = await supabase
+      .from("club_reviews")
+      .select("club_id, rating, created_at")
+      .in("club_id", openClubIds)
+      .gte("created_at", fiveHoursAgo);
+
+    if (error) {
+      console.error("Error fetching live ratings:", error);
+      return;
+    }
+
+    // Group reviews by club_id
+    const reviewsByClub = new Map();
+    allReviews?.forEach((review) => {
+      if (!reviewsByClub.has(review.club_id)) {
+        reviewsByClub.set(review.club_id, []);
+      }
+      reviewsByClub.get(review.club_id).push(review);
+    });
+
+    // Calculate live ratings for each club
+    const liveRatings = new Map();
+    for (const clubId of openClubIds) {
+      const reviews = reviewsByClub.get(clubId) || [];
+      const baseRating = clubRatings.get(clubId);
+
+      if (reviews.length > 0) {
+        const baseRatingWeight = 10;
+        const baseRatingTotal = baseRating * baseRatingWeight;
+        const reviewTotal = reviews.reduce(
+          (sum: number, review: any) => sum + review.rating,
+          0
+        );
+        const totalWeight = baseRatingWeight + reviews.length;
+        const weightedAverage = (baseRatingTotal + reviewTotal) / totalWeight;
+        liveRatings.set(clubId, Number(weightedAverage.toFixed(2)));
+      } else {
+        liveRatings.set(clubId, baseRating);
+      }
+    }
+
+    // Update club objects with live ratings
+    for (const club of clubs) {
+      if (liveRatings.has(club.id)) {
+        club._live_rating = liveRatings.get(club.id);
+      }
+    }
+  } catch (error) {
+    console.error("Error loading live ratings:", error);
+  }
+};
+
+/**
  * Calculate trending clubs based on recent reviews and ratings (last 5 hours)
- * Similar to the backend algorithm
+ * Optimized to use a single query instead of N+1 queries
  */
 export const calculateTrendingClubs = async (clubs: any[]) => {
   try {
+    if (clubs.length === 0) return [];
+
+    // Calculate timestamp for 5 hours ago
+    const fiveHoursAgo = new Date(
+      Date.now() - 5 * 60 * 60 * 1000
+    ).toISOString();
+
+    // Get all club IDs
+    const clubIds = clubs.map((club) => club.id);
+
+    // Fetch all recent reviews for all clubs in a single query
+    const { data: allRecentReviews, error } = await supabase
+      .from("club_reviews")
+      .select("club_id, rating, created_at")
+      .in("club_id", clubIds)
+      .gte("created_at", fiveHoursAgo);
+
+    if (error) {
+      console.error("Error fetching recent reviews:", error);
+      return [];
+    }
+
+    // Group reviews by club_id
+    const reviewsByClub = new Map();
+    allRecentReviews?.forEach((review) => {
+      if (!reviewsByClub.has(review.club_id)) {
+        reviewsByClub.set(review.club_id, []);
+      }
+      reviewsByClub.get(review.club_id).push(review);
+    });
+
     const trendingClubs = [];
 
     for (const club of clubs) {
-      // Get recent reviews for this club (last 5 hours)
-      const recentReviews = await fetchRecentClubReviews(club.id);
+      const recentReviews = reviewsByClub.get(club.id) || [];
 
       if (recentReviews.length >= 3) {
         // Minimum 3 reviews in last 5 hours
         // Calculate average rating
         const totalRating = recentReviews.reduce(
-          (sum, review) => sum + review.rating,
+          (sum: number, review: any) => sum + review.rating,
           0
         );
         const avgRating = totalRating / recentReviews.length;
@@ -324,7 +462,8 @@ export const searchUsersByName = async (
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .or(query);
+      .or(query)
+      .limit(20);
     if (error) {
       throw new Error(error.message);
     }
@@ -540,6 +679,74 @@ export function isClubOpenDynamic(hours: types.RegularOpeningHours): boolean {
   }
 
   return false;
+}
+
+/**
+ * Calculates how long until a club opens today, or returns null if not opening today
+ * @param hours The club's opening hours
+ * @returns Object with timeUntilOpen in minutes and formatted string, or null if not opening today
+ */
+export function getTimeUntilOpen(hours: types.RegularOpeningHours): {
+  minutes: number;
+  formatted: string;
+} | null {
+  if (!hours.periods || hours.periods.length === 0) return null;
+
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 (Sun) to 6 (Sat)
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Convert a period's time into absolute minutes.
+  const convertToAbsolute = (day: number, hour: number, minute: number) =>
+    day * 1440 + hour * 60 + minute;
+
+  let minTimeUntilOpen = Infinity;
+
+  // Check each period to find the next opening time today
+  for (let period of hours.periods) {
+    // Only consider periods that open today
+    if (period.open.day === currentDay) {
+      const openAbs = convertToAbsolute(
+        period.open.day,
+        period.open.hour,
+        period.open.minute
+      );
+      const currentAbs = convertToAbsolute(
+        currentDay,
+        now.getHours(),
+        now.getMinutes()
+      );
+
+      // If the club opens later today
+      if (openAbs > currentAbs) {
+        const timeUntilOpen = openAbs - currentAbs;
+        if (timeUntilOpen < minTimeUntilOpen) {
+          minTimeUntilOpen = timeUntilOpen;
+        }
+      }
+    }
+  }
+
+  // If no opening time found for today, return null
+  if (minTimeUntilOpen === Infinity) {
+    return null;
+  }
+
+  // Format the time until opening
+  const hoursUntilOpen = Math.floor(minTimeUntilOpen / 60);
+  const minutesUntilOpen = minTimeUntilOpen % 60;
+
+  let formatted = "";
+  if (hoursUntilOpen >= 1) {
+    formatted = `Opening in ${hoursUntilOpen}h`;
+  } else {
+    formatted = `Opening in ${minutesUntilOpen}m`;
+  }
+
+  return {
+    minutes: minTimeUntilOpen,
+    formatted: formatted,
+  };
 }
 /**
  * Returns the operating hours string for today.

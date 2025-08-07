@@ -33,6 +33,7 @@ import {
   searchClubsByName,
   fetchFriendsAttending,
   calculateTrendingClubs,
+  loadLiveRatingsForClubs,
 } from "../utils/supabaseService";
 
 import * as Constants from "@/constants/Constants";
@@ -60,8 +61,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchMode, setSearchMode] = useState(false);
 
@@ -131,45 +131,39 @@ export default function HomeScreen() {
     };
   }, [clubs, session?.user?.id]);
 
-  const loadClubs = async (pageNum = 1) => {
+  const loadClubs = async () => {
     try {
       const clubData = await fetchClubs();
-      const today = new Date().getDay();
 
-      // Convert raw club data to Club objects
+      // Convert raw club data to Club objects (without loading music schedules or live ratings)
       const clubObjects = clubData.map((data) => new Club(data));
 
-      // Load music schedules in parallel
-      await Promise.all(
-        clubObjects.map((club) => club.loadMusicSchedule(today))
-      );
+      // Show clubs immediately and calculate trending in background
+      setClubs(clubObjects);
 
-      // Load live ratings in parallel
-      await Promise.all(clubObjects.map((club) => club.initLiveRating()));
+      // Load live ratings efficiently in the background
+      loadLiveRatingsForClubs(clubObjects).then(() => {
+        // Update clubs with live ratings
+        setClubs([...clubObjects]);
+      });
 
-      // Calculate trending clubs using the proper algorithm
-      const trendingClubsData = await calculateTrendingClubs(clubData);
-      const trendingClubIds = new Set(trendingClubsData.map((club) => club.id));
+      // Calculate trending clubs in the background
+      calculateTrendingClubs(clubData).then((trendingClubsData) => {
+        const trendingClubIds = new Set(
+          trendingClubsData.map((club) => club.id)
+        );
+        const trendingClubs = trendingClubsData.map((data) => new Club(data));
+        const regularClubs = clubObjects.filter(
+          (club) => !trendingClubIds.has(club.id)
+        );
 
-      // Convert trending clubs data to Club objects
-      const trendingClubs = trendingClubsData.map((data) => new Club(data));
-
-      // Regular clubs are those not in trending
-      const regularClubs = clubObjects.filter(
-        (club) => !trendingClubIds.has(club.id)
-      );
-
-      if (pageNum === 1) {
         setTrendingClubsData(trendingClubsData);
         setTrendingClubs(trendingClubs);
         setRegularClubs(regularClubs);
         setClubs([...trendingClubs, ...regularClubs]);
-      } else {
-        setRegularClubs((prevRegular) => [...prevRegular, ...regularClubs]);
-        setClubs((prevClubs) => [...prevClubs, ...regularClubs]);
-      }
+      });
 
-      setHasMore(clubData.length === 10);
+      setHasMore(false); // No more pages since we load all 20 at once
     } catch (error) {
       console.error("Error loading clubs:", error);
     } finally {
@@ -179,18 +173,14 @@ export default function HomeScreen() {
   };
 
   const loadMoreClubs = () => {
-    if (!hasMore || isLoadingMore || searchMode) return;
-    setIsLoadingMore(true);
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadClubs(nextPage);
+    // No more loading since we load all 20 clubs at once
+    return;
   };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setPage(1);
     setSearchMode(false);
-    await loadClubs(1);
+    await loadClubs();
     setRefreshing(false);
   }, []);
 
@@ -216,8 +206,7 @@ export default function HomeScreen() {
     setQuery(text);
     if (text.length === 0) {
       setSearchMode(false);
-      setPage(1);
-      await loadClubs(1);
+      await loadClubs();
       return;
     }
 
@@ -554,8 +543,6 @@ export default function HomeScreen() {
               tintColor={Constants.purpleCOLOR}
             />
           }
-          onEndReached={loadMoreClubs}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={() =>
             isLoadingMore ? (
               <ActivityIndicator

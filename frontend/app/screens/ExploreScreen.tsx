@@ -140,7 +140,6 @@ export default function SearchScreen() {
             </Button>
           )}
         </View>
-        {/* Segmented Control (toggle clubs/users) */}
         {/* Results List */}
         {results.length === 0 ? (
           <View style={styles.centeredContainer}>

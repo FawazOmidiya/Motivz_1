@@ -35,12 +35,20 @@ Thumbs.db
 
 # Backend (Django/Python)
 backend/__pycache__/
+backend/*/__pycache__/
+backend/*/*/__pycache__/
+backend/*/*/*/__pycache__/
 backend/db.sqlite3
 backend/.venv/
 backend/.env
 backend/.mypy_cache/
 backend/.pytest_cache/
 backend/test.py
+
+# Python cache files (globally)
+__pycache__/
+*.py[cod]
+*$py.class
 
 # Environment & Secrets
 .env
