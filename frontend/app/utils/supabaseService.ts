@@ -29,8 +29,7 @@ export const fetchClubs = async () => {
     const { data, error } = await supabase
       .from("Clubs")
       .select("*")
-      .order("Name")
-      .limit(20);
+      .order("Name");
 
     if (error) {
       throw new Error(error.message);
