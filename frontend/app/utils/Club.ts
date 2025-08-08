@@ -88,14 +88,14 @@ export class Club {
   }
 
   getTopGenres(): string {
-    if (!this._musicSchedule) return "No music schedule";
+    if (!this._musicSchedule) return "";
 
     const genreEntries = Object.entries(this._musicSchedule)
       .filter(([_, value]) => typeof value === "number" && value > 0)
       .sort((a, b) => Number(b[1]) - Number(a[1]));
 
     const topGenres = genreEntries.slice(0, 3).map(([genre]) => genre);
-    return topGenres.length > 0 ? topGenres.join(", ") : "No music today";
+    return topGenres.length > 0 ? topGenres.join(", ") : "";
   }
 
   isOpen(): boolean {

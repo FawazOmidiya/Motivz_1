@@ -10,7 +10,8 @@
       "ios": {
         "resourceClass": "m-medium",
         "image": "latest"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "autoIncrement": true,
@@ -18,7 +19,8 @@
       "ios": {
         "resourceClass": "m-medium",
         "image": "latest"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -26,7 +28,8 @@
         "resourceClass": "m-medium",
         "image": "latest",
         "buildConfiguration": "Release"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

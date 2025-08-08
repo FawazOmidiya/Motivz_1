@@ -141,20 +141,33 @@ export default function HomeScreen() {
       // Show clubs immediately and calculate trending in background
       setClubs(clubObjects);
 
-      // Load live ratings efficiently in the background
-      loadLiveRatingsForClubs(clubObjects).then(() => {
-        // Update clubs with live ratings
+      // Load music schedules and live ratings efficiently in the background
+      const currentDay = new Date().getDay();
+      const loadMusicSchedulesPromise = Promise.all(
+        clubObjects.map((club) => club.loadMusicSchedule(currentDay))
+      );
+
+      Promise.all([
+        loadLiveRatingsForClubs(clubObjects),
+        loadMusicSchedulesPromise,
+      ]).then(() => {
+        // Update clubs with live ratings and music schedules
         setClubs([...clubObjects]);
       });
 
       // Calculate trending clubs in the background
-      calculateTrendingClubs(clubData).then((trendingClubsData) => {
+      calculateTrendingClubs(clubData).then(async (trendingClubsData) => {
         const trendingClubIds = new Set(
           trendingClubsData.map((club) => club.id)
         );
         const trendingClubs = trendingClubsData.map((data) => new Club(data));
         const regularClubs = clubObjects.filter(
           (club) => !trendingClubIds.has(club.id)
+        );
+
+        // Load music schedules for trending clubs
+        await Promise.all(
+          trendingClubs.map((club) => club.loadMusicSchedule(currentDay))
         );
 
         setTrendingClubsData(trendingClubsData);
@@ -528,10 +541,12 @@ export default function HomeScreen() {
                       </View>
                     )}
                 </View>
-                <View style={styles.genreContainer}>
-                  <Ionicons name="musical-notes" size={16} color="#fff" />
-                  <Text style={styles.genreText}>{item.getTopGenres()}</Text>
-                </View>
+                {item.getTopGenres() && (
+                  <View style={styles.genreContainer}>
+                    <Ionicons name="musical-notes" size={16} color="#fff" />
+                    <Text style={styles.genreText}>{item.getTopGenres()}</Text>
+                  </View>
+                )}
                 {item.hours && <ClubHours hours={item.hours} />}
               </View>
             </TouchableOpacity>
