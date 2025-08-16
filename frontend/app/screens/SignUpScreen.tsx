@@ -17,7 +17,8 @@ import * as Constants from "@/constants/Constants";
 import { supabase } from "../utils/supabaseService";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
-import GoogleSignInButton from "../components/GoogleSignInButton";
+import GoogleSignInButton from "../utils/googleAuth/GoogleSignInButton";
+import { Auth as NativeAuth } from "../utils/NativeAuth/Auth.native";
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -134,6 +135,7 @@ export default function SignUpScreen() {
                 mode="outlined"
                 outlineColor="rgba(255,255,255,0.2)"
                 activeOutlineColor={Constants.purpleCOLOR}
+                autoComplete="off"
                 left={
                   <TextInput.Icon
                     icon="account"
@@ -245,6 +247,11 @@ export default function SignUpScreen() {
                   }}
                 />
 
+                {/* Apple Sign In Button */}
+                <View style={styles.nativeAuthContainer}>
+                  <NativeAuth />
+                </View>
+
                 <View style={styles.signInContainer}>
                   <Text variant="bodyMedium" style={styles.signInText}>
                     Already have an account?{" "}
@@ -291,7 +298,7 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: "center",
-    marginBottom: 60,
+    marginBottom: 30,
   },
   title: {
     color: "#fff",
@@ -378,5 +385,13 @@ const styles = StyleSheet.create({
   dividerText: {
     color: "rgba(255,255,255,0.7)",
     marginHorizontal: 16,
+  },
+  anonymousLink: {
+    color: Constants.purpleCOLOR,
+    fontWeight: "600",
+  },
+  nativeAuthContainer: {
+    alignItems: "center",
+    marginBottom: 24,
   },
 });

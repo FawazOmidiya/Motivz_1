@@ -18,7 +18,6 @@ import * as Constants from "@/constants/Constants";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { supabase, storage } from "../utils/supabaseService";
 import * as ImagePicker from "expo-image-picker";
-import { supabaseAuth } from "../utils/supabaseAuth";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
 import { decode } from "base64-arraybuffer";
@@ -45,6 +44,11 @@ type RouteParams = {
     idToken: string;
     accessToken: string;
   };
+  appleUserData?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 };
 
 export default function ProfileCompletionScreen() {
@@ -58,9 +62,14 @@ export default function ProfileCompletionScreen() {
   };
   const googleUserData = params?.googleUserData;
   const googleTokens = params?.googleTokens;
+  const appleUserData = params?.appleUserData;
 
-  const [firstName, setFirstName] = useState(googleUserData?.firstName || "");
-  const [lastName, setLastName] = useState(googleUserData?.lastName || "");
+  const [firstName, setFirstName] = useState(
+    googleUserData?.firstName || appleUserData?.firstName || ""
+  );
+  const [lastName, setLastName] = useState(
+    googleUserData?.lastName || appleUserData?.lastName || ""
+  );
   const [username, setUsername] = useState(signUpInfo?.username || "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -139,7 +148,7 @@ export default function ProfileCompletionScreen() {
       let userId: string;
 
       if (googleUserData && googleTokens) {
-        const { data, error } = await supabaseAuth.auth.signInWithIdToken({
+        const { data, error } = await supabase.auth.signInWithIdToken({
           provider: "google",
           token: googleTokens.idToken,
         });
@@ -148,19 +157,21 @@ export default function ProfileCompletionScreen() {
         if (!data.user) throw new Error("Failed to authenticate with Google");
 
         userId = data.user.id;
-      } else if (googleUserData) {
+      } else if (googleUserData || appleUserData) {
+        // For both Google and Apple users, get the current authenticated user
         const {
           data: { user },
-        } = await supabaseAuth.auth.getUser();
+        } = await supabase.auth.getUser();
         if (!user) throw new Error("No authenticated user found");
         userId = user.id;
       } else {
-        // Regular sign-up flow
-        const { data: authData, error: authError } =
-          await supabaseAuth.auth.signUp({
+        // Regular sign-up flow (email/password)
+        const { data: authData, error: authError } = await supabase.auth.signUp(
+          {
             email: signUpInfo.email,
             password: signUpInfo.password,
-          });
+          }
+        );
 
         if (authError) throw authError;
         if (!authData.user) throw new Error("Failed to create user account");
@@ -168,22 +179,20 @@ export default function ProfileCompletionScreen() {
       }
 
       // Create or update the user profile
-      const { error: profileError } = await supabaseAuth
-        .from("profiles")
-        .upsert({
-          id: userId,
-          username: username,
-          first_name: firstName,
-          last_name: lastName,
-          avatar_url: avatarUrl,
-          is_complete: true,
-        });
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: userId,
+        username: username,
+        first_name: firstName,
+        last_name: lastName,
+        avatar_url: avatarUrl,
+        is_complete: true,
+        updated_at: new Date().toISOString(),
+      });
 
       if (profileError) throw profileError;
 
       // Trigger a session refresh to update the profile status
-      const { data: refreshedSession } =
-        await supabaseAuth.auth.refreshSession();
+      const { data: refreshedSession } = await supabase.auth.refreshSession();
 
       Alert.alert("Success", "Profile completed successfully!");
     } catch (error) {

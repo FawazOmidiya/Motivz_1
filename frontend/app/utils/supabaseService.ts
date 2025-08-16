@@ -1,5 +1,4 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { supabaseAuth } from "./supabaseAuth";
 import type { Session } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -19,6 +18,30 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 // Storage for image handling
 export const storage = supabase.storage.from("avatars");
+// Tells Supabase Auth to continuously refresh the session automatically
+// if the app is in the foreground. When this is added, you will continue
+// to receive `onAuthStateChange` events with the `TOKEN_REFRESHED` or
+// `SIGNED_OUT` event if the user's session is terminated. This should
+// only be registered once.
+
+export async function signOut() {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Error signing out:", error);
+      throw error;
+    }
+
+    // Clear any stored session data
+    await AsyncStorage.removeItem("supabase.auth.token");
+
+    return true;
+  } catch (error) {
+    console.error("Error during sign out:", error);
+    throw error;
+  }
+}
+
 /**
  * Fetches clubs from the Supabase database with pagination.
  * @param page The page number to fetch (1-based)
@@ -351,7 +374,7 @@ export const queryUserFavouriteExists = async (
   clubId: string
 ): Promise<boolean> => {
   try {
-    const { data, error } = await supabaseAuth
+    const { data, error } = await supabase
       .from("profile_favourites")
       .select("*")
       .eq("profile_id", profileId)
@@ -388,7 +411,7 @@ export async function addClubToFavourites(
 
   // Check if the user-club pair already exists
 
-  const { data: existing, error: checkError } = await supabaseAuth
+  const { data: existing, error: checkError } = await supabase
     .from("profile_favourites")
     .select("*")
     .eq("profile_id", session.user.id)
@@ -405,7 +428,7 @@ export async function addClubToFavourites(
   }
 
   // Insert the new favourite
-  const { error } = await supabaseAuth.from("profile_favourites").insert({
+  const { error } = await supabase.from("profile_favourites").insert({
     profile_id: session.user.id,
     club_id: club.id,
   });
@@ -434,7 +457,7 @@ export async function removeClubFromFavourites(
     throw new Error("Not signed in. Please sign in to remove favourites.");
   }
 
-  const { error } = await supabaseAuth
+  const { error } = await supabase
     .from("profile_favourites")
     .delete()
     .eq("profile_id", session.user.id)
@@ -483,7 +506,7 @@ export const fetchUserProfile = async (userId: string): Promise<any> => {
    * @throws An error if the query fails.
    */
 
-  const { data, error, status } = await supabaseAuth
+  const { data, error, status } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)

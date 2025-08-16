@@ -19,7 +19,7 @@ import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { SessionProvider } from "@/components/SessionContext";
 import { PaperProvider } from "react-native-paper";
-import { configureGoogleSignIn } from "./utils/googleSignInService";
+import { configureGoogleSignIn } from "./utils/googleAuth/googleSignInService";
 import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
 import MapScreen from "./screens/MapScreen";
@@ -33,7 +33,7 @@ import SignUpScreen from "./screens/SignUpScreen";
 import ProfileCompletionScreen from "./screens/ProfileCompletionScreen";
 import ProfileSettings from "./screens/ProfileSettings";
 import AuthNavigator from "./navigation/AuthNavigator";
-import { supabaseAuth } from "./utils/supabaseAuth";
+import { supabase } from "./utils/supabaseService";
 import { Session } from "@supabase/supabase-js";
 import * as Constants from "@/constants/Constants";
 import * as types from "@/app/utils/types";
@@ -149,14 +149,14 @@ export default function RootLayout() {
     // Configure Google Sign-In
     configureGoogleSignIn();
 
-    supabaseAuth.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
         checkProfileStatus(session.user.id);
       }
     });
 
-    supabaseAuth.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
         checkProfileStatus(session.user.id);

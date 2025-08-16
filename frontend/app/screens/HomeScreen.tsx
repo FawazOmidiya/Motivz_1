@@ -290,9 +290,16 @@ export default function HomeScreen() {
       return true;
     });
 
-    // Sort: trending first (by rating), then alphabetically
+    // Sort: open clubs first, then trending, then alphabetically
     return filtered.sort((a, b) => {
-      // First sort by trending status (using our local trending logic)
+      // First prioritize open clubs over closed clubs
+      const aIsOpen = a.isOpen();
+      const bIsOpen = b.isOpen();
+
+      if (aIsOpen && !bIsOpen) return -1;
+      if (!aIsOpen && bIsOpen) return 1;
+
+      // Within same open/closed status, sort by trending status
       const aIsTrending = trendingClubs.some(
         (trendingClub) => trendingClub.id === a.id
       );

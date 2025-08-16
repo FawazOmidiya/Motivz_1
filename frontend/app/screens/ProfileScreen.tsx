@@ -16,7 +16,7 @@ import {
   Pressable,
 } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
-import { supabaseAuth } from "../utils/supabaseAuth";
+
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -24,7 +24,6 @@ import { RootStackParamList } from "../utils/types";
 import {
   fetchUserFavourites,
   fetchUserProfile,
-  fetchUserFriends,
   fetchSingleClub,
   supabase,
 } from "../utils/supabaseService";
@@ -257,7 +256,7 @@ export default function Account() {
 
   async function handleSignOut() {
     try {
-      const { error } = await supabaseAuth.auth.signOut();
+      const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error) {
       if (error instanceof Error) {

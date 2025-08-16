@@ -15,7 +15,7 @@ import {
   supabase,
   searchClubsByName,
   searchUsersByName,
-} from "../utils/supabaseService"; // or supabaseAuth
+} from "../utils/supabaseService";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as types from "@/app/utils/types";

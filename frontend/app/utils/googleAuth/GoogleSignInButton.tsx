@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { Alert } from "react-native";
 import { GoogleSigninButton } from "@react-native-google-signin/google-signin";
-import { supabaseAuth } from "../utils/supabaseAuth";
-import { signInWithGoogleAndGetTokens } from "../utils/googleSignInService";
-import { checkUserProfileComplete } from "../utils/supabaseService";
+import { supabase } from "../supabaseService";
+import { signInWithGoogleAndGetTokens } from "./googleSignInService";
+import { checkUserProfileComplete } from "../supabaseService";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../utils/types";
+import { RootStackParamList } from "../types";
 
 interface GoogleSignInButtonProps {
   onSuccess?: (data: any) => void;
@@ -30,7 +30,7 @@ export default function GoogleSignInButton({
 
       if (tokens.idToken) {
         // First, sign in to Supabase to get the user ID
-        const { data, error } = await supabaseAuth.auth.signInWithIdToken({
+        const { data, error } = await supabase.auth.signInWithIdToken({
           provider: "google",
           token: tokens.idToken,
         });

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Alert, StyleSheet, View, AppState } from "react-native";
-import { supabaseAuth } from "../utils/supabaseAuth";
+import { supabase } from "../utils/supabaseService";
 import { Button, TextInput } from "react-native-paper";
 
 // Tells Supabase Auth to continuously refresh the session automatically if
@@ -9,9 +9,9 @@ import { Button, TextInput } from "react-native-paper";
 // if the user's session is terminated. This should only be registered once.
 AppState.addEventListener("change", (state) => {
   if (state === "active") {
-    supabaseAuth.auth.startAutoRefresh();
+    supabase.auth.startAutoRefresh();
   } else {
-    supabaseAuth.auth.stopAutoRefresh();
+    supabase.auth.stopAutoRefresh();
   }
 });
 
@@ -22,7 +22,7 @@ export default function Auth() {
 
   async function signInWithEmail() {
     setLoading(true);
-    const { error } = await supabaseAuth.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
@@ -36,7 +36,7 @@ export default function Auth() {
     const {
       data: { session },
       error,
-    } = await supabaseAuth.auth.signUp({
+    } = await supabase.auth.signUp({
       email: email,
       password: password,
     });

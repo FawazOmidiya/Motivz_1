@@ -12,7 +12,7 @@ import { storage, supabase, deleteUserAccount } from "../utils/supabaseService";
 import * as ImagePicker from "expo-image-picker";
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
-import { supabaseAuth, signOut } from "../utils/supabaseAuth";
+import { signOut } from "../utils/supabaseService";
 import { decode } from "base64-arraybuffer";
 import {
   backgroundCOLOR,

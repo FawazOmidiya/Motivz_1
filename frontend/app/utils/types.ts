@@ -58,6 +58,11 @@ export type RootStackParamList = {
       idToken: string;
       accessToken: string;
     };
+    appleUserData?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
   };
   ClubDetail: { club: Club };
   EventDetail: { event: Event };

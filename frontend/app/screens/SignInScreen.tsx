@@ -10,14 +10,16 @@ import {
   ScrollView,
   StatusBar,
 } from "react-native";
-import { supabaseAuth } from "../utils/supabaseAuth";
 import { Button, TextInput, Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
-import GoogleSignInButton from "../components/GoogleSignInButton";
+import GoogleSignInButton from "../utils/googleAuth/GoogleSignInButton";
+import { Auth } from "../utils/NativeAuth/Auth";
+import { Auth as NativeAuth } from "../utils/NativeAuth/Auth.native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/Navigation";
+import { supabase } from "../utils/supabaseService";
 
 type SignInScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -40,7 +42,7 @@ export default function SignInScreen() {
 
     setLoading(true);
     try {
-      const { error } = await supabaseAuth.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
@@ -167,14 +169,19 @@ export default function SignInScreen() {
                 {/* Google Sign In Button */}
                 <GoogleSignInButton
                   onSuccess={(data) => {
-                    console.log("Google sign-in successful:", data);
+                    // console.log("Google sign-in successful:", data);
                     // Handle successful sign-in - navigate to main app
                   }}
                   onError={(error) => {
-                    console.error("Google sign-in error:", error);
+                    // console.error("Google sign-in error:", error);
                     // Handle error if needed
                   }}
                 />
+
+                {/* Apple Sign In Button */}
+                <View style={styles.nativeAuthContainer}>
+                  <NativeAuth />
+                </View>
 
                 <View style={styles.signUpContainer}>
                   <Text variant="bodyMedium" style={styles.signUpText}>
@@ -231,7 +238,7 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: "center",
-    marginBottom: 60,
+    marginBottom: 30,
   },
   title: {
     color: "#fff",
@@ -334,5 +341,9 @@ const styles = StyleSheet.create({
   anonymousLink: {
     color: Constants.purpleCOLOR,
     fontWeight: "600",
+  },
+  nativeAuthContainer: {
+    alignItems: "center",
+    marginBottom: 24,
   },
 });
