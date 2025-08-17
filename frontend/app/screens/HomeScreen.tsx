@@ -45,6 +45,7 @@ import BottomSheet, {
 import ClubHours from "@/components/ClubHours"; // Import the ClubHours component
 import { LinearGradient } from "expo-linear-gradient";
 import { useSession } from "@/components/SessionContext";
+import { useNotifications } from "../utils/notificationService";
 
 const { width } = Dimensions.get("window");
 
@@ -104,6 +105,14 @@ export default function HomeScreen() {
   }>({});
 
   const session = useSession();
+  const { expoPushToken, notification, sendNotification } = useNotifications();
+
+  // Log the push token for debugging
+  useEffect(() => {
+    if (expoPushToken) {
+      console.log('Push token available:', expoPushToken);
+    }
+  }, [expoPushToken]);
 
   useEffect(() => {
     loadClubs();
@@ -433,6 +442,12 @@ export default function HomeScreen() {
             onPress={() => handleOpen()}
           >
             <Ionicons name="filter-sharp" size={24} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => sendNotification("Test Notification", "This is a test push notification!")}
+          >
+            <Ionicons name="notifications" size={24} color="white" />
           </TouchableOpacity>
         </View>
       </View>

@@ -18,6 +18,7 @@ import {
 import { Button, Text, TextInput } from "react-native-paper";
 
 import { useSession } from "@/components/SessionContext";
+import { useNotifications } from "../utils/notificationService";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
@@ -181,6 +182,14 @@ export default function Account() {
   const [posts, setPosts] = useState<types.Post[]>([]);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
+  const { expoPushToken, notification, sendNotification } = useNotifications();
+
+  // Log the push token for debugging
+  useEffect(() => {
+    if (expoPushToken) {
+      console.log("Push token available in ProfileScreen:", expoPushToken);
+    }
+  }, [expoPushToken]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [pickedAsset, setPickedAsset] = useState<any>(null);
   const [pickedAssetType, setPickedAssetType] = useState<"photo" | "video">(
@@ -525,6 +534,21 @@ export default function Account() {
               >
                 <Ionicons
                   name="log-out-outline"
+                  size={24}
+                  color={Constants.whiteCOLOR}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() =>
+                  sendNotification(
+                    "Test Notification",
+                    "This is a test push notification from ProfileScreen!"
+                  )
+                }
+              >
+                <Ionicons
+                  name="notifications"
                   size={24}
                   color={Constants.whiteCOLOR}
                 />
