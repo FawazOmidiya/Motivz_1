@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "icon": "./assets/images/iTunesArtwork@1x.png",
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -20,7 +20,7 @@
         "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background."
       },
       "entitlements": {
-        "aps-environment": "development"
+        "aps-environment": "production"
       }
     },
     "android": {
