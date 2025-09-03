@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   FlatList,
   Pressable,
+  Linking,
 } from "react-native";
 import MapView, {
   Marker,
@@ -36,15 +37,8 @@ type LocationCoords = {
   longitude: number;
 };
 
-type Club = {
-  id: number;
-  Name: string;
-  latitude: number;
-  longitude: number;
-  Rating: number;
-  Image: string;
-  tags: string[]; // Example: ["Live Music", "Cocktails", "Dance"]
-};
+// Using the imported Club type from types
+type Club = types.Club;
 
 export default function MapScreen() {
   const [location, setLocation] = useState<LocationCoords | null>(null);
@@ -65,6 +59,21 @@ export default function MapScreen() {
   useEffect(() => {
     const getLocation = async () => {
       try {
+        // Request location permissions first
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(
+            "Location Permission Required",
+            "This app needs location access to show nearby clubs and your current location on the map.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ]
+          );
+          setLoading(false);
+          return;
+        }
+
         if (clubParam) {
           // Focus on the club if provided
           setRegion({
@@ -104,6 +113,10 @@ export default function MapScreen() {
         }
       } catch (error) {
         console.error("Error getting location:", error);
+        Alert.alert(
+          "Location Error",
+          "Unable to get your location. Please check your location settings and try again."
+        );
       } finally {
         setLoading(false);
       }
@@ -276,7 +289,7 @@ export default function MapScreen() {
                           <Text style={styles.ratingText}>{club.Rating}</Text>
                         </View>
                         <View style={styles.tagsContainer}>
-                          {club.tags?.map((tag, index) => (
+                          {club.Tags?.map((tag: string, index: number) => (
                             <View key={index} style={styles.tag}>
                               <Text style={styles.tagText}>{tag}</Text>
                             </View>
