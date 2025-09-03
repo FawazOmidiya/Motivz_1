@@ -19,7 +19,9 @@ export function Auth({ onSuccess, onError }: NativeAuthProps) {
     return (
       <AppleAuthentication.AppleAuthenticationButton
         buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+        buttonStyle={
+          AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE
+        }
         cornerRadius={5}
         style={{ width: 200, height: 64 }}
         onPress={async () => {

@@ -14,6 +14,18 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Test local notification
+export async function testLocalNotification() {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Local Test",
+      body: "This is a local notification test",
+      sound: true,
+    },
+    trigger: null, // Send immediately
+  });
+}
+
 // Function to send push notification
 export async function sendPushNotification(
   expoPushToken: string,
@@ -21,6 +33,17 @@ export async function sendPushNotification(
   body: string,
   data?: any
 ) {
+  console.log("Attempting to send notification with token:", expoPushToken);
+
+  if (!expoPushToken || expoPushToken.includes("error")) {
+    console.error("Invalid push token:", expoPushToken);
+    Alert.alert(
+      "Error",
+      "Push token not available. Please check console for details."
+    );
+    return;
+  }
+
   const message = {
     to: expoPushToken,
     sound: "default",
@@ -77,6 +100,7 @@ export async function registerForPushNotificationsAsync() {
       Constants?.easConfig?.projectId;
     if (!projectId) {
       handleRegistrationError("Project ID not found");
+      return;
     }
 
     try {
