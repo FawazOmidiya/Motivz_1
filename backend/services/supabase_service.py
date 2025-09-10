@@ -548,3 +548,413 @@ def get_user_by_id(user_id):
     except Exception as e:
         print(f'Error retrieving user by ID: {e}')
         return None
+
+# ===== RECURRING EVENTS FUNCTIONS =====
+def create_recurring_event(
+    title: str,
+    caption: str,
+    club_id: str,
+    poster_url: str,
+    music_genres: list,
+    start_date,
+    end_date,
+    recurring_config: dict,
+    created_by: str = None
+):
+    """Create an event with recurring config"""
+    from datetime import datetime, timedelta
+    
+    # Calculate the proper start date based on recurring pattern
+    if recurring_config and recurring_config.get("type") in ["weekly", "monthly"]:
+        proper_start_date = _calculate_proper_start_date(recurring_config)
+        if proper_start_date:
+            start_date = proper_start_date.isoformat()
+            # Calculate end date based on duration
+            start_time = datetime.strptime(recurring_config.get("start_time", "00:00"), "%H:%M").time()
+            end_time = datetime.strptime(recurring_config.get("end_time", "02:00"), "%H:%M").time()
+            
+            # Handle end time that goes past midnight
+            if end_time < start_time:
+                # End time is next day
+                end_date = (proper_start_date + timedelta(days=1)).replace(
+                    hour=end_time.hour, 
+                    minute=end_time.minute
+                ).isoformat()
+            else:
+                end_date = proper_start_date.replace(
+                    hour=end_time.hour, 
+                    minute=end_time.minute
+                ).isoformat()
+    
+    event_data = {
+        "title": title,
+        "caption": caption,
+        "club_id": club_id,
+        "poster_url": poster_url,
+        "music_genres": music_genres,
+        "start_date": start_date,
+        "end_date": end_date,
+        "recurring_config": recurring_config,
+        "created_by": created_by
+    }
+    response = supabase.table("events").insert(event_data).execute()
+    return response.data[0] if response.data else None
+
+def _calculate_proper_start_date(recurring_config: dict):
+    """Calculate the proper start date based on recurring pattern"""
+    from datetime import datetime, timedelta
+    
+    current_date = datetime.now().date()
+    
+    if recurring_config["type"] == "weekly":
+        weekday = recurring_config["weekday"]
+        start_time = datetime.strptime(recurring_config["start_time"], "%H:%M").time()
+        
+        # Find next occurrence of this weekday
+        days_ahead = weekday - current_date.weekday()
+        if days_ahead <= 0:  # Target day already happened this week
+            days_ahead += 7
+        
+        next_date = current_date + timedelta(days=days_ahead)
+        return datetime.combine(next_date, start_time)
+        
+    elif recurring_config["type"] == "monthly":
+        month_day = recurring_config.get("month_day", 1)
+        weekday = recurring_config.get("weekday")
+        start_time = datetime.strptime(recurring_config["start_time"], "%H:%M").time()
+        
+        # Find next month with this day
+        try:
+            if current_date.month == 12:
+                next_date = current_date.replace(year=current_date.year + 1, month=1, day=month_day)
+            else:
+                next_date = current_date.replace(month=current_date.month + 1, day=month_day)
+            
+            # Adjust for weekday if specified
+            if weekday is not None:
+                while next_date.weekday() != weekday:
+                    next_date += timedelta(days=1)
+            
+            return datetime.combine(next_date, start_time)
+            
+        except ValueError:
+            # Handle invalid dates (e.g., Feb 30)
+            return datetime.combine(current_date, start_time)
+    
+    return datetime.now()
+
+def smart_generate_recurring_events(weeks_ahead: int = 4):
+    """
+    Smart weekly generation that tracks last generation and avoids duplicates.
+    Only generates events that are actually needed.
+    """
+    from datetime import datetime, timedelta
+    
+    print(f"🔄 Starting smart recurring event generation for next {weeks_ahead} weeks...")
+    
+    # Get all active recurring events
+    response = supabase.table("events").select("*").not_.is_("recurring_config", "null").execute()
+    recurring_events = response.data or []
+    
+    if not recurring_events:
+        print("ℹ️  No recurring events found")
+        return []
+    
+    print(f"📅 Found {len(recurring_events)} recurring events to process")
+    
+    # Group events by title to prevent duplicates across templates
+    events_by_title = {}
+    for event in recurring_events:
+        title = event["title"]
+        if title not in events_by_title:
+            events_by_title[title] = []
+        events_by_title[title].append(event)
+    
+    print(f"📝 Processing {len(events_by_title)} unique event titles")
+    
+    generated_events = []
+    total_generated = 0
+    
+    # Process each unique title only once
+    for title, events_with_same_title in events_by_title.items():
+        print(f"🎯 Processing title: '{title}' ({len(events_with_same_title)} templates)")
+        
+        # Use the first template for generation (they should be identical)
+        primary_event = events_with_same_title[0]
+        config = primary_event["recurring_config"]
+        
+        # Skip inactive events
+        if not config.get("active", True):
+            print(f"⏭️  Skipping inactive event: {title}")
+            continue
+        
+        # Check if this event needs new instances
+        events_needed = _calculate_events_needed(primary_event, config, weeks_ahead)
+        
+        if events_needed:
+            print(f"🎯 Generating {len(events_needed)} instances for: {title}")
+            generated_events.extend(events_needed)
+            total_generated += len(events_needed)
+        else:
+            print(f"✅ No new instances needed for: {title}")
+    
+    # Insert all generated events at once
+    if generated_events:
+        print(f"💾 Inserting {total_generated} new events into database...")
+        try:
+            supabase.table("events").insert(generated_events).execute()
+            print(f"✅ Successfully generated {total_generated} recurring events")
+        except Exception as e:
+            print(f"❌ Error inserting events: {e}")
+            raise e
+    else:
+        print("ℹ️  No new events needed to be generated")
+    
+    return generated_events
+
+def _calculate_events_needed(event: dict, config: dict, weeks_ahead: int) -> list:
+    """
+    Calculate which events need to be generated based on existing instances
+    and the recurring pattern.
+    """
+    from datetime import datetime, timedelta
+    
+    # Get existing instances for this recurring event
+    existing_instances = _get_existing_instances(event["id"])
+    
+    # Calculate what dates we need events for
+    needed_dates = _calculate_needed_dates(config, weeks_ahead)
+    
+    # Filter out dates that already have events
+    missing_dates = _find_missing_dates(needed_dates, existing_instances)
+    
+    if not missing_dates:
+        return []
+    
+    # Generate events for missing dates
+    events = []
+    for event_date in missing_dates:
+        instance = _create_event_instance(event, config, event_date)
+        events.append(instance)
+    
+    return events
+
+def _get_existing_instances(recurring_event_id: str) -> list:
+    """Get existing instances of a recurring event"""
+    try:
+        # Get the recurring event template to find its title
+        template_response = supabase.table("events").select("title").eq("id", recurring_event_id).execute()
+        if not template_response.data:
+            return []
+        
+        template_title = template_response.data[0]["title"]
+        
+        # Look for events with the same title (excluding the recurring template itself)
+        # Use is_() for NULL check instead of eq()
+        response = supabase.table("events").select("start_date, title").is_("recurring_config", "null").eq("title", template_title).execute()
+        existing_instances = response.data or []
+        
+        print(f"🔍 Found {len(existing_instances)} existing instances for '{template_title}'")
+        return existing_instances
+    except Exception as e:
+        print(f"Warning: Could not fetch existing instances: {e}")
+        return []
+
+def _calculate_needed_dates(config: dict, weeks_ahead: int) -> list:
+    """Calculate all the dates where events should exist"""
+    from datetime import datetime, timedelta
+    
+    needed_dates = []
+    start_date = datetime.now().date()
+    
+    if config["type"] == "weekly":
+        weekday = config["weekday"]
+        start_time = datetime.strptime(config["start_time"], "%H:%M").time()
+        
+        for week in range(weeks_ahead):
+            # Calculate next occurrence of this weekday
+            days_ahead = weekday - start_date.weekday()
+            if days_ahead <= 0:
+                days_ahead += 7
+            
+            event_date = start_date + timedelta(days=days_ahead + (week * 7))
+            needed_dates.append(event_date)
+            
+    elif config["type"] == "monthly":
+        month_day = config.get("month_day", 1)
+        weekday = config.get("weekday")
+        
+        for month in range(weeks_ahead // 4 + 1):
+            try:
+                if start_date.month == 12:
+                    event_date = start_date.replace(year=start_date.year + 1, month=1, day=month_day)
+                else:
+                    event_date = start_date.replace(month=start_date.month + month, day=month_day)
+                
+                if weekday is not None:
+                    while event_date.weekday() != weekday:
+                        event_date += timedelta(days=1)
+                
+                if event_date >= start_date:
+                    needed_dates.append(event_date)
+            except ValueError:
+                continue
+    
+    return needed_dates
+
+def _find_missing_dates(needed_dates: list, existing_instances: list) -> list:
+    """Find which dates don't have events yet"""
+    from datetime import datetime
+    
+    if not existing_instances:
+        print(f"   📅 No existing instances found, generating all {len(needed_dates)} dates")
+        return needed_dates
+    
+    # Extract dates from existing instances
+    existing_dates = set()
+    for instance in existing_instances:
+        start_date = instance["start_date"]
+        if isinstance(start_date, str):
+            # Parse ISO string to date
+            try:
+                parsed_date = datetime.fromisoformat(start_date.replace('Z', '+00:00')).date()
+                existing_dates.add(parsed_date)
+            except ValueError:
+                continue
+        else:
+            # Already a datetime object
+            existing_dates.add(start_date.date())
+    
+    # Find missing dates
+    missing_dates = []
+    for needed_date in needed_dates:
+        if needed_date not in existing_dates:
+            missing_dates.append(needed_date)
+    
+    print(f"   📅 Found {len(existing_dates)} existing dates, {len(missing_dates)} dates need generation")
+    return missing_dates
+
+def _create_event_instance(event: dict, config: dict, event_date) -> dict:
+    """Create a single event instance for a specific date"""
+    from datetime import datetime
+    
+    start_time = datetime.strptime(config["start_time"], "%H:%M").time()
+    end_time = datetime.strptime(config["end_time"], "%H:%M").time()
+    
+    instance = {
+        "title": event["title"],
+        "caption": event["caption"],
+        "club_id": event["club_id"],
+        "poster_url": event["poster_url"],
+        "music_genres": event["music_genres"],
+        "start_date": datetime.combine(event_date, start_time).isoformat(),
+        "end_date": datetime.combine(event_date, end_time).isoformat(),
+        "created_by": event["created_by"],
+        "recurring_config": None  # Individual instances don't need config
+    }
+    
+    return instance
+
+def generate_recurring_events(weeks_ahead: int = 4):
+    """Generate events for all active recurring events"""
+    from datetime import datetime, timedelta
+    
+    # Get all events with recurring config
+    response = supabase.table("events").select("*").not_.is_("recurring_config", "null").execute()
+    recurring_events = response.data or []
+    
+    generated_events = []
+    
+    for event in recurring_events:
+        config = event["recurring_config"]
+        if not config.get("active", True):
+            continue
+            
+        if config["type"] == "weekly":
+            events = _generate_weekly_events(event, config, weeks_ahead)
+            generated_events.extend(events)
+            
+        elif config["type"] == "monthly":
+            events = _generate_monthly_events(event, config, weeks_ahead)
+            generated_events.extend(events)
+    
+    # Insert all generated events
+    if generated_events:
+        supabase.table("events").insert(generated_events).execute()
+    
+    return generated_events
+
+def _generate_weekly_events(event: dict, config: dict, weeks_ahead: int) -> list:
+    """Generate weekly recurring events"""
+    from datetime import datetime, timedelta
+    events = []
+    start_date = datetime.now().date()
+    weekday = config["weekday"]
+    start_time = datetime.strptime(config["start_time"], "%H:%M").time()
+    end_time = datetime.strptime(config["end_time"], "%H:%M").time()
+    
+    for week in range(weeks_ahead):
+        # Calculate next occurrence of this weekday
+        days_ahead = weekday - start_date.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+        
+        event_date = start_date + timedelta(days=days_ahead + (week * 7))
+        
+        # Create event instance
+        instance = {
+            "title": event["title"],
+            "caption": event["caption"],
+            "club_id": event["club_id"],
+            "poster_url": event["poster_url"],
+            "music_genres": event["music_genres"],
+            "start_date": datetime.combine(event_date, start_time).isoformat(),
+            "end_date": datetime.combine(event_date, end_time).isoformat(),
+            "created_by": event["created_by"],
+            "recurring_config": None  # Individual instances don't need config
+        }
+        events.append(instance)
+    
+    return events
+
+def _generate_monthly_events(event: dict, config: dict, weeks_ahead: int) -> list:
+    """Generate monthly recurring events"""
+    from datetime import datetime, timedelta
+    events = []
+    start_date = datetime.now().date()
+    month_day = config.get("month_day", 1)
+    weekday = config.get("weekday")
+    start_time = datetime.strptime(config["start_time"], "%H:%M").time()
+    end_time = datetime.strptime(config["end_time"], "%H:%M").time()
+    
+    for month in range(weeks_ahead // 4 + 1):
+        try:
+            # Calculate next month's date
+            if start_date.month == 12:
+                event_date = start_date.replace(year=start_date.year + 1, month=1, day=month_day)
+            else:
+                event_date = start_date.replace(month=start_date.month + month, day=month_day)
+            
+            # Adjust for weekday if specified
+            if weekday is not None:
+                while event_date.weekday() != weekday:
+                    event_date += timedelta(days=1)
+            
+            if event_date >= start_date:
+                instance = {
+                    "title": event["title"],
+                    "caption": event["caption"],
+                    "club_id": event["club_id"],
+                    "poster_url": event["poster_url"],
+                    "music_genres": event["music_genres"],
+                    "start_date": datetime.combine(event_date, start_time).isoformat(),
+                    "end_date": datetime.combine(event_date, end_time).isoformat(),
+                    "created_by": event["created_by"],
+                    "recurring_config": None
+                }
+                events.append(instance)
+                
+        except ValueError:
+            continue  # Skip invalid dates
+    
+    return events

@@ -122,6 +122,12 @@ def search_clubs(searchInput: str) -> List[Club]:
     
     while True:
         response = requests.post(url, headers=headers, json=payload)
+        print(f"Response status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"Error response: {response.text}")
+            break
+            
         data = response.json()
         
         places = data.get("places", [])
