@@ -20,7 +20,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
-import defaultAvatar from "@/assets/images/default-avatar.png";
+import { defaultAvatar } from "@/assets/images/default-avatar.png";
 
 type NavigationProp = NativeStackNavigationProp<any, "UserProfile">;
 
@@ -64,10 +64,6 @@ export default function SearchScreen() {
   }
 
   function renderItem({ item }: { item: types.UserProfile }) {
-    const getInitials = (name: string) => {
-      return name.charAt(0).toUpperCase();
-    };
-
     return (
       <TouchableOpacity
         style={styles.resultItem}
