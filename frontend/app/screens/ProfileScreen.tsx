@@ -18,7 +18,10 @@ import {
 import { Button, Text, TextInput } from "react-native-paper";
 
 import { useSession } from "@/components/SessionContext";
-import { useNotifications } from "../utils/notificationService";
+import {
+  useNotifications,
+  testLocalNotification,
+} from "../utils/notificationService";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
@@ -538,7 +541,7 @@ export default function Account() {
                   color={Constants.whiteCOLOR}
                 />
               </TouchableOpacity>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() =>
                   sendNotification(
@@ -553,6 +556,16 @@ export default function Account() {
                   color={Constants.whiteCOLOR}
                 />
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => testLocalNotification()}
+              >
+                <Ionicons
+                  name="notifications-circle"
+                  size={24}
+                  color={Constants.whiteCOLOR}
+                />
+              </TouchableOpacity> */}
             </View>
           </View>
         </View>

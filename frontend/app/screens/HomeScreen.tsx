@@ -110,7 +110,7 @@ export default function HomeScreen() {
   // Log the push token for debugging
   useEffect(() => {
     if (expoPushToken) {
-      console.log('Push token available:', expoPushToken);
+      console.log("Push token available:", expoPushToken);
     }
   }, [expoPushToken]);
 
@@ -443,12 +443,12 @@ export default function HomeScreen() {
           >
             <Ionicons name="filter-sharp" size={24} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.filterButton}
             onPress={() => sendNotification("Test Notification", "This is a test push notification!")}
           >
             <Ionicons name="notifications" size={24} color="white" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
 
