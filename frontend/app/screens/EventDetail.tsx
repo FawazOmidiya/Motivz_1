@@ -9,6 +9,7 @@ import {
   Alert,
   Dimensions,
   Modal,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,7 +23,12 @@ import { fetchSingleClub } from "../utils/supabaseService";
 const { width } = Dimensions.get("window");
 
 type EventDetailNavigationProp = NativeStackNavigationProp<
-  types.RootTabParamList,
+  {
+    HomeMain: undefined;
+    ClubDetail: { club: types.Club };
+    EventDetail: { event: types.Event };
+    UserProfile: { user: types.UserProfile };
+  },
   "EventDetail"
 >;
 
@@ -219,17 +225,38 @@ export default function EventDetailScreen() {
           </View>
         )}
 
+        {/* Ticket Purchase */}
+        {event.ticket_link && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tickets</Text>
+            <TouchableOpacity
+              style={styles.ticketButton}
+              onPress={() => Linking.openURL(event.ticket_link!)}
+            >
+              <View style={styles.ticketButtonContent}>
+                <Ionicons name="ticket" size={24} color="#fff" />
+                <Text style={styles.ticketButtonText}>Purchase Tickets</Text>
+                <Ionicons
+                  name="open-outline"
+                  size={20}
+                  color="rgba(255, 255, 255, 0.7)"
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Future Features Placeholder */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Coming Soon</Text>
           <View style={styles.comingSoonContainer}>
             <View style={styles.comingSoonItem}>
               <Ionicons
-                name="ticket-outline"
+                name="people-outline"
                 size={24}
                 color="rgba(255, 255, 255, 0.3)"
               />
-              <Text style={styles.comingSoonText}>Ticket Purchasing</Text>
+              <Text style={styles.comingSoonText}>Friends Attending</Text>
             </View>
             <View style={styles.comingSoonItem}>
               <Ionicons
@@ -486,5 +513,23 @@ const styles = StyleSheet.create({
   expandedPoster: {
     width: "100%",
     height: "100%",
+  },
+  ticketButton: {
+    backgroundColor: "#FF6B35",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  ticketButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  ticketButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+    flex: 1,
+    marginLeft: 12,
   },
 });
