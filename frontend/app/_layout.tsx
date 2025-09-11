@@ -54,6 +54,7 @@ function HomeStackScreen() {
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeMain" component={HomeScreen} />
       <HomeStack.Screen name="ClubDetail" component={ClubDetail} />
+      <HomeStack.Screen name="EventDetail" component={EventDetail} />
       <HomeStack.Screen name="UserProfile" component={UserProfileScreen} />
     </HomeStack.Navigator>
   );
@@ -64,6 +65,7 @@ function ExploreStackScreen() {
     <ExploreStack.Navigator screenOptions={{ headerShown: false }}>
       <ExploreStack.Screen name="ExploreMain" component={ExploreScreen} />
       <ExploreStack.Screen name="ClubDetail" component={ClubDetail} />
+      <ExploreStack.Screen name="EventDetail" component={EventDetail} />
       <ExploreStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ExploreStack.Screen name="FriendsList" component={FriendsList} />
     </ExploreStack.Navigator>
