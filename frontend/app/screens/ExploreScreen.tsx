@@ -23,7 +23,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
-import { defaultAvatar } from "@/assets/images/default-avatar.png";
+import defaultAvatar from "@/assets/images/default-avatar.png";
 
 type NavigationProp = NativeStackNavigationProp<any, "UserProfile">;
 

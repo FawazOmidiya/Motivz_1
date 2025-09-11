@@ -25,6 +25,7 @@ import ExploreScreen from "./screens/ExploreScreen";
 import MapScreen from "./screens/MapScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import ClubDetail from "./screens/ClubDetail";
+import EventDetail from "./screens/EventDetail";
 import UserProfileScreen from "./screens/UserProfileScreen";
 import FriendsList from "./screens/FriendsList";
 import AuthScreen from "./screens/AuthScreen";

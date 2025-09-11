@@ -40,7 +40,12 @@ import { LinearGradient } from "expo-linear-gradient";
 const { width } = Dimensions.get("window");
 
 type ClubDetailNavigationProp = NativeStackNavigationProp<
-  types.RootTabParamList,
+  {
+    HomeMain: undefined;
+    ClubDetail: { club: types.Club };
+    EventDetail: { event: types.Event };
+    UserProfile: { user: types.UserProfile };
+  },
   "ClubDetail"
 >;
 
@@ -48,7 +53,7 @@ export default function ClubDetailScreen() {
   const route = useRoute();
   const { club: clubData } = route.params as { club: types.Club };
   const [club, setClub] = useState<Club | null>(null);
-  const [events, setEvents] = useState<any>([]);
+  const [events, setEvents] = useState<types.Event[]>([]);
   const [musicSchedule, setMusicSchedule] = useState<string[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
@@ -213,6 +218,53 @@ export default function ClubDetailScreen() {
     }
   };
 
+  // Helper function to categorize events
+  const categorizeEvents = (events: types.Event[]) => {
+    const now = new Date();
+    const hundredHoursFromNow = new Date(now.getTime() + 100 * 60 * 60 * 1000);
+
+    const todaysEvents: types.Event[] = [];
+    const upcomingEvents: types.Event[] = [];
+
+    events.forEach((event) => {
+      const eventStart = new Date(event.start_date);
+      const eventEnd = new Date(event.end_date);
+
+      // Check if event is happening now or within 100 hours
+      if (eventStart <= hundredHoursFromNow && eventEnd >= now) {
+        todaysEvents.push(event);
+      } else if (eventStart > hundredHoursFromNow) {
+        upcomingEvents.push(event);
+      }
+    });
+
+    return { todaysEvents, upcomingEvents };
+  };
+
+  // Helper function to get event status text
+  const getEventStatusText = (event: types.Event) => {
+    const now = new Date();
+    const eventStart = new Date(event.start_date);
+    const eventEnd = new Date(event.end_date);
+
+    if (now >= eventStart && now <= eventEnd) {
+      return "Happening Now";
+    } else if (eventStart > now) {
+      const timeDiff = eventStart.getTime() - now.getTime();
+      const hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
+      const minutesDiff = Math.floor(
+        (timeDiff % (1000 * 60 * 60)) / (1000 * 60)
+      );
+
+      if (hoursDiff > 0) {
+        return `Starts in ${hoursDiff}h ${minutesDiff}m`;
+      } else {
+        return `Starts in ${minutesDiff}m`;
+      }
+    }
+    return "Today's Event";
+  };
+
   const handleLongPress = () => {
     setShowSchedulePopup(true);
   };
@@ -320,6 +372,42 @@ export default function ClubDetailScreen() {
                 ? "You're Here!"
                 : "Check In"}
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.ticketButton]}
+            onPress={() => {
+              // Check if there are any events with ticket links
+              const eventsWithTickets = events.filter(
+                (event) => event.ticket_link
+              );
+              if (eventsWithTickets.length > 0) {
+                // If there are multiple events with tickets, show a list
+                if (eventsWithTickets.length > 1) {
+                  Alert.alert(
+                    "Purchase Tickets",
+                    "Multiple events have tickets available. Please view individual events to purchase tickets.",
+                    [{ text: "OK" }]
+                  );
+                } else {
+                  // If there's only one event with tickets, open the link
+                  Linking.openURL(eventsWithTickets[0].ticket_link!);
+                }
+              } else {
+                Alert.alert(
+                  "Purchase Tickets",
+                  "No tickets available for upcoming events at this time.",
+                  [{ text: "OK" }]
+                );
+              }
+            }}
+          >
+            <Ionicons
+              name="ticket"
+              size={24}
+              color="white"
+              style={styles.buttonIcon}
+            />
+            <Text style={styles.actionButtonText}>Tickets</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, styles.externalActionButton]}
@@ -448,26 +536,236 @@ export default function ClubDetailScreen() {
           })()}
         </View>
 
-        {/* Upcoming Events */}
-        <Text style={styles.sectionTitle}>Upcoming Events</Text>
-        {events.length === 0 ? (
-          <Text style={styles.noEvents}>No Events</Text>
-        ) : (
-          <FlatList
-            data={events}
-            renderItem={({ item }) => (
-              <View style={styles.eventCard}>
-                <Text style={styles.eventName}>{item.event_name}</Text>
-                <Text style={styles.eventDate}>
-                  {new Date(item.date).toDateString()}
-                </Text>
-              </View>
-            )}
-            keyExtractor={(item) => item.id.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          />
-        )}
+        {/* Events Section */}
+        {(() => {
+          const { todaysEvents, upcomingEvents } = categorizeEvents(events);
+
+          return (
+            <>
+              {/* Today's Events / Happening Now */}
+              {todaysEvents.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>
+                    {todaysEvents.some((event) => {
+                      const now = new Date();
+                      const eventStart = new Date(event.start_date);
+                      const eventEnd = new Date(event.end_date);
+                      return now >= eventStart && now <= eventEnd;
+                    })
+                      ? "Happening Now"
+                      : "Upcoming Events"}
+                  </Text>
+                  <View style={styles.eventsContainer}>
+                    {todaysEvents.map((item: types.Event) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.eventCard, styles.todaysEventCard]}
+                        onPress={() =>
+                          navigation.navigate("EventDetail", { event: item })
+                        }
+                        activeOpacity={0.7}
+                      >
+                        {item.poster_url && (
+                          <Image
+                            source={{ uri: item.poster_url }}
+                            style={styles.eventPoster}
+                          />
+                        )}
+                        <View style={styles.eventContent}>
+                          <View style={styles.eventHeader}>
+                            <View style={styles.eventDateContainer}>
+                              <Text style={styles.eventDay}>
+                                {new Date(item.start_date).getDate()}
+                              </Text>
+                              <Text style={styles.eventMonth}>
+                                {new Date(item.start_date).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                  }
+                                )}
+                              </Text>
+                            </View>
+                            <View style={styles.eventInfo}>
+                              <Text style={styles.eventName} numberOfLines={2}>
+                                {item.title}
+                              </Text>
+                              <View style={styles.eventTimeContainer}>
+                                <Ionicons
+                                  name="time-outline"
+                                  size={14}
+                                  color="rgba(255, 255, 255, 0.7)"
+                                />
+                                <Text style={styles.eventTime}>
+                                  {new Date(item.start_date).toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    }
+                                  )}
+                                  {" - "}
+                                  {new Date(item.end_date).toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    }
+                                  )}
+                                </Text>
+                              </View>
+                              <Text style={styles.eventStatusText}>
+                                {getEventStatusText(item)}
+                              </Text>
+                              {item.caption && (
+                                <Text
+                                  style={styles.eventDescription}
+                                  numberOfLines={2}
+                                >
+                                  {item.caption}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                          {item.music_genres &&
+                            item.music_genres.length > 0 && (
+                              <View style={styles.musicGenresContainer}>
+                                <Ionicons
+                                  name="musical-notes-outline"
+                                  size={14}
+                                  color="rgba(255, 255, 255, 0.7)"
+                                />
+                                <Text style={styles.musicGenresText}>
+                                  {item.music_genres.slice(0, 3).join(", ")}
+                                  {item.music_genres.length > 3 && " + more"}
+                                </Text>
+                              </View>
+                            )}
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* Future Events */}
+              {upcomingEvents.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Future Events</Text>
+                  <View style={styles.eventsContainer}>
+                    {upcomingEvents.map((item: types.Event) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.eventCard}
+                        onPress={() =>
+                          navigation.navigate("EventDetail", { event: item })
+                        }
+                        activeOpacity={0.7}
+                      >
+                        {item.poster_url && (
+                          <Image
+                            source={{ uri: item.poster_url }}
+                            style={styles.eventPoster}
+                          />
+                        )}
+                        <View style={styles.eventContent}>
+                          <View style={styles.eventHeader}>
+                            <View style={styles.eventDateContainer}>
+                              <Text style={styles.eventDay}>
+                                {new Date(item.start_date).getDate()}
+                              </Text>
+                              <Text style={styles.eventMonth}>
+                                {new Date(item.start_date).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                  }
+                                )}
+                              </Text>
+                            </View>
+                            <View style={styles.eventInfo}>
+                              <Text style={styles.eventName} numberOfLines={2}>
+                                {item.title}
+                              </Text>
+                              <View style={styles.eventTimeContainer}>
+                                <Ionicons
+                                  name="time-outline"
+                                  size={14}
+                                  color="rgba(255, 255, 255, 0.7)"
+                                />
+                                <Text style={styles.eventTime}>
+                                  {new Date(item.start_date).toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    }
+                                  )}
+                                  {" - "}
+                                  {new Date(item.end_date).toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    }
+                                  )}
+                                </Text>
+                              </View>
+                              {item.caption && (
+                                <Text
+                                  style={styles.eventDescription}
+                                  numberOfLines={2}
+                                >
+                                  {item.caption}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                          {item.music_genres &&
+                            item.music_genres.length > 0 && (
+                              <View style={styles.musicGenresContainer}>
+                                <Ionicons
+                                  name="musical-notes-outline"
+                                  size={14}
+                                  color="rgba(255, 255, 255, 0.7)"
+                                />
+                                <Text style={styles.musicGenresText}>
+                                  {item.music_genres.slice(0, 3).join(", ")}
+                                  {item.music_genres.length > 3 && " + more"}
+                                </Text>
+                              </View>
+                            )}
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* No Events */}
+              {events.length === 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Events</Text>
+                  <View style={styles.noEventsContainer}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={48}
+                      color="rgba(255, 255, 255, 0.3)"
+                    />
+                    <Text style={styles.noEvents}>No upcoming events</Text>
+                    <Text style={styles.noEventsSubtext}>
+                      Check back later for new events
+                    </Text>
+                  </View>
+                </>
+              )}
+            </>
+          );
+        })()}
       </View>
 
       {/* Review Form Modal */}
@@ -776,11 +1074,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   eventCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    padding: 15,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    padding: 16,
     borderRadius: 12,
-    marginRight: 10,
-    width: width * 0.7,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   eventName: {
     fontSize: 16,
@@ -865,6 +1163,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     marginHorizontal: 2,
   },
+  ticketButton: {
+    backgroundColor: "#FF6B35",
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -908,5 +1209,98 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  // New event styles
+  noEventsContainer: {
+    alignItems: "center",
+    paddingVertical: 30,
+  },
+  noEventsSubtext: {
+    textAlign: "center",
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.4)",
+    marginTop: 5,
+  },
+  eventsContainer: {
+    gap: 12,
+  },
+  eventHeader: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  eventDateContainer: {
+    backgroundColor: Constants.purpleCOLOR,
+    borderRadius: 8,
+    padding: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 50,
+    marginRight: 12,
+  },
+  eventDay: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+    lineHeight: 20,
+  },
+  eventMonth: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
+    fontWeight: "500",
+    textTransform: "uppercase",
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  eventTime: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginLeft: 4,
+  },
+  eventDescription: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.6)",
+    lineHeight: 18,
+  },
+  musicGenresContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  musicGenresText: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginLeft: 4,
+    fontWeight: "500",
+  },
+  eventPoster: {
+    width: "100%",
+    height: 120,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  eventContent: {
+    flex: 1,
+  },
+  todaysEventCard: {
+    borderColor: Constants.purpleCOLOR,
+    borderWidth: 2,
+    backgroundColor: "rgba(147, 51, 234, 0.1)",
+  },
+  eventStatusText: {
+    fontSize: 12,
+    color: Constants.purpleCOLOR,
+    fontWeight: "600",
+    marginTop: 2,
   },
 });
