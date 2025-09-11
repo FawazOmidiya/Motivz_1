@@ -101,15 +101,10 @@ export default function SearchScreen() {
     }
   }
 
-<<<<<<< HEAD
-  function renderItem({ item }: { item: types.UserProfile }) {
-=======
   function renderUserItem({ item }: { item: types.UserProfile }) {
     const getInitials = (name: string) => {
       return name.charAt(0).toUpperCase();
     };
-
->>>>>>> cc148fe (First iteration of club Events)
     return (
       <TouchableOpacity
         style={styles.resultItem}
@@ -250,7 +245,6 @@ export default function SearchScreen() {
             </Button>
           )}
         </View>
-<<<<<<< HEAD
         {/* Results List */}
         {results.length === 0 ? (
           <View style={styles.centeredContainer}>
@@ -261,7 +255,7 @@ export default function SearchScreen() {
               Find your friends above
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* Search Results Overlay */}
         {results.length > 0 && (
