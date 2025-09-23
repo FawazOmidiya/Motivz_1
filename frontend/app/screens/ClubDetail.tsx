@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -88,6 +88,7 @@ export default function ClubDetailScreen() {
       const eventData = await fetchEventsByClub(club?.id || "");
       setEvents(eventData);
     };
+
     const getLocation = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -103,6 +104,7 @@ export default function ClubDetailScreen() {
         longitude: location.coords.longitude,
       };
     };
+
     const loadFriendsAtClub = async () => {
       if (session?.user?.id && club?.id) {
         try {
@@ -113,9 +115,12 @@ export default function ClubDetailScreen() {
         }
       }
     };
+
+    if (club?.id) {
+      loadEvents();
+      loadFriendsAtClub();
+    }
     getLocation();
-    loadEvents();
-    loadFriendsAtClub();
     getMusicSchedule();
   }, [club?.id, profile, session?.user?.id]);
 
@@ -290,21 +295,79 @@ export default function ClubDetailScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header Section */}
       <View style={styles.headerContainer}>
         <Image source={{ uri: club?.image }} style={styles.clubBanner} />
         <LinearGradient
-          colors={["rgba(0,0,0,0.7)", "transparent"]}
+          colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)", "transparent"]}
           style={styles.gradientOverlay}
         />
 
-        {/* Friends at Club Overlay */}
+        {/* Top Navigation */}
+        <View style={styles.topNavigation}>
+          <BackButton color="white" />
+          <View style={styles.topActions}>
+            {isFavourite ? (
+              <TouchableOpacity
+                style={styles.favoriteButton}
+                onPress={handleRemoveFromFavourites}
+              >
+                <FontAwesome
+                  name="heart"
+                  size={20}
+                  color={Constants.purpleCOLOR}
+                />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.favoriteButton}
+                onPress={handleAddToFavourites}
+              >
+                <FontAwesome name="heart-o" size={20} color="white" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Club Info Overlay */}
+        <View style={styles.clubInfoOverlay}>
+          <Text style={styles.clubName}>{club?.name}</Text>
+
+          {/* Rating in Banner */}
+          <View style={styles.bannerRatingContainer}>
+            <Ionicons name="star" size={18} color="#FFD700" />
+            <Text style={styles.bannerRatingText}>
+              {club?.live_rating || club?.rating}
+            </Text>
+          </View>
+
+          {/* Vibes Tags in Banner */}
+          <View style={styles.bannerTagsContainer}>
+            {musicSchedule?.slice(0, 4).map((genre: string, index: number) => (
+              <View key={index} style={styles.bannerTag}>
+                <Text style={styles.bannerTagText}>{genre}</Text>
+              </View>
+            ))}
+            {clubData.Tags?.slice(0, 2).map((tag: any, index: number) => (
+              <View key={`tag-${index}`} style={styles.bannerTag}>
+                <Text style={styles.bannerTagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Friends at Club */}
         {friendsAtClub.length > 0 && (
           <View style={styles.friendsAtClubContainer}>
+            <Text style={styles.friendsLabel}>Friends here</Text>
             <View style={styles.friendsRow}>
-              {friendsAtClub.map((friend, idx) => (
+              {friendsAtClub.slice(0, 4).map((friend, idx) => (
                 <TouchableOpacity
                   key={friend.id}
-                  style={styles.friendAvatar}
+                  style={[
+                    styles.friendAvatar,
+                    { marginLeft: idx > 0 ? -8 : 0 },
+                  ]}
                   onPress={() => handleFriendPress(friend.id)}
                 >
                   {friend.avatar_url ? (
@@ -314,103 +377,40 @@ export default function ClubDetailScreen() {
                     />
                   ) : (
                     <View style={styles.friendAvatarPlaceholder}>
-                      <Ionicons name="person" size={20} color="#fff" />
+                      <Ionicons name="person" size={16} color="#fff" />
                     </View>
                   )}
                 </TouchableOpacity>
               ))}
+              {friendsAtClub.length > 4 && (
+                <View style={[styles.friendAvatar, styles.moreFriendsAvatar]}>
+                  <Text style={styles.moreFriendsText}>
+                    +{friendsAtClub.length - 4}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         )}
-
-        <View style={styles.header}>
-          <BackButton color="white" />
-          <Text style={styles.clubName}>{club?.name}</Text>
-          {isFavourite ? (
-            <TouchableOpacity onPress={handleRemoveFromFavourites}>
-              <FontAwesome
-                name="heart"
-                size={24}
-                color={Constants.purpleCOLOR}
-              />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={handleAddToFavourites}>
-              <FontAwesome name="heart-o" size={24} color="white" />
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
 
+      {/* Main Content */}
       <View style={styles.contentContainer}>
-        <View style={styles.buttonContainer}>
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
-            style={[
-              styles.actionButton,
-              profile?.active_club_id === club?.id
-                ? styles.goingButton
-                : styles.notGoingButton,
-            ]}
+            style={styles.smallActionButton}
             onPress={() =>
-              setActiveClub(
-                profile?.active_club_id === club?.id ? null : club?.id
+              Linking.openURL(
+                `https://www.instagram.com/${club?.instagram_handle || ""}`
               )
             }
           >
-            <Ionicons
-              name={
-                profile?.active_club_id === club?.id
-                  ? "checkmark-circle"
-                  : "location"
-              }
-              size={24}
-              color="white"
-              style={styles.buttonIcon}
-            />
-            <Text style={styles.actionButtonText}>
-              {profile?.active_club_id === club?.id
-                ? "You're Here!"
-                : "Check In"}
-            </Text>
+            <Ionicons name="logo-instagram" size={18} color="#fff" />
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.actionButton, styles.ticketButton]}
-            onPress={() => {
-              // Check if there are any events with ticket links
-              const eventsWithTickets = events.filter(
-                (event) => event.ticket_link
-              );
-              if (eventsWithTickets.length > 0) {
-                // If there are multiple events with tickets, show a list
-                if (eventsWithTickets.length > 1) {
-                  Alert.alert(
-                    "Purchase Tickets",
-                    "Multiple events have tickets available. Please view individual events to purchase tickets.",
-                    [{ text: "OK" }]
-                  );
-                } else {
-                  // If there's only one event with tickets, open the link
-                  Linking.openURL(eventsWithTickets[0].ticket_link!);
-                }
-              } else {
-                Alert.alert(
-                  "Purchase Tickets",
-                  "No tickets available for upcoming events at this time.",
-                  [{ text: "OK" }]
-                );
-              }
-            }}
-          >
-            <Ionicons
-              name="ticket"
-              size={24}
-              color="white"
-              style={styles.buttonIcon}
-            />
-            <Text style={styles.actionButtonText}>Tickets</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.externalActionButton]}
+            style={styles.smallActionButton}
             onPress={() =>
               Linking.openURL(
                 `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -419,55 +419,74 @@ export default function ClubDetailScreen() {
               )
             }
           >
-            <Ionicons name="logo-google" size={24} color="#fff" />
+            <Ionicons name="logo-google" size={18} color="#fff" />
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.actionButton, styles.externalActionButton]}
-            onPress={() =>
-              Linking.openURL(
-                `https://www.instagram.com/${club?.instagram_handle || ""}`
-              )
-            }
+            style={styles.smallActionButton}
+            onPress={async () => {
+              const label =
+                club?.address ||
+                club?.name ||
+                club?.address ||
+                club?.name ||
+                "Destination";
+
+              // Check if we have valid coordinates (not 0,0 or null)
+              const hasValidCoordinates =
+                club?.latitude != null &&
+                club?.longitude != null &&
+                club.latitude !== 0 &&
+                club.longitude !== 0 &&
+                Math.abs(club.latitude) <= 90 &&
+                Math.abs(club.longitude) <= 180;
+
+              // Build the dropoff query
+              let dropoffQuery;
+              if (hasValidCoordinates) {
+                dropoffQuery = `dropoff[latitude]=${
+                  club.latitude
+                }&dropoff[longitude]=${
+                  club.longitude
+                }&dropoff[formatted_address]=${encodeURIComponent(label)}`;
+              } else {
+                dropoffQuery = `dropoff[formatted_address]=${encodeURIComponent(
+                  label
+                )}`;
+              }
+
+              // Universal link (opens app if installed, web otherwise)
+              const universal = `https://m.uber.com/ul/?action=setPickup&pickup=my_location&${dropoffQuery}`;
+
+              // App scheme (use if supported)
+              const appScheme = `uber://?action=setPickup&pickup=my_location&${dropoffQuery}`;
+
+              try {
+                const supportsApp = await Linking.canOpenURL("uber://");
+                await Linking.openURL(supportsApp ? appScheme : universal);
+              } catch {
+                // Final fallback: try universal in browser
+                await Linking.openURL(universal);
+              }
+            }}
           >
-            <Ionicons name="logo-instagram" size={24} color="#fff" />
+            <Ionicons name="car-outline" size={18} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.scheduleActionButton}
+            onPress={handleLongPress}
+          >
+            <Ionicons name="time-outline" size={20} color="#fff" />
+            <Text
+              style={styles.scheduleButtonText}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {club?.getCurrentDayHours() || "Hours not available"}
+            </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Tags */}
-        <Text style={styles.sectionTitle}>Vibes</Text>
-        <View style={styles.tagsContainer}>
-          <View style={[styles.tag, styles.ratingTag, styles.ratingTagRow]}>
-            <Ionicons name="star" size={16} color="#FFD700" />
-            <Text style={styles.tagText}>{club?.live_rating}</Text>
-          </View>
-
-          {musicSchedule?.map((genre: string, index: number) => (
-            <View key={index} style={styles.tag}>
-              <Text style={styles.tagText}>{genre}</Text>
-            </View>
-          ))}
-          {clubData.Tags?.map((tag: any, index: number) => (
-            <View key={index} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Operating Hours with Long Press Popup */}
-        {club?.hours && (
-          <View style={styles.hoursSection}>
-            <Pressable style={styles.hoursContainer} onPress={handleLongPress}>
-              <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.hoursText}>{club.getCurrentDayHours()}</Text>
-              <Ionicons
-                name="information-circle-outline"
-                size={20}
-                color="#fff"
-                style={styles.hoursChevron}
-              />
-            </Pressable>
-          </View>
-        )}
 
         {/* Toggle for reviews */}
         <View style={styles.toggleContainer}>
@@ -537,29 +556,172 @@ export default function ClubDetailScreen() {
         </View>
 
         {/* Events Section */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <Text style={styles.sectionTitle}>Events</Text>
+        </View>
+
         {(() => {
           const { todaysEvents, upcomingEvents } = categorizeEvents(events);
+          const allEvents = [...todaysEvents, ...upcomingEvents];
+
+          // Find featured event (happening now or next chronological)
+          const now = new Date();
+          const happeningNowEvent = todaysEvents.find((event) => {
+            const eventStart = new Date(event.start_date);
+            const eventEnd = new Date(event.end_date);
+            return now >= eventStart && now <= eventEnd;
+          });
+
+          const featuredEvent = happeningNowEvent || allEvents[0];
+          const otherEvents = allEvents.filter(
+            (event) => event.id !== featuredEvent?.id
+          );
+
+          if (events.length === 0) {
+            return (
+              <>
+                <View style={styles.noEventsContainer}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={48}
+                    color="rgba(255, 255, 255, 0.3)"
+                  />
+                  <Text style={styles.noEvents}>No upcoming events</Text>
+                  <Text style={styles.noEventsSubtext}>
+                    Check back later for new events
+                  </Text>
+                </View>
+              </>
+            );
+          }
 
           return (
             <>
-              {/* Today's Events / Happening Now */}
-              {todaysEvents.length > 0 && (
+              {/* Featured Event */}
+              {featuredEvent && (
                 <>
                   <Text style={styles.sectionTitle}>
-                    {todaysEvents.some((event) => {
-                      const now = new Date();
-                      const eventStart = new Date(event.start_date);
-                      const eventEnd = new Date(event.end_date);
-                      return now >= eventStart && now <= eventEnd;
-                    })
-                      ? "Happening Now"
-                      : "Upcoming Events"}
+                    {happeningNowEvent ? "Happening Now" : "Next Event"}
                   </Text>
-                  <View style={styles.eventsContainer}>
-                    {todaysEvents.map((item: types.Event) => (
+                  <TouchableOpacity
+                    style={styles.featuredEventCard}
+                    onPress={() =>
+                      navigation.navigate("EventDetail", {
+                        event: featuredEvent,
+                      })
+                    }
+                    activeOpacity={0.7}
+                  >
+                    {featuredEvent.poster_url && (
+                      <Image
+                        source={{ uri: featuredEvent.poster_url }}
+                        style={styles.featuredEventPoster}
+                      />
+                    )}
+                    <View style={styles.featuredEventOverlay}>
+                      <View style={styles.featuredEventContent}>
+                        <View style={styles.featuredEventHeader}>
+                          <View style={styles.featuredEventDateContainer}>
+                            <Text style={styles.featuredEventDay}>
+                              {new Date(featuredEvent.start_date).getDate()}
+                            </Text>
+                            <Text style={styles.featuredEventMonth}>
+                              {new Date(
+                                featuredEvent.start_date
+                              ).toLocaleDateString("en-US", {
+                                month: "short",
+                              })}
+                            </Text>
+                          </View>
+                          <View style={styles.featuredEventInfo}>
+                            <Text
+                              style={styles.featuredEventName}
+                              numberOfLines={2}
+                            >
+                              {featuredEvent.title}
+                            </Text>
+                            <View style={styles.featuredEventTimeContainer}>
+                              <Ionicons
+                                name="time-outline"
+                                size={16}
+                                color="rgba(255, 255, 255, 0.9)"
+                              />
+                              <Text style={styles.featuredEventTime}>
+                                {new Date(
+                                  featuredEvent.start_date
+                                ).toLocaleTimeString("en-US", {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                })}
+                                {" - "}
+                                {new Date(
+                                  featuredEvent.end_date
+                                ).toLocaleTimeString("en-US", {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                })}
+                              </Text>
+                            </View>
+                            {happeningNowEvent && (
+                              <Text style={styles.featuredEventStatusText}>
+                                {getEventStatusText(featuredEvent)}
+                              </Text>
+                            )}
+                            {featuredEvent.caption && (
+                              <Text
+                                style={styles.featuredEventDescription}
+                                numberOfLines={3}
+                              >
+                                {featuredEvent.caption}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                        {featuredEvent.music_genres &&
+                          featuredEvent.music_genres.length > 0 && (
+                            <View style={styles.featuredMusicGenresContainer}>
+                              <Ionicons
+                                name="musical-notes-outline"
+                                size={16}
+                                color="rgba(255, 255, 255, 0.9)"
+                              />
+                              <Text style={styles.featuredMusicGenresText}>
+                                {featuredEvent.music_genres
+                                  .slice(0, 3)
+                                  .join(", ")}
+                                {featuredEvent.music_genres.length > 3 &&
+                                  " + more"}
+                              </Text>
+                            </View>
+                          )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* Other Events Horizontal List */}
+              {otherEvents.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>More Events</Text>
+                  <FlatList
+                    data={otherEvents}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalEventsContainer}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
                       <TouchableOpacity
-                        key={item.id}
-                        style={[styles.eventCard, styles.todaysEventCard]}
+                        style={styles.horizontalEventCard}
                         onPress={() =>
                           navigation.navigate("EventDetail", { event: item })
                         }
@@ -568,199 +730,43 @@ export default function ClubDetailScreen() {
                         {item.poster_url && (
                           <Image
                             source={{ uri: item.poster_url }}
-                            style={styles.eventPoster}
+                            style={styles.horizontalEventPoster}
                           />
                         )}
-                        <View style={styles.eventContent}>
-                          <View style={styles.eventHeader}>
-                            <View style={styles.eventDateContainer}>
-                              <Text style={styles.eventDay}>
+                        <View style={styles.horizontalEventOverlay}>
+                          <View style={styles.horizontalEventContent}>
+                            <View style={styles.horizontalEventDateContainer}>
+                              <Text style={styles.horizontalEventDay}>
                                 {new Date(item.start_date).getDate()}
                               </Text>
-                              <Text style={styles.eventMonth}>
+                              <Text style={styles.horizontalEventMonth}>
                                 {new Date(item.start_date).toLocaleDateString(
                                   "en-US",
-                                  {
-                                    month: "short",
-                                  }
+                                  { month: "short" }
                                 )}
                               </Text>
                             </View>
-                            <View style={styles.eventInfo}>
-                              <Text style={styles.eventName} numberOfLines={2}>
-                                {item.title}
-                              </Text>
-                              <View style={styles.eventTimeContainer}>
-                                <Ionicons
-                                  name="time-outline"
-                                  size={14}
-                                  color="rgba(255, 255, 255, 0.7)"
-                                />
-                                <Text style={styles.eventTime}>
-                                  {new Date(item.start_date).toLocaleTimeString(
-                                    "en-US",
-                                    {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                    }
-                                  )}
-                                  {" - "}
-                                  {new Date(item.end_date).toLocaleTimeString(
-                                    "en-US",
-                                    {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                    }
-                                  )}
-                                </Text>
-                              </View>
-                              <Text style={styles.eventStatusText}>
-                                {getEventStatusText(item)}
-                              </Text>
-                              {item.caption && (
-                                <Text
-                                  style={styles.eventDescription}
-                                  numberOfLines={2}
-                                >
-                                  {item.caption}
-                                </Text>
+                            <Text
+                              style={styles.horizontalEventName}
+                              numberOfLines={2}
+                            >
+                              {item.title}
+                            </Text>
+                            <Text style={styles.horizontalEventTime}>
+                              {new Date(item.start_date).toLocaleTimeString(
+                                "en-US",
+                                {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                }
                               )}
-                            </View>
+                            </Text>
                           </View>
-                          {item.music_genres &&
-                            item.music_genres.length > 0 && (
-                              <View style={styles.musicGenresContainer}>
-                                <Ionicons
-                                  name="musical-notes-outline"
-                                  size={14}
-                                  color="rgba(255, 255, 255, 0.7)"
-                                />
-                                <Text style={styles.musicGenresText}>
-                                  {item.music_genres.slice(0, 3).join(", ")}
-                                  {item.music_genres.length > 3 && " + more"}
-                                </Text>
-                              </View>
-                            )}
                         </View>
                       </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              )}
-
-              {/* Future Events */}
-              {upcomingEvents.length > 0 && (
-                <>
-                  <Text style={styles.sectionTitle}>Future Events</Text>
-                  <View style={styles.eventsContainer}>
-                    {upcomingEvents.map((item: types.Event) => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={styles.eventCard}
-                        onPress={() =>
-                          navigation.navigate("EventDetail", { event: item })
-                        }
-                        activeOpacity={0.7}
-                      >
-                        {item.poster_url && (
-                          <Image
-                            source={{ uri: item.poster_url }}
-                            style={styles.eventPoster}
-                          />
-                        )}
-                        <View style={styles.eventContent}>
-                          <View style={styles.eventHeader}>
-                            <View style={styles.eventDateContainer}>
-                              <Text style={styles.eventDay}>
-                                {new Date(item.start_date).getDate()}
-                              </Text>
-                              <Text style={styles.eventMonth}>
-                                {new Date(item.start_date).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                  }
-                                )}
-                              </Text>
-                            </View>
-                            <View style={styles.eventInfo}>
-                              <Text style={styles.eventName} numberOfLines={2}>
-                                {item.title}
-                              </Text>
-                              <View style={styles.eventTimeContainer}>
-                                <Ionicons
-                                  name="time-outline"
-                                  size={14}
-                                  color="rgba(255, 255, 255, 0.7)"
-                                />
-                                <Text style={styles.eventTime}>
-                                  {new Date(item.start_date).toLocaleTimeString(
-                                    "en-US",
-                                    {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                    }
-                                  )}
-                                  {" - "}
-                                  {new Date(item.end_date).toLocaleTimeString(
-                                    "en-US",
-                                    {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                    }
-                                  )}
-                                </Text>
-                              </View>
-                              {item.caption && (
-                                <Text
-                                  style={styles.eventDescription}
-                                  numberOfLines={2}
-                                >
-                                  {item.caption}
-                                </Text>
-                              )}
-                            </View>
-                          </View>
-                          {item.music_genres &&
-                            item.music_genres.length > 0 && (
-                              <View style={styles.musicGenresContainer}>
-                                <Ionicons
-                                  name="musical-notes-outline"
-                                  size={14}
-                                  color="rgba(255, 255, 255, 0.7)"
-                                />
-                                <Text style={styles.musicGenresText}>
-                                  {item.music_genres.slice(0, 3).join(", ")}
-                                  {item.music_genres.length > 3 && " + more"}
-                                </Text>
-                              </View>
-                            )}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              )}
-
-              {/* No Events */}
-              {events.length === 0 && (
-                <>
-                  <Text style={styles.sectionTitle}>Events</Text>
-                  <View style={styles.noEventsContainer}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={48}
-                      color="rgba(255, 255, 255, 0.3)"
-                    />
-                    <Text style={styles.noEvents}>No upcoming events</Text>
-                    <Text style={styles.noEventsSubtext}>
-                      Check back later for new events
-                    </Text>
-                  </View>
+                    )}
+                  />
                 </>
               )}
             </>
@@ -797,7 +803,6 @@ export default function ClubDetailScreen() {
       </Modal>
 
       {/* Schedule Popup */}
-      {/* TODO: The popup modal for club hours is too small (300x400). Need to increase size for better readability */}
       {showSchedulePopup && (
         <Pressable
           style={styles.popupOverlay}
@@ -860,7 +865,7 @@ const styles = StyleSheet.create({
     backgroundColor: Constants.backgroundCOLOR,
   },
   headerContainer: {
-    height: 300,
+    height: 280,
     position: "relative",
   },
   clubBanner: {
@@ -876,53 +881,198 @@ const styles = StyleSheet.create({
     height: "100%",
     zIndex: 1,
   },
-  header: {
+  topNavigation: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     padding: 20,
+    paddingTop: 50,
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 2,
   },
-  contentContainer: {
-    padding: 20,
-    marginTop: -30,
-    backgroundColor: Constants.backgroundCOLOR,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-  },
-  clubName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-    textShadowColor: "rgba(0, 0, 0, 0.75)",
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 10,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  actionButton: {
+  topActions: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  favoriteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
-    padding: 16,
-    borderRadius: 12,
+    alignItems: "center",
+  },
+  clubInfoOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    zIndex: 2,
+  },
+  clubName: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#fff",
+    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+    marginBottom: 8,
+  },
+  clubStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  liveIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#4CAF50",
+    marginRight: 6,
+  },
+  bannerTagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 12,
+    gap: 8,
+  },
+  bannerTag: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  bannerTagText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  bannerRatingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: "flex-start",
+    marginTop: 8,
+  },
+  bannerRatingText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  friendsAtClubContainer: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    zIndex: 3,
+    alignItems: "flex-end",
+  },
+  friendsLabel: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 8,
+  },
+  contentContainer: {
+    padding: 20,
+    paddingTop: 0,
+  },
+  actionButtonsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  smallActionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  scheduleActionButton: {
     flex: 1,
-    marginHorizontal: 5,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    gap: 8,
+  },
+  scheduleButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1,
+    textAlign: "center",
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  ratingText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  tagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  tag: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  tagText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  friendsSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
   goingButton: {
     backgroundColor: "#4CAF50",
@@ -946,26 +1096,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#fff",
     marginBottom: 15,
-  },
-  tagsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 20,
-  },
-  tag: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    marginRight: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  tagText: {
-    color: "#fff",
-    fontWeight: "500",
-    fontSize: 14,
   },
   hoursSection: {
     marginBottom: 20,
@@ -998,41 +1128,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   schedulePopup: {
-    width: 300,
-    maxHeight: 400,
+    width: 320,
+    maxHeight: 500,
     backgroundColor: Constants.greyCOLOR,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowRadius: 8,
+    elevation: 8,
   },
   popupHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 15,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
   popupTitle: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
   closePopupButton: {
-    padding: 5,
+    padding: 4,
   },
   popupContent: {
-    maxHeight: 300,
+    maxHeight: 400,
   },
   scheduleRow: {
     paddingVertical: 12,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
@@ -1041,11 +1171,11 @@ const styles = StyleSheet.create({
   },
   scheduleDay: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
   },
   currentDayText: {
     color: Constants.purpleCOLOR,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
   toggleContainer: {
     flexDirection: "row",
@@ -1175,40 +1305,40 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.5)",
     fontSize: 16,
   },
-  friendsAtClubContainer: {
-    position: "absolute",
-    bottom: 80,
-    right: "5%",
-    zIndex: 3,
-  },
   friendsRow: {
     flexDirection: "row",
     alignItems: "center",
-    height: 32,
   },
   friendAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: "#fff",
     backgroundColor: "#888",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
   },
   friendAvatarImage: {
     width: "100%",
     height: "100%",
-    borderRadius: 14,
+    borderRadius: 16,
   },
   friendAvatarPlaceholder: {
     width: "100%",
     height: "100%",
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  moreFriendsAvatar: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  moreFriendsText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
   },
   // New event styles
   noEventsContainer: {
@@ -1302,5 +1432,167 @@ const styles = StyleSheet.create({
     color: Constants.purpleCOLOR,
     fontWeight: "600",
     marginTop: 2,
+  },
+
+  // Featured Event Styles
+  featuredEventCard: {
+    height: 200,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  featuredEventPoster: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  featuredEventOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    padding: 16,
+  },
+  featuredEventContent: {
+    flex: 1,
+  },
+  featuredEventHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  featuredEventDateContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 8,
+    padding: 8,
+    alignItems: "center",
+    marginRight: 12,
+    minWidth: 50,
+  },
+  featuredEventDay: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+  },
+  featuredEventMonth: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
+    fontWeight: "500",
+  },
+  featuredEventInfo: {
+    flex: 1,
+  },
+  featuredEventName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+    marginBottom: 6,
+    lineHeight: 22,
+  },
+  featuredEventTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  featuredEventTime: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+  featuredEventStatusText: {
+    fontSize: 14,
+    color: Constants.purpleCOLOR,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  featuredEventDescription: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.8)",
+    lineHeight: 18,
+  },
+  featuredMusicGenresContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  featuredMusicGenresText: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.9)",
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+
+  // Horizontal Events Styles
+  horizontalEventsContainer: {
+    paddingRight: 20,
+  },
+  horizontalEventCard: {
+    width: 140,
+    height: 120,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  horizontalEventPoster: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  horizontalEventOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: 8,
+  },
+  horizontalEventContent: {
+    flex: 1,
+  },
+  horizontalEventDateContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 6,
+    padding: 4,
+    alignItems: "center",
+    marginBottom: 6,
+    alignSelf: "flex-start",
+  },
+  horizontalEventDay: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+  },
+  horizontalEventMonth: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.8)",
+    fontWeight: "500",
+  },
+  horizontalEventName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 2,
+    lineHeight: 14,
+  },
+  horizontalEventTime: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.8)",
+    fontWeight: "500",
   },
 });

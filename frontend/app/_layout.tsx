@@ -26,6 +26,7 @@ import MapScreen from "./screens/MapScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import ClubDetail from "./screens/ClubDetail";
 import EventDetail from "./screens/EventDetail";
+import GuestlistForm from "./screens/GuestlistForm";
 import UserProfileScreen from "./screens/UserProfileScreen";
 import FriendsList from "./screens/FriendsList";
 import AuthScreen from "./screens/AuthScreen";
@@ -56,6 +57,7 @@ function HomeStackScreen() {
       <HomeStack.Screen name="HomeMain" component={HomeScreen} />
       <HomeStack.Screen name="ClubDetail" component={ClubDetail} />
       <HomeStack.Screen name="EventDetail" component={EventDetail} />
+      <HomeStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <HomeStack.Screen name="UserProfile" component={UserProfileScreen} />
     </HomeStack.Navigator>
   );
@@ -67,6 +69,7 @@ function ExploreStackScreen() {
       <ExploreStack.Screen name="ExploreMain" component={ExploreScreen} />
       <ExploreStack.Screen name="ClubDetail" component={ClubDetail} />
       <ExploreStack.Screen name="EventDetail" component={EventDetail} />
+      <ExploreStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <ExploreStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ExploreStack.Screen name="FriendsList" component={FriendsList} />
     </ExploreStack.Navigator>
@@ -78,6 +81,8 @@ function MapStackScreen() {
     <MapStack.Navigator screenOptions={{ headerShown: false }}>
       <MapStack.Screen name="MapMain" component={MapScreen} />
       <MapStack.Screen name="ClubDetail" component={ClubDetail} />
+      <MapStack.Screen name="EventDetail" component={EventDetail} />
+      <MapStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <MapStack.Screen name="UserProfile" component={UserProfileScreen} />
     </MapStack.Navigator>
   );
@@ -90,6 +95,8 @@ function ProfileStackScreen() {
       <ProfileStack.Screen name="ProfileSettings" component={ProfileSettings} />
       <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ProfileStack.Screen name="ClubDetail" component={ClubDetail} />
+      <ProfileStack.Screen name="EventDetail" component={EventDetail} />
+      <ProfileStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <ProfileStack.Screen name="FriendsList" component={FriendsList} />
     </ProfileStack.Navigator>
   );

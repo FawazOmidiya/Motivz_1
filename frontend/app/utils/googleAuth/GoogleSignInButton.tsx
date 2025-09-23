@@ -86,7 +86,14 @@ export default function GoogleSignInButton({
       color={GoogleSigninButton.Color.Light}
       onPress={handleGoogleSignIn}
       disabled={loading}
-      style={{ marginBottom: 24, alignSelf: "center" }}
+      style={{
+        marginBottom: 24,
+        alignSelf: "center",
+        height: 64,
+        width: "100%",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
     />
   );
 }

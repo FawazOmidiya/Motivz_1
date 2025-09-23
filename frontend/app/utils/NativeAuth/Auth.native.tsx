@@ -23,7 +23,13 @@ export function Auth({ onSuccess, onError }: NativeAuthProps) {
           AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE
         }
         cornerRadius={5}
-        style={{ width: 200, height: 64 }}
+        style={{
+          width: "100%",
+          height: 64,
+          alignSelf: "center",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
         onPress={async () => {
           try {
             console.log("=== Apple Sign In Started ===");

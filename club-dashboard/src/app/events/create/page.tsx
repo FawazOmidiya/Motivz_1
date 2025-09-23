@@ -30,6 +30,7 @@ import { CalendarIcon, ArrowLeft, Music, AlertTriangle } from "lucide-react";
 import { format, isAfter, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
+import { RecurringConfig } from "../../../../shared-types/recurring-events";
 import { useAuth } from "@/contexts/AuthContext";
 
 import Link from "next/link";
@@ -63,6 +64,16 @@ export default function CreateEventPage() {
     start_date: "",
     end_date: "",
     music_genres: [],
+  });
+
+  // Recurring event state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringConfig, setRecurringConfig] = useState<RecurringConfig>({
+    active: true,
+    frequency: 'weekly',
+    days_of_week: [],
+    end_date: undefined,
+    max_occurrences: 12,
   });
 
   const MUSIC_GENRES = [
@@ -249,6 +260,16 @@ export default function CreateEventPage() {
       return overlapError;
     }
 
+    // Validate recurring event settings
+    if (isRecurring) {
+      if (recurringConfig.frequency === 'weekly' && recurringConfig.days_of_week.length === 0) {
+        return "Please select at least one day of the week for weekly recurring events";
+      }
+      if (recurringConfig.max_occurrences < 1 || recurringConfig.max_occurrences > 100) {
+        return "Maximum occurrences must be between 1 and 100";
+      }
+    }
+
     return null;
   };
 
@@ -291,6 +312,7 @@ export default function CreateEventPage() {
             ? formData.music_genres
             : null,
         created_by: null, // Set to null for now since we don't have user authentication
+        recurring_config: isRecurring ? recurringConfig : null,
       };
 
       const { error } = await supabase.from("events").insert(eventData);
@@ -459,6 +481,123 @@ export default function CreateEventPage() {
                           {genre}
                         </Badge>
                       ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Recurring Event Section */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isRecurring}
+                      onChange={(e) => setIsRecurring(e.target.checked)}
+                      className="rounded"
+                    />
+                    Make this a recurring event
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Create multiple instances of this event automatically
+                  </p>
+                </div>
+
+                {isRecurring && (
+                  <div className="p-4 bg-blue-50 rounded-lg space-y-4">
+                    <div className="space-y-2">
+                      <Label>Recurrence Frequency</Label>
+                      <Select
+                        value={recurringConfig.frequency}
+                        onValueChange={(value: 'weekly' | 'monthly' | 'daily') =>
+                          setRecurringConfig({ ...recurringConfig, frequency: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {recurringConfig.frequency === 'weekly' && (
+                      <div className="space-y-2">
+                        <Label>Days of the Week</Label>
+                        <div className="grid grid-cols-7 gap-2">
+                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                            <Button
+                              key={day}
+                              type="button"
+                              variant={recurringConfig.days_of_week.includes(index) ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                const newDays = recurringConfig.days_of_week.includes(index)
+                                  ? recurringConfig.days_of_week.filter(d => d !== index)
+                                  : [...recurringConfig.days_of_week, index];
+                                setRecurringConfig({ ...recurringConfig, days_of_week: newDays });
+                              }}
+                              className="text-xs"
+                            >
+                              {day}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>End Date (Optional)</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {recurringConfig.end_date ? format(new Date(recurringConfig.end_date), "PPP") : "No end date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={recurringConfig.end_date ? new Date(recurringConfig.end_date) : undefined}
+                              onSelect={(date) => setRecurringConfig({ 
+                                ...recurringConfig, 
+                                end_date: date ? date.toISOString() : undefined 
+                              })}
+                              initialFocus
+                              disabled={(date) => date < new Date()}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Maximum Occurrences</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={recurringConfig.max_occurrences}
+                          onChange={(e) => setRecurringConfig({ 
+                            ...recurringConfig, 
+                            max_occurrences: parseInt(e.target.value) || 12 
+                          })}
+                          placeholder="12"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-blue-100 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> Recurring events will be automatically generated based on your settings. 
+                        You can manage and edit individual instances from the events list.
+                      </p>
                     </div>
                   </div>
                 )}

@@ -89,6 +89,29 @@ export const fetchSingleClub = async (clubId: string): Promise<types.Club> => {
   }
 };
 
+export const fetchRecentClubReviews = async (clubId: string) => {
+  try {
+    // Calculate timestamp for 5 hours ago
+    const fiveHoursAgo = new Date(
+      Date.now() - 5 * 60 * 60 * 1000
+    ).toISOString();
+
+    const { data, error } = await supabase
+      .from("club_reviews")
+      .select("rating, created_at")
+      .eq("club_id", clubId)
+      .gte("created_at", fiveHoursAgo);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching recent reviews:", error);
+    return [];
+  }
+};
+
 export const searchClubsByName = async (ClubName: string) => {
   /**
    * Searches for clubs in the "clubs" table with a Name similar to the provided input.
@@ -118,7 +141,8 @@ export async function fetchEventsByClub(
   const { data, error } = await supabase
     .from("events")
     .select("*")
-    .eq("club_id", clubId);
+    .eq("club_id", clubId)
+    .order("start_date", { ascending: true });
 
   if (error) {
     console.error("Error fetching events:", error);
@@ -345,6 +369,41 @@ export async function sendFriendRequest(
       status: "pending",
     },
   ]);
+
+  // If friend request was sent successfully, send notification to the receiver
+  if (!error && data) {
+    try {
+      // Get the requester's name for the notification
+      const { data: requesterProfile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, username")
+        .eq("id", currentUserId)
+        .single();
+
+      const requesterName = requesterProfile
+        ? `${requesterProfile.first_name} ${requesterProfile.last_name}`
+        : "Someone";
+
+      // Send notification to the receiver
+      await sendNotificationToUser(
+        targetUserId,
+        "New Friend Request",
+        `${requesterName} sent you a friend request!`,
+        {
+          type: "friend_request",
+          requester_id: currentUserId,
+          action: "view_requests",
+        }
+      );
+    } catch (notificationError) {
+      console.error(
+        "Error sending friend request notification:",
+        notificationError
+      );
+      // Don't fail the friend request if notification fails
+    }
+  }
+
   return { data, error };
 }
 
@@ -403,6 +462,41 @@ export async function acceptFriendRequest(
     .from("friendships")
     .update({ status: "friends" })
     .match({ requester_id: targetUserId, receiver_id: currentUserId });
+
+  // If friend request was accepted successfully, send notification to the requester
+  if (!error && data) {
+    try {
+      // Get the accepter's name for the notification
+      const { data: accepterProfile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, username")
+        .eq("id", currentUserId)
+        .single();
+
+      const accepterName = accepterProfile
+        ? `${accepterProfile.first_name} ${accepterProfile.last_name}`
+        : "Someone";
+
+      // Send notification to the requester
+      await sendNotificationToUser(
+        targetUserId,
+        "Friend Request Accepted",
+        `${accepterName} accepted your friend request!`,
+        {
+          type: "friend_request_accepted",
+          accepter_id: currentUserId,
+          action: "view_profile",
+        }
+      );
+    } catch (notificationError) {
+      console.error(
+        "Error sending friend request accepted notification:",
+        notificationError
+      );
+      // Don't fail the friend request acceptance if notification fails
+    }
+  }
+
   return { data, error };
 }
 
@@ -888,6 +982,124 @@ export async function fetchPendingFriendRequests(
 }
 
 /**
+ * Fetch pending friend requests count for a user (optimized for badge display)
+ */
+export async function fetchPendingFriendRequestsCount(
+  userId: string
+): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from("friendships")
+      .select("*", { count: "exact", head: true })
+      .eq("receiver_id", userId)
+      .eq("status", "pending");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error("Error fetching pending friend requests count:", error);
+    return 0;
+  }
+}
+
+/**
+ * Store user's push token in the database
+ */
+export async function storeUserPushToken(
+  userId: string,
+  pushToken: string
+): Promise<{ data: any; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({ push_token: pushToken })
+      .eq("id", userId);
+
+    return { data, error };
+  } catch (error) {
+    console.error("Error storing push token:", error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Get user's push token from the database
+ */
+export async function getUserPushToken(userId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("push_token")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching push token:", error);
+      return null;
+    }
+
+    return data?.push_token || null;
+  } catch (error) {
+    console.error("Error fetching push token:", error);
+    return null;
+  }
+}
+
+/**
+ * Send notification to a user by their ID
+ */
+export async function sendNotificationToUser(
+  userId: string,
+  title: string,
+  body: string,
+  data?: any
+): Promise<boolean> {
+  try {
+    const pushToken = await getUserPushToken(userId);
+
+    if (!pushToken) {
+      console.log(`No push token found for user ${userId}`);
+      return false;
+    }
+
+    const message = {
+      to: pushToken,
+      sound: "default",
+      title: title,
+      body: body,
+      data: data || {},
+    };
+
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(message),
+    });
+
+    if (response.ok) {
+      console.log(`Notification sent successfully to user ${userId}`);
+      return true;
+    } else {
+      console.error(
+        `Failed to send notification to user ${userId}:`,
+        response.status
+      );
+      return false;
+    }
+  } catch (error) {
+    console.error("Error sending notification:", error);
+    return false;
+  }
+}
+
+/**
  * Calculates the next closing time for a club based on its operating hours
  */
 function calculateClubClosingTime(
@@ -1327,3 +1539,419 @@ export async function deleteUserAccount(userId: string): Promise<boolean> {
     throw error;
   }
 }
+
+/**
+ * Load live ratings for multiple clubs efficiently using a single query
+ * @param clubs Array of club objects with id and rating properties
+ * @returns Promise that resolves when all live ratings are loaded
+ */
+export const loadLiveRatingsForClubs = async (clubs: any[]) => {
+  try {
+    if (clubs.length === 0) return;
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    // Get all club IDs that are currently open
+    const openClubIds = [];
+    const clubRatings = new Map(); // Store base ratings
+
+    for (const club of clubs) {
+      clubRatings.set(club.id, club.rating);
+
+      // Check if club is currently open
+      if (club.hours?.periods) {
+        for (const period of club.hours.periods) {
+          const openAbs =
+            period.open.day * 1440 + period.open.hour * 60 + period.open.minute;
+          const closeAbs =
+            period.close.day * 1440 +
+            period.close.hour * 60 +
+            period.close.minute;
+
+          let adjustedCloseAbs = closeAbs;
+          if (closeAbs <= openAbs) {
+            adjustedCloseAbs += 7 * 1440;
+          }
+
+          let currentAbs = currentDay * 1440 + currentTime;
+          if (currentAbs < openAbs) {
+            currentAbs += 7 * 1440;
+          }
+
+          if (currentAbs >= openAbs && currentAbs < adjustedCloseAbs) {
+            openClubIds.push(club.id);
+            break;
+          }
+        }
+      }
+    }
+
+    if (openClubIds.length === 0) return;
+
+    // Calculate the earliest open time for any club (5 hours ago as fallback)
+    const fiveHoursAgo = new Date(
+      Date.now() - 5 * 60 * 60 * 1000
+    ).toISOString();
+
+    // Fetch all reviews for open clubs since the earliest open time
+    const { data: allReviews, error } = await supabase
+      .from("club_reviews")
+      .select("club_id, rating, created_at")
+      .in("club_id", openClubIds)
+      .gte("created_at", fiveHoursAgo);
+
+    if (error) {
+      console.error("Error fetching live ratings:", error);
+      return;
+    }
+
+    // Group reviews by club_id
+    const reviewsByClub = new Map();
+    allReviews?.forEach((review) => {
+      if (!reviewsByClub.has(review.club_id)) {
+        reviewsByClub.set(review.club_id, []);
+      }
+      reviewsByClub.get(review.club_id).push(review);
+    });
+
+    // Calculate live ratings for each club
+    const liveRatings = new Map();
+    for (const clubId of openClubIds) {
+      const reviews = reviewsByClub.get(clubId) || [];
+      const baseRating = clubRatings.get(clubId);
+
+      if (reviews.length > 0) {
+        const baseRatingWeight = 10;
+        const baseRatingTotal = baseRating * baseRatingWeight;
+        const reviewTotal = reviews.reduce(
+          (sum: number, review: any) => sum + review.rating,
+          0
+        );
+        const totalWeight = baseRatingWeight + reviews.length;
+        const weightedAverage = (baseRatingTotal + reviewTotal) / totalWeight;
+        liveRatings.set(clubId, Number(weightedAverage.toFixed(2)));
+      } else {
+        liveRatings.set(clubId, baseRating);
+      }
+    }
+
+    // Update club objects with live ratings
+    for (const club of clubs) {
+      if (liveRatings.has(club.id)) {
+        club._live_rating = liveRatings.get(club.id);
+      }
+    }
+  } catch (error) {
+    console.error("Error loading live ratings:", error);
+  }
+};
+
+/**
+ * Calculate trending clubs based on recent reviews and ratings (last 5 hours)
+ * Optimized to use a single query instead of N+1 queries
+ */
+export const calculateTrendingClubs = async (clubs: any[]) => {
+  try {
+    if (clubs.length === 0) return [];
+
+    // Calculate timestamp for 5 hours ago
+    const fiveHoursAgo = new Date(
+      Date.now() - 5 * 60 * 60 * 1000
+    ).toISOString();
+
+    // Get all club IDs
+    const clubIds = clubs.map((club) => club.id);
+
+    // Fetch all recent reviews for all clubs in a single query
+    const { data: allRecentReviews, error } = await supabase
+      .from("club_reviews")
+      .select("club_id, rating, created_at")
+      .in("club_id", clubIds)
+      .gte("created_at", fiveHoursAgo);
+
+    if (error) {
+      console.error("Error fetching recent reviews:", error);
+      return [];
+    }
+
+    // Group reviews by club_id
+    const reviewsByClub = new Map();
+    allRecentReviews?.forEach((review) => {
+      if (!reviewsByClub.has(review.club_id)) {
+        reviewsByClub.set(review.club_id, []);
+      }
+      reviewsByClub.get(review.club_id).push(review);
+    });
+
+    const trendingClubs = [];
+
+    for (const club of clubs) {
+      const recentReviews = reviewsByClub.get(club.id) || [];
+
+      if (recentReviews.length >= 3) {
+        // Minimum 3 reviews in last 5 hours
+        // Calculate average rating
+        const totalRating = recentReviews.reduce(
+          (sum: number, review: any) => sum + review.rating,
+          0
+        );
+        const avgRating = totalRating / recentReviews.length;
+
+        if (avgRating >= 3.5) {
+          // Minimum 3.5 average rating
+          const trendingScore = recentReviews.length * avgRating;
+
+          trendingClubs.push({
+            ...club,
+            trending_score: trendingScore,
+            recent_reviews_count: recentReviews.length,
+            avg_rating: Math.round(avgRating * 10) / 10, // Round to 1 decimal
+            is_trending: true,
+          });
+        }
+      }
+    }
+
+    // Sort by trending score (reviews count * average rating)
+    trendingClubs.sort((a, b) => b.trending_score - a.trending_score);
+
+    return trendingClubs;
+  } catch (error) {
+    console.error("Error calculating trending clubs:", error);
+    return [];
+  }
+};
+
+// Analytics functions
+export const trackEventClick = async (
+  eventId: string,
+  userId: string,
+  clickType: "view" | "share" | "ticket_purchase" | "guestlist_request",
+  sourceScreen: string,
+  metadata?: any
+) => {
+  try {
+    const { error } = await supabase.from("event_analytics").insert({
+      event_id: eventId,
+      user_id: userId,
+      click_type: clickType,
+      source_screen: sourceScreen,
+      metadata: metadata || {},
+    });
+
+    if (error) {
+      console.error("Error tracking event click:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error tracking event click:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+export const getEventAnalytics = async (eventId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from("event_analytics")
+      .select("*")
+      .eq("event_id", eventId);
+
+    if (error) {
+      console.error("Error fetching event analytics:", error);
+      return { data: null, error: error.message };
+    }
+
+    // Process analytics data
+    const analytics = {
+      total_views:
+        data?.filter((click) => click.click_type === "view").length || 0,
+      total_shares:
+        data?.filter((click) => click.click_type === "share").length || 0,
+      total_ticket_purchases:
+        data?.filter((click) => click.click_type === "ticket_purchase")
+          .length || 0,
+      total_guestlist_requests:
+        data?.filter((click) => click.click_type === "guestlist_request")
+          .length || 0,
+      unique_users: new Set(data?.map((click) => click.user_id) || []).size,
+      recent_activity: data?.slice(-10) || [],
+    };
+
+    return { data: analytics };
+  } catch (error) {
+    console.error("Error fetching event analytics:", error);
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+// Event attendance functions
+export const addUserToEventAttendees = async (
+  eventId: string,
+  userId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // First get the current attendees
+    const { data: eventData, error: fetchError } = await supabase
+      .from("events")
+      .select("attendees")
+      .eq("id", eventId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching event attendees:", fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    const currentAttendees = eventData?.attendees || [];
+
+    // Check if user is already attending
+    if (currentAttendees.includes(userId)) {
+      return { success: true }; // Already attending
+    }
+
+    // Add user to attendees list
+    const updatedAttendees = [...currentAttendees, userId];
+
+    const { error: updateError } = await supabase
+      .from("events")
+      .update({ attendees: updatedAttendees })
+      .eq("id", eventId);
+
+    if (updateError) {
+      console.error("Error adding user to event attendees:", updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error adding user to event attendees:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+export const removeUserFromEventAttendees = async (
+  eventId: string,
+  userId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // First get the current attendees
+    const { data: eventData, error: fetchError } = await supabase
+      .from("events")
+      .select("attendees")
+      .eq("id", eventId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching event attendees:", fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    const currentAttendees = eventData?.attendees || [];
+
+    // Remove user from attendees list
+    const updatedAttendees = currentAttendees.filter(
+      (id: string) => id !== userId
+    );
+
+    const { error: updateError } = await supabase
+      .from("events")
+      .update({ attendees: updatedAttendees })
+      .eq("id", eventId);
+
+    if (updateError) {
+      console.error("Error removing user from event attendees:", updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error removing user from event attendees:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+export const fetchFriendsAttendingEvent = async (
+  eventId: string,
+  userId: string
+): Promise<{ id: string; avatar_url: string | null }[]> => {
+  try {
+    // Get the event attendees
+    const { data: eventData, error: eventError } = await supabase
+      .from("events")
+      .select("attendees")
+      .eq("id", eventId)
+      .single();
+
+    if (eventError || !eventData?.attendees) {
+      return [];
+    }
+
+    // Get user's friends
+    const friends = await fetchUserFriends(userId);
+    const friendIds = friends.map((friend) => friend.id);
+
+    // Filter attendees to only include friends
+    const friendsAttending = eventData.attendees.filter((attendeeId: string) =>
+      friendIds.includes(attendeeId)
+    );
+
+    // Get friend profiles for those attending
+    const { data: friendProfiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, avatar_url")
+      .in("id", friendsAttending);
+
+    if (profilesError) {
+      console.error("Error fetching friend profiles:", profilesError);
+      return [];
+    }
+
+    return (
+      friendProfiles?.map((profile) => ({
+        id: profile.id,
+        avatar_url: profile.avatar_url,
+      })) || []
+    );
+  } catch (error) {
+    console.error("Error fetching friends attending event:", error);
+    return [];
+  }
+};
+
+export const isUserAttendingEvent = async (
+  eventId: string,
+  userId: string
+): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select("attendees")
+      .eq("id", eventId)
+      .single();
+
+    if (error || !data?.attendees) {
+      return false;
+    }
+
+    return data.attendees.includes(userId);
+  } catch (error) {
+    console.error("Error checking if user is attending event:", error);
+    return false;
+  }
+};
