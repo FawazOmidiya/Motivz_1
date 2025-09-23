@@ -1,4 +1,4 @@
-import { RecurringConfig } from '../../../shared-types/recurring-events';
+import { RecurringConfig } from "../../../shared-types/recurring-events";
 
 export interface Event {
   id: string;
@@ -7,6 +7,7 @@ export interface Event {
   caption?: string;
   poster_url?: string;
   ticket_link?: string;
+  guestlist_available?: boolean;
   start_date: string;
   end_date: string;
   music_genres?: string[];
@@ -29,8 +30,10 @@ export interface CreateEventData {
   caption?: string;
   poster_url?: string;
   ticket_link?: string;
+  guestlist_available?: boolean;
   start_date: string;
   end_date: string;
   music_genres?: string[];
   recurring_config?: RecurringConfig;
+  club_id?: string;
 }

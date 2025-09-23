@@ -1,0 +1,21 @@
+// Music genres used throughout the club dashboard
+export const MUSIC_GENRES = [
+  "HipHop",
+  "Pop",
+  "Soul",
+  "Rap",
+  "House",
+  "Latin",
+  "EDM",
+  "Jazz",
+  "Country",
+  "Blues",
+  "DanceHall",
+  "Afrobeats",
+  "Top 40",
+  "Amapiano",
+  "90's",
+  "2000's",
+  "2010's",
+  "R&B",
+];

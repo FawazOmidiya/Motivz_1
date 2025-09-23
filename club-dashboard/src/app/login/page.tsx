@@ -30,8 +30,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // For now, we'll use email as club ID since we haven't implemented email-based login yet
-      // In a full implementation, you'd query by email first to get the club ID
+      // Regular club login
       const success = await login(email, password);
 
       if (success) {

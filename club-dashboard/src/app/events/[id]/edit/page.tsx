@@ -31,7 +31,9 @@ import { format, isAfter, parseISO } from "date-fns";
 
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
+import { RecurringConfig } from "../../../../../shared-types/recurring-events";
 import { useAuth } from "@/contexts/AuthContext";
+import RecurringEventConfig from "@/components/RecurringEventConfig";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
@@ -63,9 +65,20 @@ export default function EditEventPage() {
     caption: "",
     poster_url: "",
     ticket_link: "",
+    guestlist_available: false,
     start_date: "",
     end_date: "",
     music_genres: [],
+  });
+
+  // Recurring event state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringConfig, setRecurringConfig] = useState<RecurringConfig>({
+    active: true,
+    frequency: "weekly",
+    days_of_week: [],
+    end_date: undefined,
+    max_occurrences: 12,
   });
 
   const MUSIC_GENRES = [
@@ -125,6 +138,7 @@ export default function EditEventPage() {
           caption: event.caption || "",
           poster_url: event.poster_url || "",
           ticket_link: event.ticket_link || "",
+          guestlist_available: event.guestlist_available || false,
           start_date: event.start_date,
           end_date: event.end_date,
           music_genres: event.music_genres || [],
@@ -138,6 +152,12 @@ export default function EditEventPage() {
         setEndDate(endDateTime);
         setStartTime(format(startDateTime, "HH:mm"));
         setEndTime(format(endDateTime, "HH:mm"));
+
+        // Load recurring config if it exists
+        if (event.recurring_config) {
+          setIsRecurring(true);
+          setRecurringConfig(event.recurring_config);
+        }
       }
     } catch (error) {
       console.error("Error fetching event:", error);
@@ -299,6 +319,23 @@ export default function EditEventPage() {
       return overlapError;
     }
 
+    // Validate recurring event settings
+    if (isRecurring) {
+      if (
+        recurringConfig.frequency === "weekly" &&
+        (!recurringConfig.days_of_week ||
+          recurringConfig.days_of_week.length === 0)
+      ) {
+        return "Please select at least one day of the week for weekly recurring events";
+      }
+      if (
+        (recurringConfig.max_occurrences || 12) < 1 ||
+        (recurringConfig.max_occurrences || 12) > 100
+      ) {
+        return "Maximum occurrences must be between 1 and 100";
+      }
+    }
+
     return null;
   };
 
@@ -322,12 +359,14 @@ export default function EditEventPage() {
         caption: formData.caption || null,
         poster_url: formData.poster_url || null,
         ticket_link: formData.ticket_link || null,
+        guestlist_available: formData.guestlist_available || false,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
         music_genres:
           formData.music_genres && formData.music_genres.length > 0
             ? formData.music_genres
             : null,
+        recurring_config: isRecurring ? recurringConfig : null,
       };
 
       const { error } = await supabase
@@ -510,6 +549,14 @@ export default function EditEventPage() {
                   </div>
                 )}
               </div>
+
+              {/* Recurring Event Section */}
+              <RecurringEventConfig
+                isRecurring={isRecurring}
+                onRecurringChange={setIsRecurring}
+                recurringConfig={recurringConfig}
+                onConfigChange={setRecurringConfig}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
