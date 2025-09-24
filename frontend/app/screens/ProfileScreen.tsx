@@ -22,6 +22,7 @@ import {
   useNotifications,
   testLocalNotification,
 } from "../utils/notificationService";
+import { useTutorial } from "../contexts/TutorialContext";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
@@ -29,6 +30,9 @@ import {
   fetchUserFavourites,
   fetchUserProfile,
   fetchSingleClub,
+  fetchPendingFriendRequestsCount,
+  storeUserPushToken,
+  sendFriendRequest,
   supabase,
 } from "../utils/supabaseService";
 import FavouriteClub from "@/components/ClubFavourite";
@@ -183,16 +187,37 @@ export default function Account() {
   const [activeClub, setActiveClub] = useState<types.Club | null>(null);
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [posts, setPosts] = useState<types.Post[]>([]);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const { expoPushToken, notification, sendNotification } = useNotifications();
 
-  // Log the push token for debugging
+  // Store push token when available
   useEffect(() => {
-    if (expoPushToken) {
-      console.log("Push token available in ProfileScreen:", expoPushToken);
+    console.log("🔔 Push Token Status:", {
+      hasToken: !!expoPushToken,
+      token: expoPushToken,
+      hasError: expoPushToken?.includes("error"),
+      userId: session?.user?.id,
+    });
+
+    if (
+      expoPushToken &&
+      session?.user?.id &&
+      !expoPushToken.includes("error")
+    ) {
+      console.log("✅ Storing push token for user:", session.user.id);
+      storeUserPushToken(session.user.id, expoPushToken);
+    } else {
+      console.log("❌ Cannot store push token:", {
+        reason: !expoPushToken
+          ? "No token"
+          : expoPushToken.includes("error")
+          ? "Token has error"
+          : "No user ID",
+      });
     }
-  }, [expoPushToken]);
+  }, [expoPushToken, session?.user?.id]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [pickedAsset, setPickedAsset] = useState<any>(null);
   const [pickedAssetType, setPickedAssetType] = useState<"photo" | "video">(
@@ -212,6 +237,7 @@ export default function Account() {
     if (session) {
       getProfile();
       getFavourites();
+      getPendingRequestsCount();
     }
   }, [session]);
 
@@ -259,10 +285,24 @@ export default function Account() {
     }
   }
 
+  // Fetch pending friend requests count only
+  async function getPendingRequestsCount() {
+    try {
+      if (!session?.user) return;
+
+      const count = await fetchPendingFriendRequestsCount(session.user.id);
+      setPendingRequestsCount(count);
+    } catch (error) {
+      console.error("Error fetching pending friend requests count:", error);
+      setPendingRequestsCount(0);
+    }
+  }
+
   async function handleRefresh() {
     setRefreshing(true);
     await getProfile();
     await getFavourites();
+    await getPendingRequestsCount();
     setRefreshing(false);
   }
 
@@ -508,18 +548,29 @@ export default function Account() {
             </View>
             <View style={styles.buttonsRow}>
               {profile?.id && (
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() =>
-                    navigation.navigate("FriendsList", { userId: profile.id })
-                  }
-                >
-                  <Ionicons
-                    name="people-outline"
-                    size={24}
-                    color={Constants.whiteCOLOR}
-                  />
-                </TouchableOpacity>
+                <View style={styles.iconButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() =>
+                      navigation.navigate("FriendsList", { userId: profile.id })
+                    }
+                  >
+                    <Ionicons
+                      name="people-outline"
+                      size={24}
+                      color={Constants.whiteCOLOR}
+                    />
+                  </TouchableOpacity>
+                  {pendingRequestsCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {pendingRequestsCount > 99
+                          ? "99+"
+                          : pendingRequestsCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               )}
               <TouchableOpacity
                 style={styles.iconButton}
@@ -601,16 +652,18 @@ export default function Account() {
       {/* {session?.user.id === profile?.id && (
         <View style={{ alignItems: "center", marginVertical: 16 }}>
           <Button
-            title="Capture a Moment"
+            mode="contained"
             onPress={handleCaptureMoment}
-            buttonStyle={{
+            style={{
               backgroundColor: Constants.purpleCOLOR,
               borderRadius: 24,
               paddingHorizontal: 32,
               paddingVertical: 12,
             }}
-            titleStyle={{ fontWeight: "bold", fontSize: 18 }}
-          />
+            labelStyle={{ fontWeight: "bold", fontSize: 18 }}
+          >
+            Capture a Moment
+          </Button>
         </View>
       )} */}
     </View>
@@ -814,6 +867,14 @@ export default function Account() {
         //   </Text>
         // }
         contentContainerStyle={styles.gridList}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#fff"
+            colors={[Constants.purpleCOLOR]}
+          />
+        }
       />
       <Modal
         visible={mediaModalVisible}
@@ -952,6 +1013,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
+  iconButtonContainer: {
+    position: "relative",
+  },
   iconButton: {
     width: 40,
     height: 40,
@@ -959,6 +1023,23 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  badge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    backgroundColor: Constants.purpleCOLOR,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 12,
+    fontWeight: "bold",
   },
   sectionTitle: {
     fontSize: 24,

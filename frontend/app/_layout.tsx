@@ -18,6 +18,9 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { SessionProvider } from "@/components/SessionContext";
+import TutorialProvider from "./contexts/TutorialContext";
+import TutorialWrapper from "./components/TutorialWrapper";
+import TutorialTrigger from "./components/TutorialTrigger";
 import { PaperProvider } from "react-native-paper";
 import { configureGoogleSignIn } from "./utils/googleAuth/googleSignInService";
 import HomeScreen from "./screens/HomeScreen";
@@ -25,6 +28,8 @@ import ExploreScreen from "./screens/ExploreScreen";
 import MapScreen from "./screens/MapScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import ClubDetail from "./screens/ClubDetail";
+import EventDetail from "./screens/EventDetail";
+import GuestlistForm from "./screens/GuestlistForm";
 import UserProfileScreen from "./screens/UserProfileScreen";
 import FriendsList from "./screens/FriendsList";
 import AuthScreen from "./screens/AuthScreen";
@@ -54,6 +59,8 @@ function HomeStackScreen() {
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="HomeMain" component={HomeScreen} />
       <HomeStack.Screen name="ClubDetail" component={ClubDetail} />
+      <HomeStack.Screen name="EventDetail" component={EventDetail} />
+      <HomeStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <HomeStack.Screen name="UserProfile" component={UserProfileScreen} />
     </HomeStack.Navigator>
   );
@@ -64,6 +71,8 @@ function ExploreStackScreen() {
     <ExploreStack.Navigator screenOptions={{ headerShown: false }}>
       <ExploreStack.Screen name="ExploreMain" component={ExploreScreen} />
       <ExploreStack.Screen name="ClubDetail" component={ClubDetail} />
+      <ExploreStack.Screen name="EventDetail" component={EventDetail} />
+      <ExploreStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <ExploreStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ExploreStack.Screen name="FriendsList" component={FriendsList} />
     </ExploreStack.Navigator>
@@ -75,6 +84,8 @@ function MapStackScreen() {
     <MapStack.Navigator screenOptions={{ headerShown: false }}>
       <MapStack.Screen name="MapMain" component={MapScreen} />
       <MapStack.Screen name="ClubDetail" component={ClubDetail} />
+      <MapStack.Screen name="EventDetail" component={EventDetail} />
+      <MapStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <MapStack.Screen name="UserProfile" component={UserProfileScreen} />
     </MapStack.Navigator>
   );
@@ -87,6 +98,8 @@ function ProfileStackScreen() {
       <ProfileStack.Screen name="ProfileSettings" component={ProfileSettings} />
       <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ProfileStack.Screen name="ClubDetail" component={ClubDetail} />
+      <ProfileStack.Screen name="EventDetail" component={EventDetail} />
+      <ProfileStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <ProfileStack.Screen name="FriendsList" component={FriendsList} />
     </ProfileStack.Navigator>
   );
@@ -170,10 +183,16 @@ export default function RootLayout() {
     <>
       {session && session.user && profileComplete === true ? (
         <SessionProvider>
-          <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle="light-content" />
-            <MainTabs />
-          </SafeAreaView>
+          <TutorialProvider>
+            <TutorialWrapper>
+              <TutorialTrigger>
+                <SafeAreaView style={styles.safeArea}>
+                  <StatusBar barStyle="light-content" />
+                  <MainTabs />
+                </SafeAreaView>
+              </TutorialTrigger>
+            </TutorialWrapper>
+          </TutorialProvider>
         </SessionProvider>
       ) : (
         <SafeAreaView style={styles.safeArea}>

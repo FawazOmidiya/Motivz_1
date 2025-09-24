@@ -12,6 +12,8 @@ export class Club {
   private _address: string;
   private _live_rating: number; // Always a number
   private _instagram_handle: string | null;
+  private _latitude: number;
+  private _longitude: number;
   // Trending properties
   private _isTrending: boolean | null = null;
   private _trendingScore: number = 0;
@@ -30,6 +32,8 @@ export class Club {
     this._live_rating =
       typeof data.live_rating === "number" ? data.live_rating : data.Rating;
     this._instagram_handle = data.instagram_handle || null;
+    this._latitude = data.latitude;
+    this._longitude = data.longitude;
     // live_rating will be set asynchronously
   }
 
@@ -61,7 +65,15 @@ export class Club {
   get instagram_handle(): string | null {
     return this._instagram_handle;
   }
-
+  get address(): string {
+    return this._address;
+  }
+  get latitude(): number {
+    return this._latitude;
+  }
+  get longitude(): number {
+    return this._longitude;
+  }
   // Trending getters
   get isTrending(): boolean | null {
     return this._isTrending;
@@ -186,8 +198,8 @@ export class Club {
       Image: this._image,
       Rating: this._rating,
       hours: this._hours || undefined,
-      latitude: 0,
-      longitude: 0,
+      latitude: this._latitude,
+      longitude: this._longitude,
       Address: this._address,
       live_rating: this._live_rating,
       instagram_handle: this._instagram_handle,

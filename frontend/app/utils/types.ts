@@ -1,4 +1,5 @@
 // types.ts
+import { RecurringConfig } from "../../../shared-types/recurring-events";
 
 export type Club = {
   id: string;
@@ -23,6 +24,7 @@ export type UserProfile = {
   avatar_url?: string | null;
   active_club_id?: string | null;
   active_club_closed?: string | null; // ISO datetime string when the club closes
+  push_token?: string | null; // Expo push token for notifications
   // add any additional fields you need
 };
 
@@ -198,9 +200,17 @@ export interface Event {
   title: string;
   caption?: string;
   poster_url?: string;
+  ticket_link?: string;
+  guestlist_available?: boolean;
   start_date: string;
   end_date: string;
   music_genres?: string[];
+  attendees?: string[]; // Array of user IDs attending the event
   created_at: string;
   updated_at: string;
+  recurring_config?: RecurringConfig;
+  // Trending properties
+  is_trending?: boolean;
+  has_friends_attending?: boolean;
+  friends_attending_count?: number;
 }

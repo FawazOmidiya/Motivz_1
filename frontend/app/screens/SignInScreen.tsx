@@ -78,67 +78,60 @@ export default function SignInScreen() {
         >
           {/* Logo Section */}
           <View style={styles.logoSection}>
-            <Text variant="displayLarge" style={styles.title}>
-              Motivz
-            </Text>
-            <Text variant="titleMedium" style={styles.subtitle}>
-              Your Nightlife Companion
-            </Text>
+            <Text style={styles.title}>Motivz</Text>
+            <Text style={styles.subtitle}>Your Nightlife Companion</Text>
           </View>
 
           {/* Form Section */}
           <View style={styles.formSection}>
-            <Text variant="headlineSmall" style={styles.formTitle}>
-              Welcome Back
-            </Text>
-
             <View style={styles.inputGroup}>
-              <TextInput
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={styles.input}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                textColor="#fff"
-                mode="outlined"
-                outlineColor="rgba(255,255,255,0.2)"
-                activeOutlineColor={Constants.purpleCOLOR}
-                left={
-                  <TextInput.Icon icon="email" color="rgba(255,255,255,0.7)" />
-                }
-              />
+              <View style={styles.inputContainer}>
+                <TextInput
+                  placeholder="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={styles.input}
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  textColor="#fff"
+                  mode="outlined"
+                  outlineColor="rgba(255,255,255,0.15)"
+                  activeOutlineColor={Constants.purpleCOLOR}
+                  left={
+                    <TextInput.Icon
+                      icon="email"
+                      color="rgba(255,255,255,0.6)"
+                    />
+                  }
+                />
+              </View>
 
-              <TextInput
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                style={styles.input}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                textColor="#fff"
-                mode="outlined"
-                outlineColor="rgba(255,255,255,0.2)"
-                activeOutlineColor={Constants.purpleCOLOR}
-                left={
-                  <TextInput.Icon icon="lock" color="rgba(255,255,255,0.7)" />
-                }
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? "eye-off" : "eye"}
-                    color="rgba(255,255,255,0.7)"
-                    onPress={() => setShowPassword(!showPassword)}
-                  />
-                }
-              />
+              <View style={styles.inputContainer}>
+                <TextInput
+                  placeholder="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  style={styles.input}
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  textColor="#fff"
+                  mode="outlined"
+                  outlineColor="rgba(255,255,255,0.15)"
+                  activeOutlineColor={Constants.purpleCOLOR}
+                  left={
+                    <TextInput.Icon icon="lock" color="rgba(255,255,255,0.6)" />
+                  }
+                  right={
+                    <TextInput.Icon
+                      icon={showPassword ? "eye-off" : "eye"}
+                      color="rgba(255,255,255,0.6)"
+                      onPress={() => setShowPassword(!showPassword)}
+                    />
+                  }
+                />
+              </View>
             </View>
-
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text variant="bodyMedium" style={styles.forgotPasswordText}>
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
 
             {loading ? (
               <ActivityIndicator
@@ -148,15 +141,19 @@ export default function SignInScreen() {
               />
             ) : (
               <>
-                <Button
-                  mode="contained"
-                  onPress={signInWithEmail}
+                <TouchableOpacity
                   style={styles.signInButton}
-                  labelStyle={styles.buttonText}
-                  contentStyle={styles.buttonContent}
+                  onPress={signInWithEmail}
+                  activeOpacity={0.8}
                 >
-                  Sign In
-                </Button>
+                  <Text style={styles.buttonText}>Sign In</Text>
+                </TouchableOpacity>
+
+                {/* <TouchableOpacity style={styles.forgotPassword}>
+                    <Text variant="bodyMedium" style={styles.forgotPasswordText}>
+                      Forgot Password?
+                    </Text>
+                  </TouchableOpacity> */}
 
                 <View style={styles.dividerContainer}>
                   <View style={styles.divider} />
@@ -178,21 +175,17 @@ export default function SignInScreen() {
                   }}
                 />
 
-                {/* Apple Sign In Button */}
+                {/* Native Sign In Button */}
                 <View style={styles.nativeAuthContainer}>
                   <NativeAuth />
                 </View>
 
                 <View style={styles.signUpContainer}>
-                  <Text variant="bodyMedium" style={styles.signUpText}>
-                    Don't have an account?{" "}
-                  </Text>
+                  <Text style={styles.signUpText}>Don't have an account? </Text>
                   <TouchableOpacity
                     onPress={() => navigation.navigate("SignUp")}
                   >
-                    <Text variant="bodyMedium" style={styles.signUpLink}>
-                      Sign Up
-                    </Text>
+                    <Text style={styles.signUpLink}>Sign Up</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -238,74 +231,92 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 40,
   },
   title: {
-    color: "#fff",
+    color: Constants.purpleCOLOR,
     fontWeight: "bold",
-    marginBottom: 8,
+    fontSize: 48,
     textAlign: "center",
+    letterSpacing: 2,
+    marginBottom: 8,
   },
   subtitle: {
-    color: "rgba(255,255,255,0.8)",
+    color: "rgba(255,255,255,0.7)",
     textAlign: "center",
+    fontSize: 16,
+    fontWeight: "400",
   },
   formSection: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 24,
-    padding: 32,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 28,
+    padding: 36,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  formTitle: {
-    color: "#fff",
-    fontWeight: "600",
-    marginBottom: 32,
-    textAlign: "center",
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+    marginLeft: 4,
   },
   input: {
-    marginBottom: 16,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16,
   },
   forgotPassword: {
-    alignSelf: "flex-end",
-    marginBottom: 32,
+    alignSelf: "center",
+    marginTop: 16,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
   forgotPasswordText: {
     color: Constants.purpleCOLOR,
-    fontWeight: "500",
+    fontWeight: "600",
+    fontSize: 14,
   },
   loader: {
     marginVertical: 20,
   },
   signInButton: {
     backgroundColor: Constants.purpleCOLOR,
-    borderRadius: 16,
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: Constants.purpleCOLOR,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  buttonContent: {
-    paddingVertical: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+    marginBottom: 8,
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#fff",
+    letterSpacing: 0.5,
   },
   signUpContainer: {
     flexDirection: "row",
@@ -323,27 +334,35 @@ const styles = StyleSheet.create({
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 24,
+    marginVertical: 28,
   },
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
   dividerText: {
-    color: "rgba(255,255,255,0.6)",
-    marginHorizontal: 16,
+    color: "rgba(255,255,255,0.5)",
+    marginHorizontal: 20,
+    fontSize: 14,
+    fontWeight: "500",
   },
   anonymousLinkContainer: {
     alignItems: "center",
-    marginTop: 24,
+    marginTop: 28,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
   anonymousLink: {
-    color: Constants.purpleCOLOR,
+    color: "rgba(255,255,255,0.7)",
     fontWeight: "600",
+    fontSize: 15,
   },
   nativeAuthContainer: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 28,
+    width: "100%",
   },
 });

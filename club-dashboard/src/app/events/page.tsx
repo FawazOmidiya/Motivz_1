@@ -142,6 +142,41 @@ export default function EventsPage() {
     }
   };
 
+  // const generateRecurringEvents = async () => {
+  //   if (
+  //     !confirm(
+  //       "Generate recurring events for the next 4 weeks? This will create new event instances based on your recurring event templates."
+  //     )
+  //   ) {
+  //     return;
+  //   }
+
+  //   try {
+  //     const response = await fetch("/api/recurring-events", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         weeks_ahead: 4,
+  //         dry_run: false,
+  //       }),
+  //     });
+
+  //     const result = await response.json();
+
+  //     if (!response.ok) {
+  //       throw new Error(result.error || "Failed to generate recurring events");
+  //     }
+
+  //     alert(`Successfully generated ${result.count} recurring events!`);
+  //     fetchEvents(); // Refresh the events list
+  //   } catch (error) {
+  //     console.error("Error generating recurring events:", error);
+  //     alert("Failed to generate recurring events. Please try again.");
+  //   }
+  // };
+
   const getEventStatus = (startDate: string, endDate: string) => {
     const now = new Date();
     const start = new Date(startDate);
@@ -228,13 +263,15 @@ export default function EventsPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <Link
-            href="/"
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Link>
+          <div className="flex items-center justify-between mb-4">
+            <Link
+              href="/"
+              className="flex items-center text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Link>
+          </div>
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
@@ -246,12 +283,6 @@ export default function EventsPage() {
                   : "Manage all your club events"}
               </p>
             </div>
-            <Link href="/events/create">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Event
-              </Button>
-            </Link>
           </div>
         </div>
 
@@ -307,6 +338,12 @@ export default function EventsPage() {
                           <Badge className="bg-purple-100 text-purple-800 flex items-center gap-1">
                             <Music className="h-3 w-3" />
                             Overrides Music
+                          </Badge>
+                        )}
+                        {event.recurring_config && (
+                          <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Recurring
                           </Badge>
                         )}
                         <Button

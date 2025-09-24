@@ -3,8 +3,9 @@
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import MasterAuth from "./MasterAuth";
 
 interface RouteProtectionProps {
   children: React.ReactNode;
@@ -14,20 +15,39 @@ export default function RouteProtection({ children }: RouteProtectionProps) {
   const { club, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMasterAuthenticated, setIsMasterAuthenticated] = useState(false);
+  const [checkingMasterAuth, setCheckingMasterAuth] = useState(true);
 
   const isLoginPage = pathname === "/login";
+  const isMasterPage =
+    pathname === "/master" || pathname.startsWith("/master/");
+
+  // Check master authentication on mount
+  useEffect(() => {
+    if (isMasterPage) {
+      const masterAuth = sessionStorage.getItem("master_authenticated");
+      setIsMasterAuthenticated(masterAuth === "true");
+      setCheckingMasterAuth(false);
+    }
+  }, [isMasterPage]);
 
   useEffect(() => {
     if (!isLoading) {
-      if (!club && !isLoginPage) {
+      // Handle master page authentication
+      if (isMasterPage) {
+        return; // Let the master auth logic handle this
+      }
+
+      // Regular club dashboard logic
+      if (!club && !isLoginPage && !isMasterPage) {
         router.push("/login");
       } else if (club && isLoginPage) {
         router.push("/");
       }
     }
-  }, [club, isLoading, isLoginPage, router]);
+  }, [club, isLoading, isLoginPage, isMasterPage, router]);
 
-  if (isLoading) {
+  if (isLoading || (isMasterPage && checkingMasterAuth)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -36,6 +56,16 @@ export default function RouteProtection({ children }: RouteProtectionProps) {
         </div>
       </div>
     );
+  }
+
+  // If on master page, check authentication
+  if (isMasterPage) {
+    if (!isMasterAuthenticated) {
+      return (
+        <MasterAuth onAuthenticated={() => setIsMasterAuthenticated(true)} />
+      );
+    }
+    return <>{children}</>;
   }
 
   // If on login page and not authenticated, show login
