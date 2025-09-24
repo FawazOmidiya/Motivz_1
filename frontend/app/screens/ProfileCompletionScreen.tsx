@@ -23,6 +23,7 @@ import { RootStackParamList } from "../utils/types";
 import { decode } from "base64-arraybuffer";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type ProfileCompletionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -177,6 +178,12 @@ export default function ProfileCompletionScreen() {
         if (!authData.user) throw new Error("Failed to create user account");
         userId = authData.user.id;
       }
+
+      // Mark that user just completed profile - this will trigger tutorial
+      await AsyncStorage.setItem("profile_just_completed", "true");
+      console.log(
+        "✅ ProfileCompletionScreen: Set profile_just_completed flag"
+      );
 
       // Create or update the user profile
       const { error: profileError } = await supabase.from("profiles").upsert({

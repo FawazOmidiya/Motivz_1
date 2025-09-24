@@ -18,6 +18,9 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { SessionProvider } from "@/components/SessionContext";
+import TutorialProvider from "./contexts/TutorialContext";
+import TutorialWrapper from "./components/TutorialWrapper";
+import TutorialTrigger from "./components/TutorialTrigger";
 import { PaperProvider } from "react-native-paper";
 import { configureGoogleSignIn } from "./utils/googleAuth/googleSignInService";
 import HomeScreen from "./screens/HomeScreen";
@@ -180,10 +183,16 @@ export default function RootLayout() {
     <>
       {session && session.user && profileComplete === true ? (
         <SessionProvider>
-          <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle="light-content" />
-            <MainTabs />
-          </SafeAreaView>
+          <TutorialProvider>
+            <TutorialWrapper>
+              <TutorialTrigger>
+                <SafeAreaView style={styles.safeArea}>
+                  <StatusBar barStyle="light-content" />
+                  <MainTabs />
+                </SafeAreaView>
+              </TutorialTrigger>
+            </TutorialWrapper>
+          </TutorialProvider>
         </SessionProvider>
       ) : (
         <SafeAreaView style={styles.safeArea}>

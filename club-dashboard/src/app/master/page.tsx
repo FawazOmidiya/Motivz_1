@@ -273,35 +273,50 @@ export default function MasterDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <Link
             href="/events"
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            className="flex items-center text-gray-600 hover:text-gray-900 mb-3 sm:mb-4 text-sm sm:text-base"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Club Dashboard
+            <span className="hidden sm:inline">Back to Club Dashboard</span>
+            <span className="sm:hidden">Back</span>
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900">Master Dashboard</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
+            Master Dashboard
+          </h1>
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">
             Complete control over all clubs, events, and guestlist requests
           </p>
         </div>
 
         {/* Main Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="guestlist">Guestlist Requests</TabsTrigger>
-            <TabsTrigger value="clubs">Club Management</TabsTrigger>
+        <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm py-2">
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="events" className="text-xs sm:text-sm py-2">
+              <span className="hidden sm:inline">Events</span>
+              <span className="sm:hidden">Events</span>
+            </TabsTrigger>
+            <TabsTrigger value="guestlist" className="text-xs sm:text-sm py-2">
+              <span className="hidden sm:inline">Guestlist Requests</span>
+              <span className="sm:hidden">Requests</span>
+            </TabsTrigger>
+            <TabsTrigger value="clubs" className="text-xs sm:text-sm py-2">
+              <span className="hidden sm:inline">Club Management</span>
+              <span className="sm:hidden">Clubs</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
@@ -369,20 +384,22 @@ export default function MasterDashboard() {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Events</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl">
+                    Recent Events
+                  </CardTitle>
                   <CardDescription>
                     Latest events across all clubs
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {events.slice(0, 5).map((event) => (
                       <div
                         key={event.id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-2 sm:gap-0"
                       >
                         <div className="flex-1">
                           <p className="font-medium">{event.title}</p>
@@ -421,17 +438,19 @@ export default function MasterDashboard() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Guestlist Requests</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl">
+                    Recent Guestlist Requests
+                  </CardTitle>
                   <CardDescription>
                     Latest requests requiring attention
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {guestlistRequests.slice(0, 5).map((request) => (
                       <div
                         key={request.id}
-                        className="flex items-center justify-between"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0"
                       >
                         <div>
                           <p className="font-medium">{request.group_name}</p>
@@ -450,9 +469,15 @@ export default function MasterDashboard() {
 
           {/* Events Tab */}
           <TabsContent value="events" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Event Management</h2>
-              <Button onClick={() => router.push("/master/events/create")}>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold">
+                Event Management
+              </h2>
+              <Button
+                onClick={() => router.push("/master/events/create")}
+                size="sm"
+                className="w-full sm:w-auto"
+              >
                 Create Event
               </Button>
             </div>
@@ -466,70 +491,78 @@ export default function MasterDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Event Title</TableHead>
-                      <TableHead>Club</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentEvents.map((event) => (
-                      <TableRow key={event.id}>
-                        <TableCell className="font-medium">
-                          {event.title}
-                        </TableCell>
-                        <TableCell>{(event as any).Clubs?.Name}</TableCell>
-                        <TableCell>
-                          {format(parseISO(event.start_date), "MMM dd, yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="outline">
-                              {event.guestlist_available
-                                ? "Guestlist"
-                                : "Tickets"}
-                            </Badge>
-                            {event.recurring_config && (
-                              <Badge variant="secondary" className="text-xs">
-                                Recurring
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                router.push(`/master/events/${event.id}/edit`)
-                              }
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                router.push(
-                                  `/master/events/create?duplicate=${event.id}`
-                                )
-                              }
-                            >
-                              <Settings className="h-4 w-4 mr-1" />
-                              Duplicate
-                            </Button>
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">
+                          Event Title
+                        </TableHead>
+                        <TableHead className="min-w-[120px]">Club</TableHead>
+                        <TableHead className="min-w-[100px]">Date</TableHead>
+                        <TableHead className="min-w-[80px]">Type</TableHead>
+                        <TableHead className="min-w-[120px]">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {currentEvents.map((event) => (
+                        <TableRow key={event.id}>
+                          <TableCell className="font-medium">
+                            {event.title}
+                          </TableCell>
+                          <TableCell>{(event as any).Clubs?.Name}</TableCell>
+                          <TableCell>
+                            {format(parseISO(event.start_date), "MMM dd, yyyy")}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="outline">
+                                {event.guestlist_available
+                                  ? "Guestlist"
+                                  : "Tickets"}
+                              </Badge>
+                              {event.recurring_config && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Recurring
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(`/master/events/${event.id}/edit`)
+                                }
+                                className="text-xs"
+                              >
+                                <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span className="hidden sm:inline">Edit</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(
+                                    `/master/events/create?duplicate=${event.id}`
+                                  )
+                                }
+                                className="text-xs"
+                              >
+                                <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span className="hidden sm:inline">
+                                  Duplicate
+                                </span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
 
@@ -542,79 +575,93 @@ export default function MasterDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Event Title</TableHead>
-                      <TableHead>Club</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pastEvents.map((event) => (
-                      <TableRow key={event.id} className="opacity-60">
-                        <TableCell className="font-medium">
-                          {event.title}
-                        </TableCell>
-                        <TableCell>{(event as any).Clubs?.Name}</TableCell>
-                        <TableCell>
-                          {format(parseISO(event.start_date), "MMM dd, yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="outline">
-                              {event.guestlist_available
-                                ? "Guestlist"
-                                : "Tickets"}
-                            </Badge>
-                            {event.recurring_config && (
-                              <Badge variant="secondary" className="text-xs">
-                                Recurring
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                router.push(`/master/events/${event.id}/edit`)
-                              }
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                router.push(
-                                  `/master/events/create?duplicate=${event.id}`
-                                )
-                              }
-                            >
-                              <Settings className="h-4 w-4 mr-1" />
-                              Duplicate
-                            </Button>
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">
+                          Event Title
+                        </TableHead>
+                        <TableHead className="min-w-[120px]">Club</TableHead>
+                        <TableHead className="min-w-[100px]">Date</TableHead>
+                        <TableHead className="min-w-[80px]">Type</TableHead>
+                        <TableHead className="min-w-[120px]">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {pastEvents.map((event) => (
+                        <TableRow key={event.id} className="opacity-60">
+                          <TableCell className="font-medium">
+                            {event.title}
+                          </TableCell>
+                          <TableCell>{(event as any).Clubs?.Name}</TableCell>
+                          <TableCell>
+                            {format(parseISO(event.start_date), "MMM dd, yyyy")}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="outline">
+                                {event.guestlist_available
+                                  ? "Guestlist"
+                                  : "Tickets"}
+                              </Badge>
+                              {event.recurring_config && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Recurring
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(`/master/events/${event.id}/edit`)
+                                }
+                                className="text-xs"
+                              >
+                                <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span className="hidden sm:inline">Edit</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(
+                                    `/master/events/create?duplicate=${event.id}`
+                                  )
+                                }
+                                className="text-xs"
+                              >
+                                <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span className="hidden sm:inline">
+                                  Duplicate
+                                </span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Guestlist Requests Tab */}
           <TabsContent value="guestlist" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Guestlist Requests</h2>
-              <Button onClick={fetchGuestlistRequests} variant="outline">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold">
+                Guestlist Requests
+              </h2>
+              <Button
+                onClick={fetchGuestlistRequests}
+                variant="outline"
+                size="sm"
+              >
                 Refresh
               </Button>
             </div>
@@ -627,77 +674,82 @@ export default function MasterDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Group</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Club</TableHead>
-                      <TableHead>People</TableHead>
-                      <TableHead>Table</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {guestlistRequests.map((request) => (
-                      <TableRow key={request.id}>
-                        <TableCell className="font-medium">
-                          {request.group_name}
-                        </TableCell>
-                        <TableCell>{request.event_title}</TableCell>
-                        <TableCell>{request.club_name}</TableCell>
-                        <TableCell>
-                          {request.men_count}M / {request.women_count}W
-                          <br />
-                          <span className="text-sm text-gray-500">
-                            ({request.total_count} total)
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {request.wants_table ? (
-                            <Badge
-                              variant="outline"
-                              className="text-blue-600 border-blue-600"
-                            >
-                              Yes
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">No</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(request.status)}</TableCell>
-                        <TableCell>
-                          {format(
-                            parseISO(request.created_at),
-                            "MMM dd, h:mm a"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRequest(request);
-                              setShowRequestDetails(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[120px]">Group</TableHead>
+                        <TableHead className="min-w-[150px]">Event</TableHead>
+                        <TableHead className="min-w-[120px]">Club</TableHead>
+                        <TableHead className="min-w-[100px]">People</TableHead>
+                        <TableHead className="min-w-[80px]">Table</TableHead>
+                        <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[120px]">Date</TableHead>
+                        <TableHead className="min-w-[80px]">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {guestlistRequests.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell className="font-medium">
+                            {request.group_name}
+                          </TableCell>
+                          <TableCell>{request.event_title}</TableCell>
+                          <TableCell>{request.club_name}</TableCell>
+                          <TableCell>
+                            {request.men_count}M / {request.women_count}W
+                            <br />
+                            <span className="text-sm text-gray-500">
+                              ({request.total_count} total)
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {request.wants_table ? (
+                              <Badge
+                                variant="outline"
+                                className="text-blue-600 border-blue-600"
+                              >
+                                Yes
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">No</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(request.status)}
+                          </TableCell>
+                          <TableCell>
+                            {format(
+                              parseISO(request.created_at),
+                              "MMM dd, h:mm a"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setShowRequestDetails(true);
+                              }}
+                              className="text-xs"
+                            >
+                              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                              <span className="hidden sm:inline">View</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Club Management Tab */}
           <TabsContent value="clubs" className="space-y-6">
-            <h2 className="text-2xl font-bold">Club Management</h2>
+            <h2 className="text-xl sm:text-2xl font-bold">Club Management</h2>
             <Card>
               <CardHeader>
                 <CardTitle>All Clubs</CardTitle>
@@ -706,81 +758,89 @@ export default function MasterDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Club Name</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clubs.map((club) => (
-                      <TableRow key={club.id}>
-                        <TableCell className="font-medium">
-                          {club.Name}
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {club.Address}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {club.email && (
-                              <div className="text-sm text-gray-600">
-                                {club.email}
-                              </div>
-                            )}
-                            {club.phone && (
-                              <div className="text-sm text-gray-600">
-                                {club.phone}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            {club.website && (
-                              <Badge variant="outline" className="text-xs">
-                                Website
-                              </Badge>
-                            )}
-                            {club.instagram && (
-                              <Badge variant="outline" className="text-xs">
-                                Instagram
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                router.push(`/master/club/${club.id}`)
-                              }
-                            >
-                              <Settings className="h-4 w-4 mr-1" />
-                              Manage
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                router.push(`/master/clubs/${club.id}/edit`)
-                              }
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Quick Edit
-                            </Button>
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">
+                          Club Name
+                        </TableHead>
+                        <TableHead className="min-w-[200px]">Address</TableHead>
+                        <TableHead className="min-w-[150px]">Contact</TableHead>
+                        <TableHead className="min-w-[100px]">Status</TableHead>
+                        <TableHead className="min-w-[120px]">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {clubs.map((club) => (
+                        <TableRow key={club.id}>
+                          <TableCell className="font-medium">
+                            {club.Name}
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {club.Address}
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {club.email && (
+                                <div className="text-sm text-gray-600">
+                                  {club.email}
+                                </div>
+                              )}
+                              {club.phone && (
+                                <div className="text-sm text-gray-600">
+                                  {club.phone}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              {club.website && (
+                                <Badge variant="outline" className="text-xs">
+                                  Website
+                                </Badge>
+                              )}
+                              {club.instagram && (
+                                <Badge variant="outline" className="text-xs">
+                                  Instagram
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(`/master/club/${club.id}`)
+                                }
+                                className="text-xs"
+                              >
+                                <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span className="hidden sm:inline">Manage</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(`/master/clubs/${club.id}/edit`)
+                                }
+                                className="text-xs"
+                              >
+                                <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span className="hidden sm:inline">
+                                  Quick Edit
+                                </span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
