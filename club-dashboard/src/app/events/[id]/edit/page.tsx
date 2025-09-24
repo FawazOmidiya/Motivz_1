@@ -31,7 +31,7 @@ import { format, isAfter, parseISO } from "date-fns";
 
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
-import { RecurringConfig } from "../../../../../shared-types/recurring-events";
+import { RecurringConfig } from "../../../../../../shared-types/recurring-events";
 import { useAuth } from "@/contexts/AuthContext";
 import RecurringEventConfig from "@/components/RecurringEventConfig";
 import Link from "next/link";

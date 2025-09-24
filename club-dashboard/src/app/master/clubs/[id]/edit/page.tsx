@@ -29,8 +29,8 @@ interface Club {
   website?: string;
   instagram?: string;
   description?: string;
-  hours?: any;
-  music_schedule?: any;
+  hours?: Record<string, unknown>;
+  music_schedule?: Record<string, unknown>;
 }
 
 export default function EditClubPage() {

@@ -33,8 +33,8 @@ interface Club {
   description?: string;
   latitude?: number;
   longitude?: number;
-  opening_hours?: any;
-  music_schedule?: any;
+  opening_hours?: Record<string, unknown>;
+  music_schedule?: Record<string, unknown>;
 }
 
 export default function ClubManagementPage() {
@@ -153,7 +153,11 @@ export default function ClubManagementPage() {
     }
   };
 
-  const handleOpeningHoursChange = (day: string, field: string, value: any) => {
+  const handleOpeningHoursChange = (
+    day: string,
+    field: string,
+    value: string | boolean
+  ) => {
     setOpeningHours((prev) => ({
       ...prev,
       [day]: {

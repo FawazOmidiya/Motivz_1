@@ -99,7 +99,18 @@ export async function POST(
 }
 
 async function generateRecurringInstances(
-  event: { start_date: string; end_date: string; [key: string]: any },
+  event: {
+    start_date: string;
+    end_date: string;
+    club_id: string;
+    title: string;
+    caption?: string;
+    poster_url?: string;
+    ticket_link?: string;
+    music_genres?: string[];
+    created_by: string;
+    [key: string]: unknown;
+  },
   config: RecurringConfig,
   weeks_ahead: number
 ): Promise<GeneratedEventInstance[]> {

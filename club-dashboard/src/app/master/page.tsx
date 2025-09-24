@@ -66,8 +66,8 @@ interface Club {
   website?: string;
   instagram?: string;
   description?: string;
-  hours?: any;
-  music_schedule?: any;
+  hours?: Record<string, unknown>;
+  music_schedule?: Record<string, unknown>;
 }
 
 interface GuestlistRequest {
@@ -195,11 +195,17 @@ export default function MasterDashboard() {
       }
 
       // Transform the data to include event and club names
-      const transformedData = (data || []).map((request: any) => ({
-        ...request,
-        event_title: request.events?.title,
-        club_name: request.events?.Clubs?.Name,
-      }));
+      const transformedData = (data || []).map(
+        (
+          request: GuestlistRequest & {
+            events?: { title: string; Clubs?: { Name: string } };
+          }
+        ) => ({
+          ...request,
+          event_title: request.events?.title,
+          club_name: request.events?.Clubs?.Name,
+        })
+      );
 
       console.log(
         "Guestlist requests fetched successfully:",
@@ -404,7 +410,10 @@ export default function MasterDashboard() {
                         <div className="flex-1">
                           <p className="font-medium">{event.title}</p>
                           <p className="text-sm text-gray-500">
-                            {(event as any).Clubs?.Name}
+                            {
+                              (event as Event & { Clubs?: { Name: string } })
+                                .Clubs?.Name
+                            }
                           </p>
                           <p className="text-sm text-gray-500">
                             {format(
@@ -510,7 +519,12 @@ export default function MasterDashboard() {
                           <TableCell className="font-medium">
                             {event.title}
                           </TableCell>
-                          <TableCell>{(event as any).Clubs?.Name}</TableCell>
+                          <TableCell>
+                            {
+                              (event as Event & { Clubs?: { Name: string } })
+                                .Clubs?.Name
+                            }
+                          </TableCell>
                           <TableCell>
                             {format(parseISO(event.start_date), "MMM dd, yyyy")}
                           </TableCell>
@@ -594,7 +608,12 @@ export default function MasterDashboard() {
                           <TableCell className="font-medium">
                             {event.title}
                           </TableCell>
-                          <TableCell>{(event as any).Clubs?.Name}</TableCell>
+                          <TableCell>
+                            {
+                              (event as Event & { Clubs?: { Name: string } })
+                                .Clubs?.Name
+                            }
+                          </TableCell>
                           <TableCell>
                             {format(parseISO(event.start_date), "MMM dd, yyyy")}
                           </TableCell>
