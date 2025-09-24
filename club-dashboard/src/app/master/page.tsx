@@ -12,15 +12,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,24 +37,24 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  // DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   CalendarIcon,
   Users,
   Clock,
-  Music,
+  // Music,
   Settings,
   Eye,
   Edit,
   CheckCircle,
-  XCircle,
-  AlertCircle,
+  // XCircle,
+  // AlertCircle,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { Event } from "@/types/event";
-import { cn } from "@/lib/utils";
+// import { cn } from "@/lib/utils";
 
 interface Club {
   id: string;
@@ -98,8 +98,8 @@ export default function MasterDashboard() {
   const [guestlistRequests, setGuestlistRequests] = useState<
     GuestlistRequest[]
   >([]);
-  const [selectedClub, setSelectedClub] = useState<string>("");
-  const [selectedEvent, setSelectedEvent] = useState<string>("");
+  // const [selectedClub, setSelectedClub] = useState<string>("");
+  // const [selectedEvent, setSelectedEvent] = useState<string>("");
 
   // Guestlist management state
   const [selectedRequest, setSelectedRequest] =

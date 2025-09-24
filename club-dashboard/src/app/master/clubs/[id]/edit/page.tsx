@@ -152,7 +152,7 @@ export default function EditClubPage() {
             Club Not Found
           </h1>
           <p className="text-gray-600 mb-6">
-            The club you're looking for doesn't exist.
+            The club you&apos;re looking for doesn&apos;t exist.
           </p>
           <Link href="/master">
             <Button className="bg-purple-600 hover:bg-purple-700">

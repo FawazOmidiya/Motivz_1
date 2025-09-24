@@ -142,40 +142,40 @@ export default function EventsPage() {
     }
   };
 
-  const generateRecurringEvents = async () => {
-    if (
-      !confirm(
-        "Generate recurring events for the next 4 weeks? This will create new event instances based on your recurring event templates."
-      )
-    ) {
-      return;
-    }
+  // const generateRecurringEvents = async () => {
+  //   if (
+  //     !confirm(
+  //       "Generate recurring events for the next 4 weeks? This will create new event instances based on your recurring event templates."
+  //     )
+  //   ) {
+  //     return;
+  //   }
 
-    try {
-      const response = await fetch("/api/recurring-events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          weeks_ahead: 4,
-          dry_run: false,
-        }),
-      });
+  //   try {
+  //     const response = await fetch("/api/recurring-events", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         weeks_ahead: 4,
+  //         dry_run: false,
+  //       }),
+  //     });
 
-      const result = await response.json();
+  //     const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to generate recurring events");
-      }
+  //     if (!response.ok) {
+  //       throw new Error(result.error || "Failed to generate recurring events");
+  //     }
 
-      alert(`Successfully generated ${result.count} recurring events!`);
-      fetchEvents(); // Refresh the events list
-    } catch (error) {
-      console.error("Error generating recurring events:", error);
-      alert("Failed to generate recurring events. Please try again.");
-    }
-  };
+  //     alert(`Successfully generated ${result.count} recurring events!`);
+  //     fetchEvents(); // Refresh the events list
+  //   } catch (error) {
+  //     console.error("Error generating recurring events:", error);
+  //     alert("Failed to generate recurring events. Please try again.");
+  //   }
+  // };
 
   const getEventStatus = (startDate: string, endDate: string) => {
     const now = new Date();

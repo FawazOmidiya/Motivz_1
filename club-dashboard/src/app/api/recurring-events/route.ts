@@ -23,7 +23,12 @@ export async function POST(
     if (fetchError) {
       console.error("Error fetching recurring events:", fetchError);
       return NextResponse.json(
-        { error: "Failed to fetch recurring events" },
+        {
+          message: "Failed to fetch recurring events",
+          generated_events: [],
+          count: 0,
+          error: "Failed to fetch recurring events",
+        },
         { status: 500 }
       );
     }
@@ -44,7 +49,11 @@ export async function POST(
 
       if (!config.active) continue;
 
-      const newEvents = generateRecurringInstances(event, config, weeks_ahead);
+      const newEvents = await generateRecurringInstances(
+        event,
+        config,
+        weeks_ahead
+      );
       generatedEvents.push(...newEvents);
     }
 
@@ -57,7 +66,12 @@ export async function POST(
       if (insertError) {
         console.error("Error inserting recurring events:", insertError);
         return NextResponse.json(
-          { error: "Failed to create recurring events" },
+          {
+            message: "Failed to create recurring events",
+            generated_events: [],
+            count: 0,
+            error: "Failed to create recurring events",
+          },
           { status: 500 }
         );
       }
@@ -73,17 +87,22 @@ export async function POST(
   } catch (error) {
     console.error("Error in recurring events API:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        message: "Internal server error",
+        generated_events: [],
+        count: 0,
+        error: "Internal server error",
+      },
       { status: 500 }
     );
   }
 }
 
-function generateRecurringInstances(
-  event: any,
+async function generateRecurringInstances(
+  event: { start_date: string; end_date: string; [key: string]: any },
   config: RecurringConfig,
   weeks_ahead: number
-): GeneratedEventInstance[] {
+): Promise<GeneratedEventInstance[]> {
   const instances: GeneratedEventInstance[] = [];
   const startDate = new Date(event.start_date);
   const endDate = new Date(event.end_date);
@@ -106,7 +125,12 @@ function generateRecurringInstances(
       const newEndDate = new Date(newStartDate.getTime() + duration);
 
       // Check if this instance already exists
-      if (!instanceExists(event, newStartDate)) {
+      if (
+        !(await instanceExists(
+          { club_id: event.club_id, title: event.title },
+          newStartDate
+        ))
+      ) {
         instances.push({
           club_id: event.club_id,
           title: event.title,
@@ -117,7 +141,6 @@ function generateRecurringInstances(
           end_date: newEndDate.toISOString(),
           music_genres: event.music_genres,
           created_by: event.created_by,
-          recurring_config: null, // Individual instances don't have recurring config
         });
         instanceCount++;
       }
@@ -159,7 +182,10 @@ function getNextDate(currentDate: Date, config: RecurringConfig): Date {
   return nextDate;
 }
 
-async function instanceExists(event: any, startDate: Date): Promise<boolean> {
+async function instanceExists(
+  event: { club_id: string; title: string },
+  startDate: Date
+): Promise<boolean> {
   const { data } = await supabase
     .from("events")
     .select("id")
@@ -169,5 +195,5 @@ async function instanceExists(event: any, startDate: Date): Promise<boolean> {
     .lte("start_date", new Date(startDate.getTime() + 60000).toISOString()) // 1 minute after
     .limit(1);
 
-  return data && data.length > 0;
+  return Boolean(data && data.length > 0);
 }

@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
 import DatePickerScreen from "@/components/DatePickerScreen";
@@ -241,7 +241,7 @@ export default function EditEventPage() {
             Event Not Found
           </h1>
           <p className="text-gray-600 mb-6">
-            The event you're looking for doesn't exist.
+            The event you&apos;re looking for doesn&apos;t exist.
           </p>
           <Link href="/master">
             <Button className="bg-purple-600 hover:bg-purple-700">
