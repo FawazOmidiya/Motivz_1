@@ -26,7 +26,7 @@ export async function testLocalNotification() {
   });
 }
 
-// Function to send push notification
+// Function to send push notification using Supabase Edge Function
 export async function sendPushNotification(
   expoPushToken: string,
   title: string,
@@ -44,23 +44,35 @@ export async function sendPushNotification(
     return;
   }
 
-  const message = {
-    to: expoPushToken,
-    sound: "default",
-    title: title,
-    body: body,
-    data: data || { someData: "goes here" },
-  };
+  try {
+    // Note: This function is deprecated in favor of sendNotificationToUser
+    // which uses the Edge Function. This is kept for backward compatibility.
+    console.warn(
+      "sendPushNotification is deprecated. Use sendNotificationToUser instead."
+    );
 
-  await fetch("https://exp.host/--/api/v2/push/send", {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Accept-encoding": "gzip, deflate",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(message),
-  });
+    // For now, we'll still use the direct Expo API for this specific function
+    // but recommend using sendNotificationToUser for new implementations
+    const message = {
+      to: expoPushToken,
+      sound: "default",
+      title: title,
+      body: body,
+      data: data || { someData: "goes here" },
+    };
+
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(message),
+    });
+  } catch (error) {
+    console.error("Error sending notification:", error);
+  }
 }
 
 // Error handler for registration
@@ -69,7 +81,7 @@ function handleRegistrationError(errorMessage: string) {
   throw new Error(errorMessage);
 }
 
-// Main function to register for push notifications
+// Main function to register for push notifications (one-time only)
 export async function registerForPushNotificationsAsync() {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
@@ -83,43 +95,56 @@ export async function registerForPushNotificationsAsync() {
   if (Device.isDevice) {
     const { status: existingStatus } =
       await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== "granted") {
-      handleRegistrationError(
-        "Permission not granted to get push token for push notification!"
+
+    // If user has already declined, don't ask again
+    if (existingStatus === "denied") {
+      console.log(
+        "User has previously declined notifications, not asking again"
       );
-      return;
+      return null;
     }
 
-    const projectId =
-      Constants?.expoConfig?.extra?.eas?.projectId ??
-      Constants?.easConfig?.projectId;
+    // If already granted, proceed to get token
+    if (existingStatus === "granted") {
+      console.log("Notifications already granted, getting token");
+    } else {
+      // Only ask for permission if not previously decided
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        console.log("User declined notification permission");
+        return null;
+      }
+    }
+
+    // Get project ID from config
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId;
+
     if (!projectId) {
-      handleRegistrationError("Project ID not found");
-      return;
+      console.error("Project ID not found in app configuration");
+      return null;
     }
 
     try {
+      // Generate push token with projectId
       const pushTokenString = (
         await Notifications.getExpoPushTokenAsync({
           projectId,
+          development: __DEV__,
         })
       ).data;
-      console.log("Expo push token:", pushTokenString);
+
       return pushTokenString;
     } catch (e: unknown) {
-      handleRegistrationError(`${e}`);
+      console.error("Error generating push token:", e);
+      return null;
     }
   } else {
-    handleRegistrationError("Must use physical device for push notifications");
+    console.log("Must use physical device for push notifications");
+    return null;
   }
 }
 
-// Hook to manage notifications
+// Hook to manage notifications (one-time permission request)
 export function useNotifications() {
   const [expoPushToken, setExpoPushToken] = useState("");
   const [notification, setNotification] = useState<
@@ -133,9 +158,20 @@ export function useNotifications() {
   );
 
   useEffect(() => {
+    // Only request permission once at app startup
     registerForPushNotificationsAsync()
-      .then((token) => setExpoPushToken(token ?? ""))
-      .catch((error: any) => setExpoPushToken(`${error}`));
+      .then((token) => {
+        if (token) {
+          setExpoPushToken(token);
+          console.log("Push token obtained:", token);
+        } else {
+          console.log("No push token available");
+        }
+      })
+      .catch((error: any) => {
+        console.error("Error getting push token:", error);
+        setExpoPushToken("");
+      });
 
     notificationListener.current =
       Notifications.addNotificationReceivedListener((notification) => {
@@ -162,5 +198,37 @@ export function useNotifications() {
     notification,
     sendNotification: (title: string, body: string, data?: any) =>
       sendPushNotification(expoPushToken, title, body, data),
+  };
+}
+
+// Hook for app-wide notification management (one-time setup)
+export function useAppNotifications() {
+  const [expoPushToken, setExpoPushToken] = useState("");
+  const [notification, setNotification] = useState<
+    Notifications.Notification | undefined
+  >(undefined);
+
+  useEffect(() => {
+    // Set up notification listeners
+    const notificationListener = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        setNotification(notification);
+      }
+    );
+
+    const responseListener =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log("Notification response:", response);
+      });
+
+    return () => {
+      notificationListener.remove();
+      responseListener.remove();
+    };
+  }, []);
+
+  return {
+    expoPushToken,
+    notification,
   };
 }

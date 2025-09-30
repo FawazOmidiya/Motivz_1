@@ -45,7 +45,7 @@ import BottomSheet, {
 import ClubHours from "@/components/ClubHours"; // Import the ClubHours component
 import { LinearGradient } from "expo-linear-gradient";
 import { useSession } from "@/components/SessionContext";
-import { useNotifications } from "../utils/notificationService";
+import { useAppNotifications } from "../utils/notificationService";
 
 const { width } = Dimensions.get("window");
 
@@ -105,7 +105,7 @@ export default function HomeScreen() {
   }>({});
 
   const session = useSession();
-  const { expoPushToken, notification, sendNotification } = useNotifications();
+  const { expoPushToken, notification } = useAppNotifications();
 
   // Log the push token for debugging
   useEffect(() => {
