@@ -18,11 +18,6 @@ import {
 import { Button, Text, TextInput } from "react-native-paper";
 
 import { useSession } from "@/components/SessionContext";
-import {
-  useNotifications,
-  testLocalNotification,
-} from "../utils/notificationService";
-import { useTutorial } from "../contexts/TutorialContext";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
@@ -32,10 +27,8 @@ import {
   fetchSingleClub,
   fetchPendingFriendRequestsCount,
   storeUserPushToken,
-  sendFriendRequest,
   supabase,
 } from "../utils/supabaseService";
-import FavouriteClub from "@/components/ClubFavourite";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
 import { Ionicons } from "@expo/vector-icons";
@@ -190,34 +183,7 @@ export default function Account() {
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
-  const { expoPushToken, notification, sendNotification } = useNotifications();
 
-  // Store push token when available
-  useEffect(() => {
-    console.log("🔔 Push Token Status:", {
-      hasToken: !!expoPushToken,
-      token: expoPushToken,
-      hasError: expoPushToken?.includes("error"),
-      userId: session?.user?.id,
-    });
-
-    if (
-      expoPushToken &&
-      session?.user?.id &&
-      !expoPushToken.includes("error")
-    ) {
-      console.log("✅ Storing push token for user:", session.user.id);
-      storeUserPushToken(session.user.id, expoPushToken);
-    } else {
-      console.log("❌ Cannot store push token:", {
-        reason: !expoPushToken
-          ? "No token"
-          : expoPushToken.includes("error")
-          ? "Token has error"
-          : "No user ID",
-      });
-    }
-  }, [expoPushToken, session?.user?.id]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [pickedAsset, setPickedAsset] = useState<any>(null);
   const [pickedAssetType, setPickedAssetType] = useState<"photo" | "video">(
@@ -582,41 +548,6 @@ export default function Account() {
                   color={Constants.whiteCOLOR}
                 />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={handleSignOut}
-              >
-                <Ionicons
-                  name="log-out-outline"
-                  size={24}
-                  color={Constants.whiteCOLOR}
-                />
-              </TouchableOpacity>
-              {/* <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() =>
-                  sendNotification(
-                    "Test Notification",
-                    "This is a test push notification from ProfileScreen!"
-                  )
-                }
-              >
-                <Ionicons
-                  name="notifications"
-                  size={24}
-                  color={Constants.whiteCOLOR}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => testLocalNotification()}
-              >
-                <Ionicons
-                  name="notifications-circle"
-                  size={24}
-                  color={Constants.whiteCOLOR}
-                />
-              </TouchableOpacity> */}
             </View>
           </View>
         </View>

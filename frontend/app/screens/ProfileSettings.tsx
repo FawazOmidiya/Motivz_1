@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  Switch,
 } from "react-native";
 import { Button, TextInput, Text } from "react-native-paper";
 import { storage, supabase, deleteUserAccount } from "../utils/supabaseService";
@@ -24,6 +25,9 @@ import BackButton from "@/components/BackButton";
 import { Camera } from "expo-camera";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
+import * as Notifications from "expo-notifications";
+import { Ionicons } from "@expo/vector-icons";
+import { Linking } from "react-native";
 
 export default function ProfileSettings() {
   const session = useSession();
@@ -37,6 +41,8 @@ export default function ProfileSettings() {
   const [deleting, setDeleting] = useState(false);
   const [cameraPermission, setCameraPermission] = useState(false);
   const [imagePickerPermission, setImagePickerPermission] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [checkingPermissions, setCheckingPermissions] = useState(true);
 
   useEffect(() => {
     async function requestPermissions() {
@@ -45,6 +51,68 @@ export default function ProfileSettings() {
     }
     requestPermissions();
   }, []);
+
+  // Check notification permissions
+  useEffect(() => {
+    checkNotificationPermissions();
+  }, []);
+
+  const checkNotificationPermissions = async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      setNotificationsEnabled(status === "granted");
+    } catch (error) {
+      console.error("Error checking notification permissions:", error);
+    } finally {
+      setCheckingPermissions(false);
+    }
+  };
+
+  const toggleNotifications = async () => {
+    if (notificationsEnabled) {
+      // User wants to disable notifications
+      setNotificationsEnabled(false);
+      Alert.alert(
+        "Notifications Disabled",
+        "You can re-enable notifications in your device settings.",
+        [{ text: "OK" }]
+      );
+    } else {
+      // User wants to enable notifications
+      try {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status === "granted") {
+          setNotificationsEnabled(true);
+          Alert.alert(
+            "Notifications Enabled",
+            "You'll now receive notifications for friend requests and events.",
+            [{ text: "OK" }]
+          );
+        } else {
+          Alert.alert(
+            "Permission Required",
+            "Please enable notifications in your device settings to receive updates.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: openDeviceSettings },
+            ]
+          );
+        }
+      } catch (error) {
+        console.error("Error requesting notification permissions:", error);
+        Alert.alert("Error", "Failed to update notification settings.");
+      }
+    }
+  };
+
+  const openDeviceSettings = async () => {
+    try {
+      await Linking.openSettings();
+    } catch (error) {
+      console.error("Error opening device settings:", error);
+      Alert.alert("Error", "Could not open device settings.");
+    }
+  };
 
   // Fetch profile info when screen mounts
   useEffect(() => {
@@ -248,112 +316,145 @@ export default function ProfileSettings() {
       <View style={styles.headerContainer}>
         <BackButton color={whiteCOLOR} />
         <Text variant="headlineMedium" style={styles.header}>
-          Edit Profile
+          Settings
         </Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scrollContainer}>
-        <View style={styles.contentContainer}>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Profile Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Profile</Text>
+
           <TouchableOpacity
             onPress={pickAndUploadImage}
-            style={styles.avatarContainer}
+            style={styles.profileRow}
           >
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-            ) : (
-              <View style={styles.placeholderAvatar}>
-                <Text style={styles.avatarInitial}>
-                  {session?.user?.email?.charAt(0).toUpperCase()}
-                </Text>
+            <View style={styles.profileInfo}>
+              <View style={styles.avatarContainer}>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.placeholderAvatar}>
+                    <Text style={styles.avatarInitial}>
+                      {session?.user?.email?.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
-            <View style={styles.editOverlay}>
-              <Text style={styles.editText}>Edit</Text>
+              <View style={styles.profileText}>
+                <Text style={styles.profileTitle}>Profile Picture</Text>
+                <Text style={styles.profileSubtitle}>Tap to change</Text>
+              </View>
             </View>
+            <Ionicons name="chevron-forward" size={20} color={greyCOLOR} />
           </TouchableOpacity>
 
-          <View style={styles.formContainer}>
+          <View style={styles.inputRow}>
+            <Text style={styles.inputLabel}>Username</Text>
             <TextInput
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
-              style={styles.input}
-              placeholderTextColor={whiteCOLOR + "60"}
-              placeholder="Enter your username"
-              mode="outlined"
-              outlineColor="rgba(255,255,255,0.2)"
-              activeOutlineColor={purpleCOLOR}
+              style={styles.instagramInput}
+              placeholderTextColor={greyCOLOR}
+              placeholder="Enter username"
+              mode="flat"
               textColor={whiteCOLOR}
-              left={<TextInput.Icon icon="account" color={whiteCOLOR + "80"} />}
             />
+          </View>
+
+          <View style={styles.inputRow}>
+            <Text style={styles.inputLabel}>First Name</Text>
             <TextInput
               value={firstName}
               onChangeText={setFirstName}
-              style={styles.input}
-              placeholderTextColor={whiteCOLOR + "60"}
-              placeholder="Enter your first name"
-              mode="outlined"
-              outlineColor="rgba(255,255,255,0.2)"
-              activeOutlineColor={purpleCOLOR}
+              style={styles.instagramInput}
+              placeholderTextColor={greyCOLOR}
+              placeholder="Enter first name"
+              mode="flat"
               textColor={whiteCOLOR}
-              left={
-                <TextInput.Icon
-                  icon="account-details"
-                  color={whiteCOLOR + "80"}
-                />
-              }
             />
+          </View>
+
+          <View style={styles.inputRow}>
+            <Text style={styles.inputLabel}>Last Name</Text>
             <TextInput
               value={lastName}
               onChangeText={setLastName}
-              style={styles.input}
-              placeholderTextColor={whiteCOLOR + "60"}
-              placeholder="Enter your last name"
-              mode="outlined"
-              outlineColor="rgba(255,255,255,0.2)"
-              activeOutlineColor={purpleCOLOR}
+              style={styles.instagramInput}
+              placeholderTextColor={greyCOLOR}
+              placeholder="Enter last name"
+              mode="flat"
               textColor={whiteCOLOR}
-              left={
-                <TextInput.Icon
-                  icon="account-details"
-                  color={whiteCOLOR + "80"}
-                />
-              }
             />
-
-            <Button
-              mode="contained"
-              onPress={updateProfile}
-              disabled={loading}
-              style={styles.button}
-              labelStyle={styles.buttonText}
-            >
-              {loading ? "Updating..." : "Update Profile"}
-            </Button>
-
-            <View style={styles.separator} />
-
-            <View style={styles.dangerZone}>
-              <Text style={styles.dangerZoneTitle}>Danger Zone</Text>
-              <Text style={styles.warningText}>
-                ⚠️ Deleting your account will permanently remove all your data
-                including profile, favorites, reviews, and friendships. This
-                action cannot be undone.
-              </Text>
-
-              <Button
-                mode="outlined"
-                onPress={handleDeleteAccount}
-                disabled={deleting}
-                style={styles.deleteButton}
-                labelStyle={styles.deleteButtonText}
-                textColor="#FF4444"
-              >
-                {deleting ? "Deleting..." : "Delete Account"}
-              </Button>
-            </View>
           </View>
+
+          <TouchableOpacity
+            onPress={updateProfile}
+            disabled={loading}
+            style={[
+              styles.updateButton,
+              loading && styles.updateButtonDisabled,
+            ]}
+          >
+            <Text style={styles.updateButtonText}>
+              {loading ? "Updating..." : "Update Profile"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Notifications Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+
+          <TouchableOpacity
+            onPress={openDeviceSettings}
+            style={styles.settingRow}
+          >
+            <View style={styles.settingInfo}>
+              <Ionicons name="settings" size={24} color={whiteCOLOR} />
+              <View style={styles.settingText}>
+                <Text style={styles.settingTitle}>Device Settings</Text>
+                <Text style={styles.settingSubtitle}>
+                  Open notification settings
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={greyCOLOR} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+
+          <TouchableOpacity onPress={() => signOut()} style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Ionicons name="log-out" size={24} color="#FF6B6B" />
+              <Text style={[styles.settingTitle, { color: "#FF6B6B" }]}>
+                Sign Out
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={greyCOLOR} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleDeleteAccount}
+            style={styles.settingRow}
+            disabled={deleting}
+          >
+            <View style={styles.settingInfo}>
+              <Ionicons name="trash" size={24} color="#FF4444" />
+              <Text style={[styles.settingTitle, { color: "#FF4444" }]}>
+                {deleting ? "Deleting..." : "Delete Account"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={greyCOLOR} />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -368,161 +469,148 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: greyCOLOR + "20",
   },
   header: {
     flex: 1,
     textAlign: "center",
     color: whiteCOLOR,
     fontWeight: "600",
+    fontSize: 18,
   },
   headerSpacer: {
-    width: 24, // Same width as the back button for balance
+    width: 24,
   },
   scrollContainer: {
     flex: 1,
   },
-  contentContainer: {
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: whiteCOLOR,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  profileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: greyCOLOR + "20",
+  },
+  profileInfo: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
-    padding: 24,
   },
   avatarContainer: {
-    alignSelf: "center",
-    marginBottom: 24,
-    position: "relative",
+    marginRight: 12,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
     borderColor: purpleCOLOR,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   placeholderAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: greyCOLOR,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: purpleCOLOR,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   avatarInitial: {
-    fontSize: 48,
+    fontSize: 24,
     color: whiteCOLOR,
     fontWeight: "600",
   },
-  editOverlay: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: purpleCOLOR,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: whiteCOLOR,
+  profileText: {
+    flex: 1,
   },
-  editText: {
-    color: whiteCOLOR,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  formContainer: {
-    backgroundColor: greyCOLOR,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  inputContainer: {
-    paddingHorizontal: 0,
-    marginBottom: 16,
-  },
-  input: {
+  profileTitle: {
     fontSize: 16,
+    fontWeight: "500",
     color: whiteCOLOR,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    marginBottom: 16,
+    marginBottom: 2,
   },
-  label: {
-    color: whiteCOLOR,
+  profileSubtitle: {
     fontSize: 14,
-    marginBottom: 8,
-    opacity: 0.8,
+    color: greyCOLOR,
   },
-  button: {
-    backgroundColor: purpleCOLOR,
-    borderRadius: 12,
-    paddingVertical: 14,
+  inputRow: {
+    marginBottom: 16,
   },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "600",
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "500",
     color: whiteCOLOR,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  buttonContainer: {
+  instagramInput: {
+    fontSize: 16,
+    color: whiteCOLOR,
+    backgroundColor: "transparent",
+    borderBottomWidth: 1,
+    borderBottomColor: greyCOLOR + "40",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  updateButton: {
+    backgroundColor: purpleCOLOR,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
     marginTop: 8,
   },
-  separator: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    marginVertical: 24,
+  updateButtonDisabled: {
+    backgroundColor: greyCOLOR + "40",
   },
-  deleteButton: {
-    borderColor: "#FF4444",
-    borderRadius: 12,
-    paddingVertical: 14,
-  },
-  deleteButtonText: {
+  updateButtonText: {
+    color: whiteCOLOR,
     fontSize: 16,
     fontWeight: "600",
-    color: "#FF4444",
   },
-  warningText: {
-    color: "#FFAA00",
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: greyCOLOR + "20",
+  },
+  settingInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  settingText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: whiteCOLOR,
+    marginBottom: 2,
+  },
+  settingSubtitle: {
     fontSize: 14,
-    textAlign: "center",
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  dangerZone: {
-    backgroundColor: "rgba(255, 68, 68, 0.05)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 68, 68, 0.2)",
-  },
-  dangerZoneTitle: {
-    color: "#FF4444",
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 12,
+    color: greyCOLOR,
   },
 });

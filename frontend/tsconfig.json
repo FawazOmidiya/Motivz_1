@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "jsx": "react-native",
     "isolatedModules": true,
-    "moduleResolution": "node"
+    "moduleResolution": "bundler"
   },
   "include": [
     "**/*.ts",

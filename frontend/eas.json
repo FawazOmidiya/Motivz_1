@@ -11,7 +11,10 @@
         "resourceClass": "m-medium",
         "image": "latest"
       },
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "EXPO_PUSH_NOTIFICATIONS": "1"
+      }
     },
     "preview": {
       "autoIncrement": true,

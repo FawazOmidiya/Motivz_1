@@ -817,10 +817,10 @@ export default function TutorialScreen() {
               )}
               <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
                 <Text style={styles.nextButtonText}>
-                  {currentStep === 4 ? "Get Started" : "Next"}
+                  {currentStep === 5 ? "Get Started" : "Next"}
                 </Text>
                 <Ionicons
-                  name={currentStep === 4 ? "rocket" : "chevron-forward"}
+                  name={currentStep === 5 ? "rocket" : "chevron-forward"}
                   size={20}
                   color="#fff"
                 />

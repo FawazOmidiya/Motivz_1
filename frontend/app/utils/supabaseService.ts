@@ -135,6 +135,29 @@ export const searchClubsByName = async (ClubName: string) => {
   }
 };
 
+export const searchEventsByName = async (eventName: string) => {
+  /**
+   * Searches for events in the "events" table with a title similar to the provided input.
+   *
+   * @param {string} eventName - The term to search for.
+   * @returns {Promise<Array>} Array of events matching the search criteria, or an empty array on error.
+   */
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .ilike("title", `%${eventName}%`);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data;
+  } catch (error) {
+    console.error("Error searching events:", error);
+    return [];
+  }
+};
+
 export async function fetchEventsByClub(
   clubId: string
 ): Promise<types.Event[]> {
@@ -1015,7 +1038,7 @@ export async function storeUserPushToken(
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .update({ push_token: pushToken })
+      .update({ expo_push_token: pushToken })
       .eq("id", userId);
 
     return { data, error };
@@ -1032,7 +1055,7 @@ export async function getUserPushToken(userId: string): Promise<string | null> {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("push_token")
+      .select("expo_push_token")
       .eq("id", userId)
       .single();
 
@@ -1041,7 +1064,7 @@ export async function getUserPushToken(userId: string): Promise<string | null> {
       return null;
     }
 
-    return data?.push_token || null;
+    return data?.expo_push_token || null;
   } catch (error) {
     console.error("Error fetching push token:", error);
     return null;
@@ -1049,7 +1072,7 @@ export async function getUserPushToken(userId: string): Promise<string | null> {
 }
 
 /**
- * Send notification to a user by their ID
+ * Send notification to a user by their ID using Supabase Edge Function
  */
 export async function sendNotificationToUser(
   userId: string,
@@ -1060,39 +1083,30 @@ export async function sendNotificationToUser(
   try {
     const pushToken = await getUserPushToken(userId);
 
-    if (!pushToken) {
-      console.log(`No push token found for user ${userId}`);
+    const { data: result, error } = await supabase.functions.invoke(
+      "send-push-notification",
+      {
+        body: {
+          title: title,
+          body: body,
+          userId: userId,
+          sendToAll: false,
+        },
+      }
+    );
+
+    if (error) {
+      console.error(`Failed to send notification to user ${userId}:`, error);
       return false;
     }
 
-    const message = {
-      to: pushToken,
-      sound: "default",
-      title: title,
-      body: body,
-      data: data || {},
-    };
-
-    const response = await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Accept-encoding": "gzip, deflate",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(message),
-    });
-
-    if (response.ok) {
-      console.log(`Notification sent successfully to user ${userId}`);
-      return true;
-    } else {
-      console.error(
-        `Failed to send notification to user ${userId}:`,
-        response.status
-      );
+    if (result?.error) {
+      console.error(`Edge Function error for user ${userId}:`, result.error);
       return false;
     }
+
+    console.log(`Notification sent successfully to user ${userId}`);
+    return true;
   } catch (error) {
     console.error("Error sending notification:", error);
     return false;
