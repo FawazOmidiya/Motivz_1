@@ -289,7 +289,6 @@ export default function SearchScreen() {
     if (!hasMore || eventsLoading) return;
     await fetchEvents(page);
   };
-
   const applyFilters = () => {
     let filtered = events;
 

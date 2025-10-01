@@ -90,7 +90,6 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({
       await AsyncStorage.setItem("tutorial_completed", "true");
       setIsTutorialActive(false);
       console.log("🎯 TutorialContext: Tutorial completed and saved");
-
       // Request notification permission after tutorial completion
       console.log("🔔 Requesting notification permission after tutorial");
       registerForPushNotificationsAsync()
