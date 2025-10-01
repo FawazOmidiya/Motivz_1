@@ -106,6 +106,8 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filteredEvents, setFilteredEvents] = useState<types.Event[]>([]);
@@ -125,17 +127,23 @@ export default function SearchScreen() {
     applyFilters();
   }, [selectedGenres, selectedDate, events]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (pageNum = 0, isRefresh = false) => {
     try {
-      setEventsLoading(true);
+      if (pageNum === 0) {
+        setEventsLoading(true);
+      }
+
       // Fetch upcoming events (end date is later than now)
       const now = new Date().toISOString();
+      const limit = 20;
+      const offset = pageNum * limit;
+
       const allEvents = await supabase
         .from("events")
         .select("*")
         .gt("end_date", now)
         .order("start_date", { ascending: true })
-        .limit(20);
+        .range(offset, offset + limit - 1);
 
       if (allEvents.error) {
         console.error("Error fetching events:", allEvents.error);
@@ -144,13 +152,23 @@ export default function SearchScreen() {
 
       const eventsData = allEvents.data || [];
 
+      // Check if we have more events
+      setHasMore(eventsData.length === limit);
+
       // Calculate trending events if user is logged in
+      let processedEvents = eventsData;
       if (session?.user?.id) {
-        const eventsWithTrending = await calculateTrendingEvents(eventsData);
-        setEvents(eventsWithTrending);
-      } else {
-        setEvents(eventsData);
+        processedEvents = await calculateTrendingEvents(eventsData);
       }
+
+      if (isRefresh || pageNum === 0) {
+        setEvents(processedEvents);
+        setPage(0);
+      } else {
+        setEvents((prev) => [...prev, ...processedEvents]);
+      }
+
+      setPage(pageNum + 1);
     } catch (error) {
       console.error("Error fetching events:", error);
     } finally {
@@ -259,12 +277,17 @@ export default function SearchScreen() {
         setResults([]);
       }
       // Refresh events
-      await fetchEvents();
+      await fetchEvents(0, true);
     } catch (error) {
       console.error("Error refreshing:", error);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const loadMoreEvents = async () => {
+    if (!hasMore || eventsLoading) return;
+    await fetchEvents(page);
   };
 
   const applyFilters = () => {
@@ -593,6 +616,18 @@ export default function SearchScreen() {
                 tintColor="#fff"
                 colors={[Constants.purpleCOLOR]}
               />
+            }
+            onEndReached={loadMoreEvents}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              eventsLoading ? (
+                <View style={styles.loadingFooter}>
+                  <ActivityIndicator
+                    size="small"
+                    color={Constants.purpleCOLOR}
+                  />
+                </View>
+              ) : null
             }
           />
         ) : (
@@ -1159,5 +1194,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 4,
     width: "50%",
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
 });
