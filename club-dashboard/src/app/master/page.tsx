@@ -115,13 +115,15 @@ export default function MasterDashboard() {
     "all"
   );
   const [specificUserId, setSpecificUserId] = useState("");
-  const [userSearchResults, setUserSearchResults] = useState<{
-    id: string;
-    username: string;
-    first_name: string;
-    last_name: string;
-    expo_push_token: string | null;
-  }[]>([]);
+  const [userSearchResults, setUserSearchResults] = useState<
+    {
+      id: string;
+      username: string;
+      first_name: string;
+      last_name: string;
+      expo_push_token: string | null;
+    }[]
+  >([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   // const [selectedClub, setSelectedClub] = useState<string>("");
   // const [selectedEvent, setSelectedEvent] = useState<string>("");
@@ -387,10 +389,7 @@ export default function MasterDashboard() {
     }
 
     try {
-      const { error } = await supabase
-        .from("Clubs")
-        .insert([newClub])
-        .select();
+      const { error } = await supabase.from("Clubs").insert([newClub]).select();
 
       if (error) {
         throw new Error(error.message);
@@ -1107,9 +1106,7 @@ export default function MasterDashboard() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() =>
-                                  handleDeleteClick(club.id)
-                                }
+                                onClick={() => handleDeleteClick(club.id)}
                                 className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
                                 <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
