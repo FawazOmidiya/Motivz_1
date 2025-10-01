@@ -55,7 +55,7 @@ export default function EditClubPage() {
 
   useEffect(() => {
     fetchClub();
-  }, [clubId]);
+  }, [clubId, fetchClub]);
 
   const fetchClub = async () => {
     try {

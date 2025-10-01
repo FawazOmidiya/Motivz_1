@@ -37,7 +37,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,7 +51,6 @@ import {
   CheckCircle,
   Plus,
   Trash2,
-  XCircle,
   // AlertCircle,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -106,7 +104,7 @@ export default function MasterDashboard() {
   >([]);
 
   // Notification state
-  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
+  // const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState("");
   const [notificationBody, setNotificationBody] = useState("");
   const [sendingNotification, setSendingNotification] = useState(false);
@@ -117,7 +115,13 @@ export default function MasterDashboard() {
     "all"
   );
   const [specificUserId, setSpecificUserId] = useState("");
-  const [userSearchResults, setUserSearchResults] = useState<any[]>([]);
+  const [userSearchResults, setUserSearchResults] = useState<{
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    expo_push_token: string | null;
+  }[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   // const [selectedClub, setSelectedClub] = useState<string>("");
   // const [selectedEvent, setSelectedEvent] = useState<string>("");
@@ -383,7 +387,7 @@ export default function MasterDashboard() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("Clubs")
         .insert([newClub])
         .select();
@@ -462,7 +466,7 @@ export default function MasterDashboard() {
     }
   };
 
-  const handleDeleteClick = (clubId: string, clubName: string) => {
+  const handleDeleteClick = (clubId: string) => {
     setClubToDelete(clubId);
     setShowDeleteClubDialog(true);
   };
@@ -1104,7 +1108,7 @@ export default function MasterDashboard() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  handleDeleteClick(club.id, club.Name)
+                                  handleDeleteClick(club.id)
                                 }
                                 className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                               >

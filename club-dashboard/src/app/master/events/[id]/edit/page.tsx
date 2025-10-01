@@ -64,7 +64,7 @@ export default function EditEventPage() {
 
   useEffect(() => {
     fetchData();
-  }, [eventId]);
+  }, [eventId, fetchData]);
 
   const fetchData = async () => {
     try {

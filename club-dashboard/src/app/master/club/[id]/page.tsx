@@ -81,7 +81,7 @@ export default function ClubManagementPage() {
     if (clubId) {
       fetchClubData();
     }
-  }, [clubId]);
+  }, [clubId, fetchClubData]);
 
   const fetchClubData = async () => {
     try {

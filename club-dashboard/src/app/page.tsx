@@ -30,7 +30,7 @@ export default function DashboardPage() {
     if (CLUB_ID) {
       fetchStats();
     }
-  }, [CLUB_ID]);
+  }, [CLUB_ID, fetchStats]);
 
   const fetchStats = async () => {
     try {
