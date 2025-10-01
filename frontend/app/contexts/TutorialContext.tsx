@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { registerForPushNotificationsAsync } from "../utils/notificationService";
 
 interface TutorialContextType {
   isTutorialActive: boolean;
@@ -89,6 +90,19 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({
       await AsyncStorage.setItem("tutorial_completed", "true");
       setIsTutorialActive(false);
       console.log("🎯 TutorialContext: Tutorial completed and saved");
+      // Request notification permission after tutorial completion
+      console.log("🔔 Requesting notification permission after tutorial");
+      registerForPushNotificationsAsync()
+        .then((token) => {
+          if (token) {
+            console.log("🔔 Push notifications enabled:", token);
+          } else {
+            console.log("🔔 Push notifications not available");
+          }
+        })
+        .catch((error) => {
+          console.error("🔔 Error setting up notifications:", error);
+        });
     } catch (error) {
       console.error("Error completing tutorial:", error);
     }

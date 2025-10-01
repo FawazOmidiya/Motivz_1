@@ -13,7 +13,6 @@ import {
   RefreshControl,
   ScrollView,
   Modal,
-  Animated,
 } from "react-native";
 import { Text, Button } from "react-native-paper";
 import DatePicker from "react-native-ui-datepicker";
@@ -35,45 +34,6 @@ type NavigationProp = NativeStackNavigationProp<any, "UserProfile">;
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2; // 2 columns with padding
-
-// Skeleton component for loading states
-const EventSkeleton = () => {
-  const shimmerAnimation = new Animated.Value(0);
-
-  useEffect(() => {
-    const shimmer = () => {
-      Animated.sequence([
-        Animated.timing(shimmerAnimation, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shimmerAnimation, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]).start(() => shimmer());
-    };
-    shimmer();
-  }, []);
-
-  const opacity = shimmerAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
-
-  return (
-    <View style={styles.skeletonCard}>
-      <Animated.View style={[styles.skeletonImage, { opacity }]} />
-      <View style={styles.skeletonContent}>
-        <Animated.View style={[styles.skeletonTitle, { opacity }]} />
-        <Animated.View style={[styles.skeletonSubtitle, { opacity }]} />
-        <Animated.View style={[styles.skeletonDate, { opacity }]} />
-      </View>
-    </View>
-  );
-};
 
 // Music genres for filtering
 const MUSIC_GENRES = [
@@ -99,9 +59,15 @@ const MUSIC_GENRES = [
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<
-    (types.UserProfile | types.Event | types.Club)[]
-  >([]);
+  const [searchResults, setSearchResults] = useState<{
+    users: types.UserProfile[];
+    events: types.Event[];
+    clubs: types.Club[];
+  }>({
+    users: [],
+    events: [],
+    clubs: [],
+  });
   const [events, setEvents] = useState<types.Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -114,6 +80,7 @@ export default function SearchScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [trendingEvents, setTrendingEvents] = useState<types.Event[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const session = useSession();
 
@@ -127,23 +94,17 @@ export default function SearchScreen() {
     applyFilters();
   }, [selectedGenres, selectedDate, events]);
 
-  const fetchEvents = async (pageNum = 0, isRefresh = false) => {
+  const fetchEvents = async () => {
     try {
-      if (pageNum === 0) {
-        setEventsLoading(true);
-      }
-
+      setEventsLoading(true);
       // Fetch upcoming events (end date is later than now)
       const now = new Date().toISOString();
-      const limit = 20;
-      const offset = pageNum * limit;
-
       const allEvents = await supabase
         .from("events")
         .select("*")
         .gt("end_date", now)
         .order("start_date", { ascending: true })
-        .range(offset, offset + limit - 1);
+        .limit(20);
 
       if (allEvents.error) {
         console.error("Error fetching events:", allEvents.error);
@@ -152,23 +113,13 @@ export default function SearchScreen() {
 
       const eventsData = allEvents.data || [];
 
-      // Check if we have more events
-      setHasMore(eventsData.length === limit);
-
       // Calculate trending events if user is logged in
-      let processedEvents = eventsData;
       if (session?.user?.id) {
-        processedEvents = await calculateTrendingEvents(eventsData);
-      }
-
-      if (isRefresh || pageNum === 0) {
-        setEvents(processedEvents);
-        setPage(0);
+        const eventsWithTrending = await calculateTrendingEvents(eventsData);
+        setEvents(eventsWithTrending);
       } else {
-        setEvents((prev) => [...prev, ...processedEvents]);
+        setEvents(eventsData);
       }
-
-      setPage(pageNum + 1);
     } catch (error) {
       console.error("Error fetching events:", error);
     } finally {
@@ -274,10 +225,11 @@ export default function SearchScreen() {
     try {
       // Clear search results if there's a query
       if (query.length > 0) {
-        setResults([]);
+        setSearchResults({ users: [], events: [], clubs: [] });
+        setIsSearching(false);
       }
       // Refresh events
-      await fetchEvents(0, true);
+      await fetchEvents();
     } catch (error) {
       console.error("Error refreshing:", error);
     } finally {
@@ -285,10 +237,6 @@ export default function SearchScreen() {
     }
   };
 
-  const loadMoreEvents = async () => {
-    if (!hasMore || eventsLoading) return;
-    await fetchEvents(page);
-  };
   const applyFilters = () => {
     let filtered = events;
 
@@ -342,6 +290,7 @@ export default function SearchScreen() {
     setQuery(text);
     if (text.length !== 0) {
       setLoading(true);
+      setIsSearching(true);
       try {
         // Search all three types in parallel
         const [users, events, clubs] = await Promise.all([
@@ -350,16 +299,29 @@ export default function SearchScreen() {
           searchClubsByName(text),
         ]);
 
-        // Limit results to 20 total
-        const allResults = [...users, ...events, ...clubs];
-        setResults(allResults.slice(0, 20));
+        setSearchResults({
+          users: users || [],
+          events: events || [],
+          clubs: clubs || [],
+        });
       } catch (error) {
         console.error("Error searching:", error);
+        setSearchResults({
+          users: [],
+          events: [],
+          clubs: [],
+        });
       } finally {
         setLoading(false);
+        // Don't set isSearching to false here - keep it true to show results
       }
     } else {
-      setResults([]);
+      setSearchResults({
+        users: [],
+        events: [],
+        clubs: [],
+      });
+      setIsSearching(false);
     }
   }
 
@@ -367,6 +329,7 @@ export default function SearchScreen() {
     // Hide keyboard once search starts
     Keyboard.dismiss();
     setLoading(true);
+    setIsSearching(true);
 
     try {
       // Search all three types in parallel
@@ -376,103 +339,49 @@ export default function SearchScreen() {
         searchClubsByName(query),
       ]);
 
-      // Limit results to 20 total
-      const allResults = [...users, ...events, ...clubs];
-      setResults(allResults.slice(0, 20));
+      setSearchResults({
+        users: users || [],
+        events: events || [],
+        clubs: clubs || [],
+      });
     } catch (err) {
       console.error("Search error:", err);
+      setSearchResults({
+        users: [],
+        events: [],
+        clubs: [],
+      });
     } finally {
       setLoading(false);
+      // Keep isSearching true to show results
     }
   }
 
-  function renderUserItem({
-    item,
-  }: {
-    item: types.UserProfile | types.Event | types.Club;
-  }) {
+  function renderUserItem({ item }: { item: types.UserProfile }) {
     const getInitials = (name: string) => {
       return name.charAt(0).toUpperCase();
     };
-
-    // Handle different item types
-    if ("username" in item) {
-      // User item
-      return (
-        <TouchableOpacity
-          style={styles.resultItem}
-          onPress={() => navigation.navigate("UserProfile", { user: item })}
-        >
-          <View style={styles.userInfoContainer}>
-            {item.avatar_url ? (
-              <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={styles.placeholderAvatar}>
-                <Text style={styles.avatarInitial}>
-                  {getInitials(item.username)}
-                </Text>
-              </View>
-            )}
-            <View style={styles.userTextContainer}>
-              <Text style={styles.usernameText}>{item.username}</Text>
-              <Text style={styles.fullNameText}>
-                {item.first_name} {item.last_name}
+    return (
+      <TouchableOpacity
+        style={styles.resultItem}
+        onPress={() => navigation.navigate("UserProfile", { user: item })}
+      >
+        <View style={styles.userInfoContainer}>
+          {item.avatar_url ? (
+            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={styles.placeholderAvatar}>
+              <Text style={styles.avatarInitial}>
+                {getInitials(item.username)}
               </Text>
             </View>
-          </View>
-        </TouchableOpacity>
-      );
-    } else if ("title" in item) {
-      // Event item
-      return (
-        <TouchableOpacity
-          style={styles.resultItem}
-          onPress={() => navigation.navigate("EventDetail", { event: item })}
-        >
-          <View style={styles.userInfoContainer}>
-            {item.poster_url ? (
-              <Image source={{ uri: item.poster_url }} style={styles.avatar} />
-            ) : (
-              <View style={styles.placeholderAvatar}>
-                <Ionicons
-                  name="calendar"
-                  size={20}
-                  color={Constants.whiteCOLOR}
-                />
-              </View>
-            )}
-            <Text variant="bodyMedium" style={styles.resultTitle}>
-              {item.title}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      );
-    } else {
-      // Club item
-      return (
-        <TouchableOpacity
-          style={styles.resultItem}
-          onPress={() => navigation.navigate("ClubDetail", { club: item })}
-        >
-          <View style={styles.userInfoContainer}>
-            {item.Image ? (
-              <Image source={{ uri: item.Image }} style={styles.avatar} />
-            ) : (
-              <View style={styles.placeholderAvatar}>
-                <Ionicons
-                  name="location"
-                  size={20}
-                  color={Constants.whiteCOLOR}
-                />
-              </View>
-            )}
-            <Text variant="bodyMedium" style={styles.resultTitle}>
-              {item.Name}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      );
-    }
+          )}
+          <Text variant="bodyMedium" style={styles.resultTitle}>
+            {item.username}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   }
 
   const handleEventPress = (event: types.Event) => {
@@ -481,6 +390,7 @@ export default function SearchScreen() {
 
   async function handleFocus() {
     setLoading(true);
+    setIsSearching(true);
 
     try {
       // Search all three types in parallel
@@ -490,13 +400,21 @@ export default function SearchScreen() {
         searchClubsByName(query),
       ]);
 
-      // Limit results to 20 total
-      const allResults = [...users, ...events, ...clubs];
-      setResults(allResults.slice(0, 20));
+      setSearchResults({
+        users: users || [],
+        events: events || [],
+        clubs: clubs || [],
+      });
     } catch (err) {
       console.error("Search error:", err);
+      setSearchResults({
+        users: [],
+        events: [],
+        clubs: [],
+      });
     } finally {
       setLoading(false);
+      // Keep isSearching true to show results
     }
   }
 
@@ -520,12 +438,13 @@ export default function SearchScreen() {
             spellCheck={false}
             textContentType="none"
           />
-          {results.length > 0 && (
+          {isSearching && (
             <Button
               mode="contained"
               onPress={() => {
                 setQuery("");
-                setResults([]);
+                setSearchResults({ users: [], events: [], clubs: [] });
+                setIsSearching(false);
                 Keyboard.dismiss();
               }}
               style={styles.btn}
@@ -534,7 +453,7 @@ export default function SearchScreen() {
               Cancel
             </Button>
           )}
-          {results.length === 0 && (
+          {!isSearching && (
             <Button
               mode="contained"
               onPress={searchItems}
@@ -547,7 +466,7 @@ export default function SearchScreen() {
         </View>
 
         {/* Filter Section - Only show when not searching */}
-        {results.length === 0 && (
+        {!isSearching && (
           <View style={styles.filterContainer}>
             <TouchableOpacity
               style={styles.filterButton}
@@ -571,27 +490,160 @@ export default function SearchScreen() {
           </View>
         )}
         {/* Main Content - Single State Display */}
-        {results.length > 0 ? (
+        {isSearching ? (
           /* Search Results */
-          <View style={styles.searchOverlay}>
-            <FlatList
-              data={results}
-              keyExtractor={(item) => item.id}
-              renderItem={renderUserItem}
-              contentContainerStyle={styles.listContent}
-            />
-          </View>
-        ) : eventsLoading ? (
-          /* Loading Skeletons */
-          <FlatList
-            data={Array.from({ length: 6 })}
-            keyExtractor={(_, index) => `skeleton-${index}`}
-            renderItem={() => <EventSkeleton />}
-            numColumns={2}
-            columnWrapperStyle={styles.eventRow}
-            contentContainerStyle={styles.eventsGrid}
-            showsVerticalScrollIndicator={false}
-          />
+          <ScrollView style={styles.searchResultsContainer}>
+            {/* Users Section */}
+            {searchResults.users.length > 0 && (
+              <View style={styles.searchSection}>
+                <Text style={styles.searchSectionTitle}>People</Text>
+                {searchResults.users.map((user) => (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={styles.searchResultItem}
+                    onPress={() => navigation.navigate("UserProfile", { user })}
+                  >
+                    <View style={styles.searchResultContent}>
+                      {user.avatar_url ? (
+                        <Image
+                          source={{ uri: user.avatar_url }}
+                          style={styles.searchResultAvatar}
+                        />
+                      ) : (
+                        <View style={styles.searchResultPlaceholder}>
+                          <Text style={styles.searchResultInitial}>
+                            {user.username.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.searchResultText}>
+                        <Text style={styles.searchResultTitle}>
+                          {user.username}
+                        </Text>
+                        <Text style={styles.searchResultSubtitle}>
+                          {user.first_name} {user.last_name}
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={Constants.greyCOLOR}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Events Section */}
+            {searchResults.events.length > 0 && (
+              <View style={styles.searchSection}>
+                <Text style={styles.searchSectionTitle}>Events</Text>
+                {searchResults.events.map((event) => (
+                  <TouchableOpacity
+                    key={event.id}
+                    style={styles.searchResultItem}
+                    onPress={() =>
+                      navigation.navigate("EventDetail", { event })
+                    }
+                  >
+                    <View style={styles.searchResultContent}>
+                      {event.poster_url ? (
+                        <Image
+                          source={{ uri: event.poster_url }}
+                          style={styles.searchResultImage}
+                        />
+                      ) : (
+                        <View style={styles.searchResultPlaceholder}>
+                          <Ionicons
+                            name="calendar"
+                            size={20}
+                            color={Constants.whiteCOLOR}
+                          />
+                        </View>
+                      )}
+                      <View style={styles.searchResultText}>
+                        <Text style={styles.searchResultTitle}>
+                          {event.title}
+                        </Text>
+                        <Text style={styles.searchResultSubtitle}>
+                          {new Date(event.start_date).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={Constants.greyCOLOR}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Clubs Section */}
+            {searchResults.clubs.length > 0 && (
+              <View style={styles.searchSection}>
+                <Text style={styles.searchSectionTitle}>Clubs</Text>
+                {searchResults.clubs.map((club) => (
+                  <TouchableOpacity
+                    key={club.id}
+                    style={styles.searchResultItem}
+                    onPress={() => navigation.navigate("ClubDetail", { club })}
+                  >
+                    <View style={styles.searchResultContent}>
+                      {club.Image ? (
+                        <Image
+                          source={{ uri: club.Image }}
+                          style={styles.searchResultImage}
+                        />
+                      ) : (
+                        <View style={styles.searchResultPlaceholder}>
+                          <Ionicons
+                            name="location"
+                            size={20}
+                            color={Constants.whiteCOLOR}
+                          />
+                        </View>
+                      )}
+                      <View style={styles.searchResultText}>
+                        <Text style={styles.searchResultTitle}>
+                          {club.Name}
+                        </Text>
+                        <Text style={styles.searchResultSubtitle}>
+                          {club.Address}
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={Constants.greyCOLOR}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* No Results */}
+            {searchResults.users.length === 0 &&
+              searchResults.events.length === 0 &&
+              searchResults.clubs.length === 0 &&
+              query.length > 0 && (
+                <View style={styles.noResultsContainer}>
+                  <Ionicons
+                    name="search"
+                    size={48}
+                    color={Constants.greyCOLOR}
+                    style={styles.noResultsIcon}
+                  />
+                  <Text style={styles.noResultsTitle}>No Results Found</Text>
+                  <Text style={styles.noResultsSubtitle}>
+                    Try searching for people, events, or clubs by name
+                  </Text>
+                </View>
+              )}
+          </ScrollView>
         ) : filteredEvents.length > 0 ? (
           /* Events Grid */
           <FlatList
@@ -616,28 +668,8 @@ export default function SearchScreen() {
                 colors={[Constants.purpleCOLOR]}
               />
             }
-            onEndReached={loadMoreEvents}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={
-              eventsLoading ? (
-                <View style={styles.loadingFooter}>
-                  <ActivityIndicator
-                    size="small"
-                    color={Constants.purpleCOLOR}
-                  />
-                </View>
-              ) : null
-            }
           />
-        ) : (
-          /* No Events Message */
-          <View style={styles.centeredContainer}>
-            <Text style={styles.centeredText}>No events found</Text>
-            <Text style={styles.centeredSubtext}>
-              Try adjusting your filters or check back later
-            </Text>
-          </View>
-        )}
+        ) : null}
 
         {/* Filter Modal */}
         <Modal
@@ -880,19 +912,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Constants.whiteCOLOR,
   },
-  userTextContainer: {
-    flex: 1,
-  },
-  usernameText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Constants.whiteCOLOR,
-    marginBottom: 2,
-  },
-  fullNameText: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.7)",
-  },
   centeredContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1061,7 +1080,74 @@ const styles = StyleSheet.create({
   },
   genreButtonTextSelected: {
     color: Constants.whiteCOLOR,
-    fontWeight: "bold",
+  },
+  // Search Results Styles
+  searchResultsContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  searchSection: {
+    marginBottom: 24,
+  },
+  searchSectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  searchResultItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  searchResultContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  searchResultAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  searchResultImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  searchResultPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Constants.purpleCOLOR + "40",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  searchResultInitial: {
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    fontWeight: "600",
+  },
+  searchResultText: {
+    flex: 1,
+  },
+  searchResultTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: Constants.whiteCOLOR,
+    marginBottom: 2,
+  },
+  searchResultSubtitle: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
   },
   modalFooter: {
     flexDirection: "row",
@@ -1158,44 +1244,5 @@ const styles = StyleSheet.create({
   },
   clearDateButton: {
     marginLeft: 8,
-  },
-  // Skeleton Styles
-  skeletonCard: {
-    width: CARD_WIDTH,
-    backgroundColor: Constants.greyCOLOR,
-    borderRadius: 12,
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  skeletonImage: {
-    width: "100%",
-    height: 120,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  skeletonContent: {
-    padding: 12,
-  },
-  skeletonTitle: {
-    height: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  skeletonSubtitle: {
-    height: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    marginBottom: 6,
-    width: "70%",
-  },
-  skeletonDate: {
-    height: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    width: "50%",
-  },
-  loadingFooter: {
-    paddingVertical: 20,
-    alignItems: "center",
   },
 });

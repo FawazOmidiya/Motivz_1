@@ -676,14 +676,6 @@ export default function ClubDetailScreen() {
                                 {getEventStatusText(featuredEvent)}
                               </Text>
                             )}
-                            {featuredEvent.caption && (
-                              <Text
-                                style={styles.featuredEventDescription}
-                                numberOfLines={3}
-                              >
-                                {featuredEvent.caption}
-                              </Text>
-                            )}
                           </View>
                         </View>
                         {featuredEvent.music_genres &&

@@ -17,7 +17,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
-        "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background."
+        "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background.",
+        "UIBackgroundModes": ["remote-notification"]
       },
       "entitlements": {
         "aps-environment": "production"
