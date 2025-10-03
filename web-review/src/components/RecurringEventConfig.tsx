@@ -19,7 +19,15 @@ import {
 } from "@/components/ui/select";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { RecurringConfig } from "@/types/recurring-events";
+// RecurringConfig interface
+interface RecurringConfig {
+  active: boolean;
+  frequency: "daily" | "weekly" | "monthly";
+  days_of_week?: number[];
+  end_date?: string;
+  max_occurrences?: number;
+  timezone?: string;
+}
 
 interface RecurringEventConfigProps {
   isRecurring: boolean;

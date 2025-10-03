@@ -31,7 +31,15 @@ import { format, isAfter, parseISO } from "date-fns";
 
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
-import { RecurringConfig } from "../../../../../types/recurring-events";
+// RecurringConfig interface
+interface RecurringConfig {
+  active: boolean;
+  frequency: "daily" | "weekly" | "monthly";
+  days_of_week?: number[];
+  end_date?: string;
+  max_occurrences?: number;
+  timezone?: string;
+}
 import { useAuth } from "@/contexts/AuthContext";
 import RecurringEventConfig from "@/components/RecurringEventConfig";
 import Link from "next/link";
