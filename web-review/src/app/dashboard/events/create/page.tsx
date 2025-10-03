@@ -30,7 +30,7 @@ import { CalendarIcon, ArrowLeft, Music, AlertTriangle } from "lucide-react";
 import { format, isAfter, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
-import { RecurringConfig } from "../../../../../shared-types/recurring-events";
+import { RecurringConfig } from "@/types/recurring-events";
 import { useAuth } from "@/contexts/AuthContext";
 import RecurringEventConfig from "@/components/RecurringEventConfig";
 

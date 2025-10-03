@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { RecurringConfig } from "../../../shared-types/recurring-events";
+import { RecurringConfig } from "@/types/recurring-events";
 
 interface RecurringEventConfigProps {
   isRecurring: boolean;

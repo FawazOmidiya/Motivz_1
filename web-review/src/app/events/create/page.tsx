@@ -30,7 +30,7 @@ import { CalendarIcon, ArrowLeft, Music, AlertTriangle } from "lucide-react";
 import { format, isAfter, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
-import { RecurringConfig } from "../../../../../shared-types/recurring-events";
+import { RecurringConfig } from "@/types/recurring-events";
 import { useAuth } from "@/contexts/AuthContext";
 import RecurringEventConfig from "@/components/RecurringEventConfig";
 
@@ -105,33 +105,6 @@ export default function CreateEventPage() {
     fetchClubHours();
   }, []);
 
-  // Check if event time is within club hours
-  useEffect(() => {
-    if (startDate && endDate && clubHours) {
-      checkEventHours();
-    }
-  }, [startDate, endDate, startTime, endTime, clubHours, checkEventHours]);
-
-  const fetchClubHours = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("Clubs")
-
-        .select("hours")
-        .eq("id", CLUB_ID)
-        .single();
-
-      if (error) {
-        console.error("Error fetching club hours:", error);
-        return;
-      }
-
-      setClubHours(data?.hours);
-    } catch (error) {
-      console.error("Error fetching club hours:", error);
-    }
-  };
-
   const checkEventHours = () => {
     if (!startDate || !endDate || !clubHours?.periods) {
       setHoursWarning(null);
@@ -181,6 +154,33 @@ export default function CreateEventPage() {
       );
     } else {
       setHoursWarning(null);
+    }
+  };
+
+  // Check if event time is within club hours
+  useEffect(() => {
+    if (startDate && endDate && clubHours) {
+      checkEventHours();
+    }
+  }, [startDate, endDate, startTime, endTime, clubHours, checkEventHours]);
+
+  const fetchClubHours = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("Clubs")
+
+        .select("hours")
+        .eq("id", CLUB_ID)
+        .single();
+
+      if (error) {
+        console.error("Error fetching club hours:", error);
+        return;
+      }
+
+      setClubHours(data?.hours);
+    } catch (error) {
+      console.error("Error fetching club hours:", error);
     }
   };
 

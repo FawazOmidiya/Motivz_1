@@ -31,7 +31,7 @@ import { format, isAfter, parseISO } from "date-fns";
 
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
-import { RecurringConfig } from "../../../../../shared-types/recurring-events";
+import { RecurringConfig } from "@/types/recurring-events";
 import { useAuth } from "@/contexts/AuthContext";
 import RecurringEventConfig from "@/components/RecurringEventConfig";
 import Link from "next/link";
@@ -121,22 +121,19 @@ export default function EditEventPage() {
 
     // Check if the event is within club hours
     const dayPeriods = clubHours.periods[dayOfWeek];
-    if (!dayPeriods || dayPeriods.length === 0) {
+    if (!dayPeriods) {
       setHoursWarning("Club is closed on this day");
       return;
     }
 
-    const isWithinHours = dayPeriods.some(
-      (period: {
-        open: { hour: number; minute: number };
-        close: { hour: number; minute: number };
-      }) => {
-        const clubOpen = createDateTime(startDate, period.open);
-        const clubClose = createDateTime(startDate, period.close);
+    // Check if the event is within the club's operating hours
+    const clubOpen = new Date(startDate);
+    clubOpen.setHours(dayPeriods.open.hour, dayPeriods.open.minute, 0, 0);
 
-        return startDateTime >= clubOpen && endDateTime <= clubClose;
-      }
-    );
+    const clubClose = new Date(startDate);
+    clubClose.setHours(dayPeriods.close.hour, dayPeriods.close.minute, 0, 0);
+
+    const isWithinHours = startDateTime >= clubOpen && endDateTime <= clubClose;
 
     if (!isWithinHours) {
       setHoursWarning("Event time is outside club hours");
