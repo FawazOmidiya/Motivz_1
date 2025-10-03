@@ -65,12 +65,6 @@ export default function ClubSchedulePage() {
 
   const CLUB_ID = club?.id;
 
-  useEffect(() => {
-    if (CLUB_ID) {
-      loadSchedule();
-    }
-  }, [CLUB_ID, loadSchedule]);
-
   const loadSchedule = useCallback(async () => {
     try {
       const [hoursData, musicData] = await Promise.all([
@@ -145,6 +139,12 @@ export default function ClubSchedulePage() {
       setLoading(false);
     }
   }, [CLUB_ID]);
+
+  useEffect(() => {
+    if (CLUB_ID) {
+      loadSchedule();
+    }
+  }, [CLUB_ID, loadSchedule]);
 
   const updateDaySchedule = (
     dayValue: number,
