@@ -801,7 +801,7 @@ export default function MasterDashboard() {
                                 size="sm"
                                 onClick={() =>
                                   router.push(
-                                    `/master/events/create?duplicate=${event.id}`
+                                    `/dashboard/master/events/create?duplicate=${event.id}`
                                   )
                                 }
                                 className="text-xs"
@@ -892,7 +892,7 @@ export default function MasterDashboard() {
                                 size="sm"
                                 onClick={() =>
                                   router.push(
-                                    `/master/events/create?duplicate=${event.id}`
+                                    `/dashboard/master/events/create?duplicate=${event.id}`
                                   )
                                 }
                                 className="text-xs"
