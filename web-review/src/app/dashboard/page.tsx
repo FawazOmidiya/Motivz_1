@@ -26,12 +26,6 @@ export default function DashboardPage() {
   // Use authenticated club ID
   const CLUB_ID = club?.id;
 
-  useEffect(() => {
-    if (CLUB_ID) {
-      fetchStats();
-    }
-  }, [CLUB_ID, fetchStats]);
-
   const fetchStats = useCallback(async () => {
     try {
       // Fetch upcoming events (events starting from today onwards)
@@ -106,6 +100,12 @@ export default function DashboardPage() {
       setLoading(false);
     }
   }, [CLUB_ID]);
+
+  useEffect(() => {
+    if (CLUB_ID) {
+      fetchStats();
+    }
+  }, [CLUB_ID, fetchStats]);
 
   return (
     <div className="container mx-auto p-6">
