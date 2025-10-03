@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Search, MapPin, Star, Link, Check } from "lucide-react";
-import { Club } from "@/types/club";
-import { searchClubsByName } from "@/lib/supabase";
+import { Club } from "../types/club";
+import { searchClubsByName } from "../lib/supabase";
 
 interface ClubSearchProps {
   onClubSelect: (club: Club) => void;

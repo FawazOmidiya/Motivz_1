@@ -80,7 +80,11 @@ export default function SignUpScreen() {
       });
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert("Error", error.message);
+        console.error("Error during sign-up:", error);
+        Alert.alert(
+          "Error",
+          "An error occurred during sign-up. Please try again."
+        );
       }
     } finally {
       setLoading(false);

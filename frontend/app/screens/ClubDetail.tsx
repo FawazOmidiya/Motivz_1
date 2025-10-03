@@ -166,7 +166,7 @@ export default function ClubDetailScreen() {
       }
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert("Error", error.message);
+        console.error("Error adding club to favourites:", error);
       }
     } finally {
       setAdding(false);

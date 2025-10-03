@@ -55,7 +55,6 @@ export default function AnonymousUserProfileScreen() {
         setFavourites(mappedFavourites);
       }
     } catch (error) {
-      Alert.alert("Error", "Error loading favourites.");
       console.error(error);
     } finally {
       setLoading(false);

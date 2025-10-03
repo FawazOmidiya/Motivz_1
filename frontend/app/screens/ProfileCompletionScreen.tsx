@@ -204,7 +204,7 @@ export default function ProfileCompletionScreen() {
       Alert.alert("Success", "Profile completed successfully!");
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert("Error", error.message);
+        console.error("Error completing profile:", error);
       }
     } finally {
       setLoading(false);

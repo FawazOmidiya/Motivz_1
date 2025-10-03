@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPin, Star, Clock, CheckCircle } from "lucide-react";
-import { Club } from "@/types/club";
+import { Club } from "../types/club";
 
 interface ClubConfirmationProps {
   club: Club;

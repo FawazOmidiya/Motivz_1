@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Star, Music, Users, Send } from "lucide-react";
-import { Club, Review, CrowdLevel } from "@/types/club";
-import { submitReview } from "@/lib/supabase";
+import { Club, Review, CrowdLevel } from "../types/club";
+import { submitReview } from "../lib/supabase";
 
 interface ReviewFormProps {
   club: Club;
