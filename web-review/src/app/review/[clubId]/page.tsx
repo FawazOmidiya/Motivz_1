@@ -33,15 +33,6 @@ export default function ClubReviewPage() {
   const [searchResults, setSearchResults] = useState<Club[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // If we have a clubId, load that club directly
-  useEffect(() => {
-    if (clubId) {
-      loadClub();
-    } else {
-      setLoading(false);
-    }
-  }, [clubId]);
-
   const loadClub = useCallback(async () => {
     if (!clubId) return;
 
@@ -60,6 +51,15 @@ export default function ClubReviewPage() {
       setLoading(false);
     }
   }, [clubId]);
+
+  // If we have a clubId, load that club directly
+  useEffect(() => {
+    if (clubId) {
+      loadClub();
+    } else {
+      setLoading(false);
+    }
+  }, [clubId, loadClub]);
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) return;

@@ -107,12 +107,6 @@ export default function CreateEventPage() {
     "R&B",
   ];
 
-  // Fetch existing events and club hours for validation
-  useEffect(() => {
-    fetchExistingEvents();
-    fetchClubHours();
-  }, []);
-
   const checkEventHours = () => {
     if (!startDate || !endDate || !clubHours?.periods) {
       setHoursWarning(null);
@@ -164,6 +158,12 @@ export default function CreateEventPage() {
       setHoursWarning(null);
     }
   };
+
+  // Fetch existing events and club hours for validation
+  useEffect(() => {
+    fetchExistingEvents();
+    fetchClubHours();
+  }, []);
 
   // Check if event time is within club hours
   useEffect(() => {

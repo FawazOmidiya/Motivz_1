@@ -62,21 +62,6 @@ export default function EditEventPage() {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      setInitialLoading(true);
-      await Promise.all([fetchClubs(), fetchEvent()]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setInitialLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [eventId]);
-
   const fetchClubs = async () => {
     try {
       const { data, error } = await supabase
@@ -88,20 +73,6 @@ export default function EditEventPage() {
     } catch (error) {
       console.error("Error fetching clubs:", error);
     }
-  };
-
-  const handleGenreToggle = (genre: string) => {
-    setSelectedGenres((prev) => {
-      if (prev.includes(genre)) {
-        return prev.filter((g) => g !== genre);
-      } else {
-        return [...prev, genre];
-      }
-    });
-  };
-
-  const removeGenre = (genre: string) => {
-    setSelectedGenres((prev) => prev.filter((g) => g !== genre));
   };
 
   const fetchEvent = async () => {
@@ -145,6 +116,35 @@ export default function EditEventPage() {
     } catch (error) {
       console.error("Error fetching event:", error);
     }
+  };
+
+  const fetchData = async () => {
+    try {
+      setInitialLoading(true);
+      await Promise.all([fetchClubs(), fetchEvent()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [eventId]);
+
+  const handleGenreToggle = (genre: string) => {
+    setSelectedGenres((prev) => {
+      if (prev.includes(genre)) {
+        return prev.filter((g) => g !== genre);
+      } else {
+        return [...prev, genre];
+      }
+    });
+  };
+
+  const removeGenre = (genre: string) => {
+    setSelectedGenres((prev) => prev.filter((g) => g !== genre));
   };
 
   const handleUpdateEvent = async () => {

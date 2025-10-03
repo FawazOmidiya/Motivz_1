@@ -163,10 +163,6 @@ export default function MasterDashboard() {
     instagram_handle: "",
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -181,6 +177,10 @@ export default function MasterDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const fetchClubs = async () => {
     try {
