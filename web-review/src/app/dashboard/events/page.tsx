@@ -49,13 +49,6 @@ export default function EventsPage() {
   // Use authenticated club ID
   const CLUB_ID = club?.id;
 
-  useEffect(() => {
-    if (CLUB_ID) {
-      fetchEvents();
-      fetchClubHours();
-      fetchMusicSchedules();
-    }
-  }, [CLUB_ID, filter, fetchEvents, fetchClubHours, fetchMusicSchedules]);
   const fetchClubHours = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -118,6 +111,14 @@ export default function EventsPage() {
       setLoading(false);
     }
   }, [CLUB_ID, filter]);
+
+  useEffect(() => {
+    if (CLUB_ID) {
+      fetchEvents();
+      fetchClubHours();
+      fetchMusicSchedules();
+    }
+  }, [CLUB_ID, filter, fetchEvents, fetchClubHours, fetchMusicSchedules]);
 
   const handleDelete = async (eventId: string) => {
     if (!confirm("Are you sure you want to delete this event?")) {
