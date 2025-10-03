@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Calendar, Save, X } from "lucide-react";
@@ -29,7 +29,7 @@ interface Club {
   Address: string;
 }
 
-export default function CreateEventPage() {
+function CreateEventPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -483,5 +483,19 @@ export default function CreateEventPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function CreateEventPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
+      <CreateEventPageContent />
+    </Suspense>
   );
 }
