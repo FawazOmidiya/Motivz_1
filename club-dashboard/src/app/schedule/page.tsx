@@ -69,7 +69,7 @@ export default function ClubSchedulePage() {
     if (CLUB_ID) {
       loadSchedule();
     }
-  }, [CLUB_ID, loadSchedule]);
+  }, [CLUB_ID]);
 
   const loadSchedule = async () => {
     try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -30,9 +30,9 @@ export default function DashboardPage() {
     if (CLUB_ID) {
       fetchStats();
     }
-  }, [CLUB_ID]);
+  }, [CLUB_ID, fetchStats]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       // Fetch upcoming events (events starting from today onwards)
       let upcomingEvents = 0;
@@ -105,7 +105,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [CLUB_ID]);
 
   return (
     <div className="container mx-auto p-6">

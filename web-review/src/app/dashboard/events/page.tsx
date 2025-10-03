@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
@@ -55,8 +55,8 @@ export default function EventsPage() {
       fetchClubHours();
       fetchMusicSchedules();
     }
-  }, [CLUB_ID, filter]);
-  const fetchClubHours = async () => {
+  }, [CLUB_ID, filter, fetchEvents, fetchClubHours, fetchMusicSchedules]);
+  const fetchClubHours = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("Clubs")
@@ -73,9 +73,9 @@ export default function EventsPage() {
     } catch (error) {
       console.error("Error fetching club hours:", error);
     }
-  };
+  }, [CLUB_ID]);
 
-  const fetchMusicSchedules = async () => {
+  const fetchMusicSchedules = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("ClubMusicSchedules")
@@ -91,9 +91,9 @@ export default function EventsPage() {
     } catch (error) {
       console.error("Error fetching music schedules:", error);
     }
-  };
+  }, [CLUB_ID]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       let query = supabase
         .from("events")
@@ -117,7 +117,7 @@ export default function EventsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [CLUB_ID, filter]);
 
   const handleDelete = async (eventId: string) => {
     if (!confirm("Are you sure you want to delete this event?")) {

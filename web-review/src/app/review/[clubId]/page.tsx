@@ -54,7 +54,7 @@ export default function ClubReviewPage() {
       } else {
         setError("Club not found");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to load club information");
     } finally {
       setLoading(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -69,9 +69,9 @@ export default function ClubSchedulePage() {
     if (CLUB_ID) {
       loadSchedule();
     }
-  }, [CLUB_ID]);
+  }, [CLUB_ID, loadSchedule]);
 
-  const loadSchedule = async () => {
+  const loadSchedule = useCallback(async () => {
     try {
       const [hoursData, musicData] = await Promise.all([
         supabase.from("Clubs").select("hours").eq("id", CLUB_ID).single(),
@@ -144,7 +144,7 @@ export default function ClubSchedulePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [CLUB_ID]);
 
   const updateDaySchedule = (
     dayValue: number,

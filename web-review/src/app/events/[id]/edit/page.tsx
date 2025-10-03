@@ -126,12 +126,17 @@ export default function EditEventPage() {
       return;
     }
 
-    const isWithinHours = dayPeriods.some((period: any) => {
-      const clubOpen = createDateTime(startDate, period.open);
-      const clubClose = createDateTime(startDate, period.close);
+    const isWithinHours = dayPeriods.some(
+      (period: {
+        open: { hour: number; minute: number };
+        close: { hour: number; minute: number };
+      }) => {
+        const clubOpen = createDateTime(startDate, period.open);
+        const clubClose = createDateTime(startDate, period.close);
 
-      return startDateTime >= clubOpen && endDateTime <= clubClose;
-    });
+        return startDateTime >= clubOpen && endDateTime <= clubClose;
+      }
+    );
 
     if (!isWithinHours) {
       setHoursWarning("Event time is outside club hours");
