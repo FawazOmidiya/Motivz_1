@@ -123,9 +123,16 @@ export default function LandingPage() {
             <Button
               size="lg"
               className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4"
+              asChild
             >
-              <Download className="w-5 h-5 mr-2" />
-              Download App
+              <a
+                href="https://apps.apple.com/ca/app/motivz/id6741746676"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                Download App
+              </a>
             </Button>
             <Button
               size="lg"
