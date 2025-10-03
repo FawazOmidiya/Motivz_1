@@ -20,7 +20,7 @@ export default function DatePickerScreen({
   onDateSelect,
   onCancel,
   title,
-  minDate = new Date(),
+  minDate,
 }: DatePickerScreenProps) {
   const [tempDate, setTempDate] = useState<Date | undefined>(selectedDate);
 
@@ -51,7 +51,7 @@ export default function DatePickerScreen({
             mode="single"
             selected={tempDate}
             onSelect={setTempDate}
-            disabled={(date) => date < minDate}
+            disabled={minDate ? (date) => date < minDate : undefined}
             className="rounded-md border w-full"
             initialFocus
           />
