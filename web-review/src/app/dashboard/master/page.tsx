@@ -326,6 +326,11 @@ export default function MasterDashboard() {
   };
 
   const sendPushNotification = async () => {
+    if (sendingNotification) {
+      console.log("Notification already being sent, ignoring duplicate call");
+      return;
+    }
+
     if (!notificationTitle.trim() || !notificationBody.trim()) {
       setNotificationResult("Please fill in both title and message");
       return;
@@ -336,6 +341,10 @@ export default function MasterDashboard() {
       return;
     }
 
+    console.log("Sending notification:", {
+      title: notificationTitle,
+      body: notificationBody,
+    });
     setSendingNotification(true);
     setNotificationResult(null);
 
@@ -1486,7 +1495,10 @@ export default function MasterDashboard() {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
-                    onClick={sendPushNotification}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      sendPushNotification();
+                    }}
                     disabled={
                       sendingNotification ||
                       !notificationTitle.trim() ||
