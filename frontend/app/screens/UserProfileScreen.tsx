@@ -13,7 +13,11 @@ import {
 } from "react-native";
 import { Text, Button, TextInput } from "react-native-paper";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { fetchUserFavourites, fetchSingleClub } from "../utils/supabaseService";
+import {
+  fetchUserFavourites,
+  fetchSingleClub,
+  fetchUserAttendingEvents,
+} from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import FavouriteClub from "@/components/ClubFavourite";
 import BackButton from "@/components/BackButton";
@@ -38,6 +42,7 @@ export default function UserProfileScreen() {
   const session = useSession();
   const navigation = useNavigation<UserProfileScreenNavigationProp>();
   const [favourites, setFavourites] = useState<types.Club[]>([]);
+  const [attendingEvents, setAttendingEvents] = useState<types.Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeClub, setActiveClub] = useState<types.Club | null>(null);
@@ -67,8 +72,20 @@ export default function UserProfileScreen() {
     }
   }, [user.id]);
 
+  // Fetch events user is attending
+  const loadAttendingEvents = useCallback(async () => {
+    try {
+      const events = await fetchUserAttendingEvents(user.id);
+      setAttendingEvents(events);
+    } catch (error) {
+      console.error("Error loading attending events:", error);
+      setAttendingEvents([]);
+    }
+  }, [user.id]);
+
   useEffect(() => {
     loadFavourites();
+    loadAttendingEvents();
     if (user.active_club_id) {
       fetchSingleClub(user.active_club_id)
         .then((club) => setActiveClub(club))
@@ -77,11 +94,12 @@ export default function UserProfileScreen() {
     if (user?.id) {
       fetchUserPosts(user.id).then(setPosts);
     }
-  }, [loadFavourites, user.active_club_id, user]);
+  }, [loadFavourites, loadAttendingEvents, user.active_club_id, user]);
 
   async function onRefresh() {
     setRefreshing(true);
     await loadFavourites();
+    await loadAttendingEvents();
     setRefreshing(false);
   }
 
@@ -93,6 +111,30 @@ export default function UserProfileScreen() {
       <Image source={{ uri: item.Image }} style={styles.favouriteClubImage} />
       <Text style={styles.favouriteClubName} numberOfLines={1}>
         {item.Name}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderAttendingEvent = ({ item }: { item: types.Event }) => (
+    <TouchableOpacity
+      style={styles.favouriteClubItem}
+      onPress={() => navigation.navigate("EventDetail", { event: item })}
+    >
+      {item.poster_url ? (
+        <Image
+          source={{ uri: item.poster_url }}
+          style={styles.favouriteClubImage}
+        />
+      ) : (
+        <View style={[styles.favouriteClubImage, styles.eventPlaceholder]}>
+          <Ionicons name="calendar-outline" size={24} color="#666" />
+        </View>
+      )}
+      <Text style={styles.favouriteClubName} numberOfLines={2}>
+        {item.title}
+      </Text>
+      <Text style={styles.eventDate} numberOfLines={1}>
+        {new Date(item.start_date).toLocaleDateString()}
       </Text>
     </TouchableOpacity>
   );
@@ -184,6 +226,16 @@ export default function UserProfileScreen() {
         data={favourites}
         keyExtractor={(item) => item?.id}
         renderItem={renderFavouriteClub}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.favouritesHorizontalList}
+      />
+
+      <Text style={styles.sectionTitle}>Events They're Attending</Text>
+      <FlatList
+        data={attendingEvents}
+        keyExtractor={(item) => item?.id}
+        renderItem={renderAttendingEvent}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.favouritesHorizontalList}
@@ -552,6 +604,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     width: 70,
+  },
+  eventPlaceholder: {
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  eventDate: {
+    color: Constants.greyCOLOR,
+    fontSize: 11,
+    textAlign: "center",
+    width: 70,
+    marginTop: 2,
   },
   gridList: {
     paddingBottom: 20,

@@ -1969,3 +1969,38 @@ export const isUserAttendingEvent = async (
     return false;
   }
 };
+
+// Fetch events that a user is attending
+export const fetchUserAttendingEvents = async (
+  userId: string
+): Promise<types.Event[]> => {
+  try {
+    const { data: events, error } = await supabase
+      .from("events")
+      .select(
+        `
+        *,
+        Clubs!inner(
+          id,
+          Name,
+          Address,
+          latitude,
+          longitude,
+          Image
+        )
+      `
+      )
+      .contains("attendees", [userId])
+      .order("start_date", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching user attending events:", error);
+      return [];
+    }
+
+    return events || [];
+  } catch (error) {
+    console.error("Error fetching user attending events:", error);
+    return [];
+  }
+};

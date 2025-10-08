@@ -15,7 +15,7 @@ import {
   Linking,
   Pressable,
 } from "react-native";
-import { Button, Text, TextInput } from "react-native-paper";
+import { Button, Text, TextInput, SegmentedButtons } from "react-native-paper";
 
 import { useSession } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
@@ -26,6 +26,7 @@ import {
   fetchUserProfile,
   fetchSingleClub,
   fetchPendingFriendRequestsCount,
+  fetchUserAttendingEvents,
   storeUserPushToken,
   supabase,
 } from "../utils/supabaseService";
@@ -180,7 +181,12 @@ export default function Account() {
   const [activeClub, setActiveClub] = useState<types.Club | null>(null);
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [posts, setPosts] = useState<types.Post[]>([]);
+  const [attendingEvents, setAttendingEvents] = useState<types.Event[]>([]);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [activeTab, setActiveTab] = useState("bookmarks");
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [stories, setStories] = useState<any[]>([]);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
 
@@ -204,6 +210,7 @@ export default function Account() {
       getProfile();
       getFavourites();
       getPendingRequestsCount();
+      getAttendingEvents();
     }
   }, [session]);
 
@@ -264,11 +271,25 @@ export default function Account() {
     }
   }
 
+  // Fetch events user is attending
+  async function getAttendingEvents() {
+    try {
+      if (!session?.user) return;
+
+      const events = await fetchUserAttendingEvents(session.user.id);
+      setAttendingEvents(events);
+    } catch (error) {
+      console.error("Error fetching attending events:", error);
+      setAttendingEvents([]);
+    }
+  }
+
   async function handleRefresh() {
     setRefreshing(true);
     await getProfile();
     await getFavourites();
     await getPendingRequestsCount();
+    await getAttendingEvents();
     setRefreshing(false);
   }
 
@@ -480,123 +501,336 @@ export default function Account() {
     </TouchableOpacity>
   );
 
-  const ListHeaderComponent = () => (
-    <View>
-      <LinearGradient
-        colors={["rgba(0,0,0,0.7)", "transparent"]}
-        style={styles.headerGradient}
-      />
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.avatarContainer}>
-            <TouchableOpacity onPress={() => setIsImageModalVisible(true)}>
-              {profile?.avatar_url ? (
-                <Image
-                  source={{ uri: profile.avatar_url }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={styles.placeholderAvatar}>
-                  <Text style={styles.avatarInitial}>
-                    {profile?.first_name?.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+  const renderAttendingEvent = ({ item }: { item: types.Event }) => (
+    <TouchableOpacity
+      style={styles.favouriteClubItem}
+      onPress={() => navigation.navigate("EventDetail", { event: item })}
+    >
+      {item.poster_url ? (
+        <Image
+          source={{ uri: item.poster_url }}
+          style={styles.favouriteClubImage}
+        />
+      ) : (
+        <View style={[styles.favouriteClubImage, styles.eventPlaceholder]}>
+          <Ionicons name="calendar-outline" size={24} color="#666" />
         </View>
-        <Text style={styles.username}>{profile?.username}</Text>
-        <View style={styles.profileButtonsContainer}>
-          <View style={styles.nameAndButtonsRow}>
-            <View style={styles.nameContainer}>
-              <Text style={styles.firstName}>{profile?.first_name}</Text>
-              <Text style={styles.lastName}>{profile?.last_name}</Text>
+      )}
+      <Text style={styles.favouriteClubName} numberOfLines={2}>
+        {item.title}
+      </Text>
+      <Text style={styles.eventDate} numberOfLines={1}>
+        {new Date(item.start_date).toLocaleDateString()}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderTicketItem = ({ item }: { item: any }) => (
+    <TouchableOpacity style={styles.ticketCard}>
+      <View style={styles.ticketHeader}>
+        <Image
+          source={{ uri: item.event_poster }}
+          style={styles.ticketEventImage}
+        />
+        <View style={styles.ticketInfo}>
+          <Text style={styles.ticketEventTitle}>{item.event_title}</Text>
+          <Text style={styles.ticketEventDate}>{item.event_date}</Text>
+          <Text style={styles.ticketStatus}>{item.status}</Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color={Constants.greyCOLOR}
+        />
+      </View>
+      <View style={styles.ticketDetails}>
+        <Text style={styles.ticketCode}>Code: {item.ticket_code}</Text>
+        <Text style={styles.ticketPrice}>${item.price}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderNotificationItem = ({ item }: { item: any }) => (
+    <TouchableOpacity style={styles.notificationCard}>
+      <View style={styles.notificationIcon}>
+        <Ionicons
+          name={item.icon}
+          size={24}
+          color={item.iconColor || Constants.purpleCOLOR}
+        />
+      </View>
+      <View style={styles.notificationContent}>
+        <Text style={styles.notificationTitle}>{item.title}</Text>
+        <Text style={styles.notificationMessage}>{item.message}</Text>
+        <Text style={styles.notificationTime}>{item.time}</Text>
+      </View>
+      {!item.read && <View style={styles.unreadDot} />}
+    </TouchableOpacity>
+  );
+
+  const ListHeaderComponent = () => (
+    <View style={styles.profileContainer}>
+      {/* Instagram-style Profile Header */}
+      <View style={styles.profileHeader}>
+        <View style={styles.profileTopRow}>
+          <TouchableOpacity
+            style={styles.profileAvatar}
+            onPress={() => setIsImageModalVisible(true)}
+          >
+            {profile?.avatar_url ? (
+              <Image
+                source={{ uri: profile.avatar_url }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitial}>
+                  {profile?.first_name?.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.profileInfo}>
+          <Text style={styles.profileName}>
+            {profile?.first_name} {profile?.last_name}
+          </Text>
+        </View>
+
+        <View style={styles.profileActions}>
+          <TouchableOpacity style={styles.editButton}>
+            <Text style={styles.editButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shareButton}>
+            <Ionicons
+              name="share-outline"
+              size={20}
+              color={Constants.whiteCOLOR}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate("ProfileSettings")}
+          >
+            <Ionicons
+              name="settings-outline"
+              size={20}
+              color={Constants.whiteCOLOR}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() =>
+              navigation.navigate("FriendsList", { userId: profile?.id })
+            }
+          >
+            <Ionicons
+              name="people-outline"
+              size={20}
+              color={Constants.whiteCOLOR}
+            />
+            {pendingRequestsCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{pendingRequestsCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Instagram-style Stories */}
+      <View style={styles.storiesSection}>
+        <View style={styles.storiesList}>
+          <TouchableOpacity style={styles.addStoryButton}>
+            <View style={styles.addStoryIcon}>
+              <Ionicons name="add" size={20} color={Constants.whiteCOLOR} />
             </View>
-            <View style={styles.buttonsRow}>
-              {profile?.id && (
-                <View style={styles.iconButtonContainer}>
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={() =>
-                      navigation.navigate("FriendsList", { userId: profile.id })
-                    }
-                  >
-                    <Ionicons
-                      name="people-outline"
-                      size={24}
-                      color={Constants.whiteCOLOR}
-                    />
-                  </TouchableOpacity>
-                  {pendingRequestsCount > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>
-                        {pendingRequestsCount > 99
-                          ? "99+"
-                          : pendingRequestsCount}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
+            <Text style={styles.addStoryText}>Your story</Text>
+          </TouchableOpacity>
+          {stories.map((story, index) => (
+            <TouchableOpacity key={index} style={styles.storyItem}>
+              <View style={styles.storyRing}>
+                <Image
+                  source={{ uri: story.thumbnail }}
+                  style={styles.storyImage}
+                />
+              </View>
+              <Text style={styles.storyUsername} numberOfLines={1}>
+                {story.username}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Instagram-style Tab Bar */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === "posts" && styles.activeTab]}
+          onPress={() => setActiveTab("posts")}
+        >
+          <Ionicons
+            name="grid-outline"
+            size={24}
+            color={
+              activeTab === "posts" ? Constants.whiteCOLOR : Constants.greyCOLOR
+            }
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === "reels" && styles.activeTab]}
+          onPress={() => setActiveTab("reels")}
+        >
+          <Ionicons
+            name="play-outline"
+            size={24}
+            color={
+              activeTab === "reels" ? Constants.whiteCOLOR : Constants.greyCOLOR
+            }
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "bookmarks" && styles.activeTab,
+          ]}
+          onPress={() => setActiveTab("bookmarks")}
+        >
+          <Ionicons
+            name="bookmark-outline"
+            size={24}
+            color={
+              activeTab === "bookmarks"
+                ? Constants.whiteCOLOR
+                : Constants.greyCOLOR
+            }
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Tab Content */}
+      {activeTab === "posts" && (
+        <View style={styles.tabContent}>
+          <Text style={styles.emptyTabText}>Your posts will appear here</Text>
+        </View>
+      )}
+
+      {activeTab === "reels" && (
+        <View style={styles.tabContent}>
+          <Text style={styles.emptyTabText}>Your reels will appear here</Text>
+        </View>
+      )}
+
+      {activeTab === "bookmarks" && (
+        <View style={styles.bookmarksContent}>
+          {/* Currently Active Club */}
+          {activeClub && (
+            <View style={styles.activeClubSection}>
+              <Text style={styles.sectionTitle}>Currently Active</Text>
               <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => navigation.navigate("ProfileSettings")}
+                style={styles.activeClubCard}
+                onPress={() =>
+                  navigation.navigate("ClubDetail", { club: activeClub })
+                }
               >
+                <Image
+                  source={{ uri: activeClub.Image }}
+                  style={styles.clubImage}
+                />
+                <View style={styles.clubInfo}>
+                  <Text style={styles.clubName}>{activeClub.Name}</Text>
+                  <Text style={styles.clubStatus}>Currently here</Text>
+                </View>
                 <Ionicons
-                  name="settings-outline"
-                  size={24}
-                  color={Constants.whiteCOLOR}
+                  name="chevron-forward"
+                  size={20}
+                  color={Constants.greyCOLOR}
                 />
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-        {activeClub && (
-          <TouchableOpacity
-            style={styles.activeClubContainer}
-            onPress={() =>
-              navigation.navigate("ClubDetail", { club: activeClub })
-            }
-          >
-            <View style={styles.activeClubContent}>
-              <Image
-                source={{ uri: activeClub.Image }}
-                style={styles.activeClubImage}
-              />
-              <View style={styles.activeClubInfo}>
-                <Text style={styles.activeClubTitle}>Currently at</Text>
-                <Text style={styles.activeClubName}>{activeClub.Name}</Text>
+          )}
+
+          {/* Favourite Clubs */}
+          {favourites.length > 0 && (
+            <View style={styles.bookmarkSection}>
+              <Text style={styles.sectionTitle}>Favourite Clubs</Text>
+              <View style={styles.clubsGrid}>
+                {favourites.map((club) => (
+                  <TouchableOpacity
+                    key={club?.id}
+                    style={styles.clubCard}
+                    onPress={() => navigation.navigate("ClubDetail", { club })}
+                  >
+                    <Image
+                      source={{ uri: club?.Image }}
+                      style={styles.clubCardImage}
+                    />
+                    <Text style={styles.clubCardName} numberOfLines={2}>
+                      {club?.Name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
-          </TouchableOpacity>
-        )}
-      </View>
-      <Text style={styles.sectionTitle}>Favourites</Text>
-      <FlatList
-        data={favourites}
-        keyExtractor={(item) => item?.id}
-        renderItem={renderFavouriteClub}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.favouritesHorizontalList}
-      />
-      {/* {session?.user.id === profile?.id && (
-        <View style={{ alignItems: "center", marginVertical: 16 }}>
-          <Button
-            mode="contained"
-            onPress={handleCaptureMoment}
-            style={{
-              backgroundColor: Constants.purpleCOLOR,
-              borderRadius: 24,
-              paddingHorizontal: 32,
-              paddingVertical: 12,
-            }}
-            labelStyle={{ fontWeight: "bold", fontSize: 18 }}
-          >
-            Capture a Moment
-          </Button>
+          )}
+
+          {/* Events I'm Attending */}
+          {attendingEvents.length > 0 && (
+            <View style={styles.bookmarkSection}>
+              <Text style={styles.sectionTitle}>Events I'm Attending</Text>
+              <View style={styles.eventsList}>
+                {attendingEvents.map((event) => (
+                  <TouchableOpacity
+                    key={event?.id}
+                    style={styles.eventCard}
+                    onPress={() =>
+                      navigation.navigate("EventDetail", { event })
+                    }
+                  >
+                    <Image
+                      source={{ uri: event?.poster_url }}
+                      style={styles.eventCardImage}
+                    />
+                    <View style={styles.eventCardInfo}>
+                      <Text style={styles.eventCardTitle} numberOfLines={2}>
+                        {event?.title}
+                      </Text>
+                      <Text style={styles.eventCardDate}>
+                        {new Date(event?.start_date).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Tickets */}
+          {tickets.length > 0 && (
+            <View style={styles.bookmarkSection}>
+              <Text style={styles.sectionTitle}>My Tickets</Text>
+              <View style={styles.ticketsList}>
+                {tickets.map((ticket) => (
+                  <View key={ticket.id} style={styles.ticketCard}>
+                    <Image
+                      source={{ uri: ticket.event_poster }}
+                      style={styles.ticketImage}
+                    />
+                    <View style={styles.ticketInfo}>
+                      <Text style={styles.ticketTitle}>
+                        {ticket.event_title}
+                      </Text>
+                      <Text style={styles.ticketDate}>{ticket.event_date}</Text>
+                      <Text style={styles.ticketStatus}>{ticket.status}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
-      )} */}
+      )}
     </View>
   );
 
@@ -1107,5 +1341,935 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     width: 70,
+  },
+  eventPlaceholder: {
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  eventDate: {
+    color: Constants.greyCOLOR,
+    fontSize: 11,
+    textAlign: "center",
+    width: 70,
+    marginTop: 2,
+  },
+  // Instagram-style Profile Design
+  profileContainer: {
+    backgroundColor: Constants.blackCOLOR,
+  },
+  profileHeader: {
+    padding: 20,
+    paddingTop: 60,
+  },
+  profileTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  profileAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: Constants.purpleCOLOR,
+    marginRight: 20,
+  },
+  avatarImage: {
+    width: 94,
+    height: 94,
+    borderRadius: 47,
+  },
+  avatarPlaceholder: {
+    width: 94,
+    height: 94,
+    borderRadius: 47,
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarInitial: {
+    fontSize: 36,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+  },
+  profileStats: {
+    flexDirection: "row",
+    flex: 1,
+    justifyContent: "space-around",
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+  },
+  profileInfo: {
+    marginBottom: 20,
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  profileBio: {
+    fontSize: 14,
+    color: Constants.whiteCOLOR,
+    lineHeight: 20,
+  },
+  profileActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  editButton: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  editButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  shareButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    backgroundColor: "#FF3B30",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  badgeText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  storiesSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  storiesList: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  addStoryButton: {
+    alignItems: "center",
+    marginRight: 20,
+  },
+  addStoryIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  addStoryText: {
+    fontSize: 12,
+    color: Constants.whiteCOLOR,
+    textAlign: "center",
+  },
+  storyItem: {
+    alignItems: "center",
+    marginRight: 20,
+  },
+  storyRing: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: Constants.purpleCOLOR,
+    padding: 2,
+    marginBottom: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  storyImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  storyUsername: {
+    fontSize: 12,
+    color: Constants.whiteCOLOR,
+    textAlign: "center",
+  },
+  tabBar: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+    marginTop: 20,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: Constants.purpleCOLOR,
+  },
+  bookmarksContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  activeClubSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 16,
+  },
+  activeClubCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 16,
+  },
+  clubImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  clubInfo: {
+    flex: 1,
+  },
+  clubName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  clubStatus: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+  },
+  bookmarkSection: {
+    marginBottom: 24,
+  },
+  clubsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  clubCard: {
+    width: "48%",
+    marginBottom: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+  },
+  clubCardImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  clubCardName: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: Constants.whiteCOLOR,
+    textAlign: "center",
+  },
+  eventsList: {
+    gap: 12,
+  },
+  eventCard: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+  },
+  eventCardImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  eventCardInfo: {
+    flex: 1,
+  },
+  eventCardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  eventCardDate: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+  },
+  ticketsList: {
+    gap: 12,
+  },
+  ticketCard: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+  },
+  ticketImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  ticketInfo: {
+    flex: 1,
+  },
+  ticketTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  ticketDate: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    marginBottom: 2,
+  },
+  ticketStatus: {
+    fontSize: 12,
+    color: Constants.purpleCOLOR,
+    fontWeight: "500",
+  },
+  tabContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  emptyTabText: {
+    fontSize: 16,
+    color: Constants.greyCOLOR,
+    textAlign: "center",
+  },
+  activeClubStory: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    marginBottom: 20,
+  },
+  clubStoryRing: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: Constants.purpleCOLOR,
+    padding: 2,
+    marginRight: 12,
+  },
+  clubStoryImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  clubStoryText: {
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    fontWeight: "500",
+  },
+  highlightsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  highlightsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 16,
+  },
+  highlightsList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  highlightItem: {
+    alignItems: "center",
+    width: "12.5%",
+    marginBottom: 16,
+  },
+  highlightRing: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: Constants.purpleCOLOR,
+    padding: 2,
+    marginBottom: 8,
+  },
+  highlightImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+  },
+  highlightName: {
+    fontSize: 12,
+    color: Constants.whiteCOLOR,
+    textAlign: "center",
+  },
+  eventsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  eventsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 16,
+  },
+  eventsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  eventItem: {
+    width: "32%",
+    aspectRatio: 1,
+    marginBottom: 8,
+    position: "relative",
+  },
+  eventImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 8,
+  },
+  eventOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    padding: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  eventTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 2,
+  },
+  eventDate: {
+    fontSize: 10,
+    color: Constants.greyCOLOR,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  favouritesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  favouriteCard: {
+    width: "30%",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  favouriteImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 8,
+  },
+  favouriteName: {
+    fontSize: 12,
+    color: Constants.whiteCOLOR,
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  eventsList: {
+    paddingHorizontal: 20,
+  },
+  eventCard: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  eventImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  eventDate: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+  },
+  ticketsList: {
+    paddingHorizontal: 20,
+  },
+  ticketCard: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  ticketImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  ticketInfo: {
+    flex: 1,
+  },
+  ticketTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  ticketDate: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    marginBottom: 2,
+  },
+  ticketStatus: {
+    fontSize: 12,
+    color: Constants.purpleCOLOR,
+    fontWeight: "500",
+  },
+  notificationsList: {
+    paddingHorizontal: 20,
+  },
+  notificationCard: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: "center",
+    position: "relative",
+  },
+  notificationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    marginBottom: 2,
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+  },
+  unreadDot: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Constants.purpleCOLOR,
+  },
+  profileHeader: {
+    padding: 20,
+    paddingTop: 60,
+  },
+  profileAvatarContainer: {
+    position: "relative",
+  },
+  profileTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  profileAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: Constants.whiteCOLOR,
+  },
+  profileAvatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: Constants.whiteCOLOR,
+  },
+  profileAvatarInitial: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+  },
+  onlineIndicator: {
+    position: "absolute",
+    bottom: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#4CAF50",
+    borderWidth: 3,
+    borderColor: "#1a1a1a",
+  },
+  profileActions: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  actionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    backgroundColor: "#FF4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notificationBadgeText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  profileInfo: {
+    marginBottom: 20,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  profileUsername: {
+    fontSize: 16,
+    color: Constants.greyCOLOR,
+    marginBottom: 8,
+  },
+  profileBio: {
+    fontSize: 14,
+    color: Constants.whiteCOLOR,
+    lineHeight: 20,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 20,
+  },
+  statItem: {
+    alignItems: "center",
+    position: "relative",
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+  },
+  friendRequestBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#FF4444",
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  friendRequestBadgeText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  activeClubCard: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  activeClubContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  activeClubImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  activeClubInfo: {
+    flex: 1,
+  },
+  activeClubLabel: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+    marginBottom: 4,
+  },
+  activeClubName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+  },
+  tabContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  segmentedButtons: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  tabContent: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 16,
+  },
+  storiesContainer: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  addStoryButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: Constants.purpleCOLOR,
+    borderStyle: "dashed",
+  },
+  addStoryText: {
+    fontSize: 10,
+    color: Constants.purpleCOLOR,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  storyItem: {
+    width: 80,
+    height: 80,
+    position: "relative",
+  },
+  storyThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  storyRing: {
+    position: "absolute",
+    top: -3,
+    left: -3,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 3,
+    borderColor: Constants.purpleCOLOR,
+  },
+  ticketCard: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  ticketHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  ticketEventImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  ticketInfo: {
+    flex: 1,
+  },
+  ticketEventTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  ticketEventDate: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    marginBottom: 4,
+  },
+  ticketStatus: {
+    fontSize: 12,
+    color: "#4CAF50",
+    fontWeight: "500",
+  },
+  ticketDetails: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+  },
+  ticketCode: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+  },
+  ticketPrice: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+  },
+  notificationCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    position: "relative",
+  },
+  notificationIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    marginBottom: 4,
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+  },
+  unreadDot: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF4444",
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    textAlign: "center",
   },
 });
