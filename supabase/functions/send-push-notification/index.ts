@@ -152,8 +152,9 @@ serve(async (req) => {
     // Create messages for Expo Push Service (matching working function structure)
     const messages: ExpoMessage[] = tokens.map((token: string) => ({
       to: token,
-      sound: "default",
+      title: title,
       body: body,
+      sound: "default",
     }));
 
     // Send in chunks of 100 (Expo limit)

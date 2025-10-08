@@ -68,7 +68,6 @@ class Club:
             "latitude": self.location.get("latitude"),
             "longitude": self.location.get("longitude"),
             "Rating": self.rating,
-            "club_ids": self.club_id,
             "id": self.club_id,
             "google_id": self.club_id,
             "Image": self.image_url,
@@ -227,7 +226,7 @@ def populate_club_google_reviews(club_id: str, reviews: list) -> dict:
 
 
 def main():
-    searchInput = "Nightclubs in Toronto"
+    searchInput = "333 Yonge St - Unit 2 Toronto"
 
     clubs = search_clubs(searchInput)
     print(f"Total clubs found: {len(clubs)}")
