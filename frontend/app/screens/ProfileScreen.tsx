@@ -14,6 +14,7 @@ import {
   StatusBar,
   Linking,
   Pressable,
+  Animated,
 } from "react-native";
 import { Button, Text, TextInput, SegmentedButtons } from "react-native-paper";
 
@@ -25,6 +26,7 @@ import {
   fetchUserFavourites,
   fetchUserProfile,
   fetchSingleClub,
+  fetchSingleEvent,
   fetchPendingFriendRequestsCount,
   fetchUserAttendingEvents,
   storeUserPushToken,
@@ -36,142 +38,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { uploadPost, fetchUserPosts, deletePost } from "../utils/postService";
+import {
+  createStory,
+  getUserStories as fetchUserStories,
+  uploadStoryMedia,
+  deleteStory,
+  Story,
+} from "../utils/storiesService";
+import StoryViewer from "../components/StoryViewer";
+import CameraModal from "../components/CameraModal";
 import { decode } from "base64-arraybuffer";
 import { Video, ResizeMode } from "expo-av";
-import {
-  CameraView,
-  CameraType,
-  useCameraPermissions,
-  Camera,
-} from "expo-camera";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
 
 type ProfileScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
-
-function CameraModal({
-  visible,
-  onClose,
-  onCapture,
-  setPickedAssetType,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onCapture: (media: any) => void;
-  setPickedAssetType: (type: "photo" | "video") => void;
-}) {
-  const cameraRef = useRef<any>(null);
-  const [facing, setFacing] = useState<CameraType>("back");
-  const [permission, requestPermission] = useCameraPermissions();
-  const [recording, setRecording] = useState(false);
-
-  if (!permission) return null;
-  if (!permission.granted) {
-    return (
-      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "black",
-          }}
-        >
-          <Text style={{ color: "white", marginBottom: 20 }}>
-            We need your permission to show the camera
-          </Text>
-          <TouchableOpacity
-            onPress={requestPermission}
-            style={{ backgroundColor: "white", padding: 16, borderRadius: 8 }}
-          >
-            <Text>Grant Permission</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={{ marginTop: 20 }}>
-            <Text style={{ color: "white" }}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-    );
-  }
-
-  const takePicture = async () => {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync({
-        base64: true,
-      });
-      setPickedAssetType("photo");
-      onCapture(photo);
-    }
-  };
-
-  const startRecording = async () => {
-    if (cameraRef.current && !recording) {
-      setRecording(true);
-      const video = await cameraRef.current.recordAsync();
-      setRecording(false);
-      setPickedAssetType("video");
-      onCapture(video);
-    }
-  };
-
-  const stopRecording = async () => {
-    if (cameraRef.current && recording) {
-      await cameraRef.current.stopRecording();
-      setRecording(false);
-    }
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1 }}>
-        <CameraView
-          style={{ flex: 1 }}
-          ref={cameraRef}
-          facing={facing}
-          mode="video"
-        />
-        <View
-          style={{
-            position: "absolute",
-            bottom: 40,
-            left: 0,
-            right: 0,
-            alignItems: "center",
-          }}
-        >
-          <Pressable
-            onPress={takePicture}
-            onLongPress={startRecording}
-            onPressOut={stopRecording}
-            style={{
-              backgroundColor: recording ? "red" : "white",
-              padding: 20,
-              borderRadius: 50,
-              marginBottom: 16,
-            }}
-          >
-            <Text style={{ color: recording ? "white" : "black" }}>
-              {recording ? "Recording..." : "Capture"}
-            </Text>
-          </Pressable>
-        </View>
-        <TouchableOpacity
-          onPress={() => setFacing(facing === "back" ? "front" : "back")}
-          style={{ position: "absolute", top: 60, left: 20 }}
-        >
-          <Text style={{ color: "white", fontSize: 18 }}>Flip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onClose}
-          style={{ position: "absolute", top: 60, right: 20 }}
-        >
-          <Text style={{ color: "white", fontSize: 18 }}>Close</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-}
 
 export default function Account() {
   const [loading, setLoading] = useState(true);
@@ -183,10 +65,10 @@ export default function Account() {
   const [posts, setPosts] = useState<types.Post[]>([]);
   const [attendingEvents, setAttendingEvents] = useState<types.Event[]>([]);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [activeTab, setActiveTab] = useState("bookmarks");
+  const [activeTab, setActiveTab] = useState("stories");
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
-  const [stories, setStories] = useState<any[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
 
@@ -203,7 +85,11 @@ export default function Account() {
   } | null>(null);
   const [mediaModalVisible, setMediaModalVisible] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+  const [selectedClubId, setSelectedClubId] = useState<string | undefined>();
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
+  const [activeEvent, setActiveEvent] = useState<any>(null);
 
   useEffect(() => {
     if (session) {
@@ -211,6 +97,7 @@ export default function Account() {
       getFavourites();
       getPendingRequestsCount();
       getAttendingEvents();
+      getUserStories();
     }
   }, [session]);
 
@@ -225,6 +112,11 @@ export default function Account() {
         if (data.active_club_id) {
           const club = await fetchSingleClub(data.active_club_id);
           setActiveClub(club);
+        }
+
+        if (data.active_event_id) {
+          const event = await fetchSingleEvent(data.active_event_id);
+          setActiveEvent(event);
         }
       }
     } catch (error) {
@@ -284,93 +176,50 @@ export default function Account() {
     }
   }
 
+  // Fetch user stories
+  async function getUserStories() {
+    try {
+      if (!session?.user) {
+        return;
+      }
+
+      console.log("📚 Fetching user stories for:", session.user.id);
+      const userStories = await fetchUserStories(session.user.id);
+      setStories(userStories);
+    } catch (error) {
+      console.error("❌ Error fetching user stories:", error);
+      setStories([]);
+    }
+  }
+
   async function handleRefresh() {
     setRefreshing(true);
     await getProfile();
     await getFavourites();
     await getPendingRequestsCount();
     await getAttendingEvents();
+    await getUserStories();
     setRefreshing(false);
   }
 
-  async function handleSignOut() {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error) {
-      if (error instanceof Error) {
-        Alert.alert("Sign Out Error", error.message);
-      }
-    }
-  }
-
   const handleCaptureMoment = async () => {
-    Alert.alert("Add Media", "Choose an option", [
-      {
-        text: "Take Photo or Video",
-        onPress: async () => {
-          // Request camera permissions first
-          const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert(
-              "Camera permission is required!",
-              "Please enable permissions in your device settings.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Open Settings",
-                  onPress: () => Linking.openSettings(),
-                },
-              ]
-            );
-            return;
-          }
-          setShowCameraModal(true);
-        },
-      },
-      {
-        text: "Choose from Library",
-        onPress: async () => {
-          // Request media library permissions first
-          const { status } =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert(
-              "Media library permission is required!",
-              "Please enable permissions in your device settings.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Open Settings",
-                  onPress: () => Linking.openSettings(),
-                },
-              ]
-            );
-            return;
-          }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ["images", "videos"],
-            allowsEditing: true,
-            quality: 0.8,
-            base64: true, // only works for images
-          });
-          if (!result.canceled && result.assets && result.assets[0].uri) {
-            setPickedAsset(result.assets[0]);
-            setPickedAssetType(
-              result.assets[0].type === "video"
-                ? "video"
-                : result.assets[0].type === "livePhoto"
-                ? "photo"
-                : result.assets[0].type === "image"
-                ? "photo"
-                : "video"
-            );
-            setShowPostModal(true);
-          }
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    // Request camera permissions first
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Camera permission is required!",
+        "Please enable permissions in your device settings.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Open Settings",
+            onPress: () => Linking.openSettings(),
+          },
+        ]
+      );
+      return;
+    }
+    setShowCameraModal(true);
   };
 
   const handleUploadPost = async () => {
@@ -406,23 +255,39 @@ export default function Account() {
       const mimeType =
         pickedAssetType === "photo" ? `image/${ext}` : "video/mp4";
 
-      // 3. Compress image if needed
-      let uploadUri = pickedAsset.uri;
+      // 3. Process media (following ProfileSettings pattern)
+      let processedUri = pickedAsset.uri;
+      let buffer: ArrayBuffer;
+
       if (pickedAssetType === "photo") {
+        // Compress image using ImageManipulator
         const manipulated = await ImageManipulator.manipulateAsync(
           pickedAsset.uri,
           [],
           { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         );
-        uploadUri = manipulated.uri;
+        processedUri = manipulated.uri;
+
+        // Convert to base64 then to ArrayBuffer
+        const base64 = await FileSystem.readAsStringAsync(processedUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        buffer = decode(base64);
+      } else {
+        // For videos, read as binary data
+        const binaryData = await FileSystem.readAsStringAsync(processedUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        buffer = decode(binaryData);
       }
 
-      // 4. Upload file directly to Supabase storage
+      // 4. Upload using ArrayBuffer (ProfileSettings pattern)
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("posts")
-        .upload(storagePath, uploadUri, {
+        .upload(storagePath, buffer, {
           cacheControl: "3600",
           upsert: false,
+          contentType: pickedAssetType === "photo" ? "image/jpeg" : "video/mp4",
         });
 
       if (uploadError) throw uploadError;
@@ -488,6 +353,284 @@ export default function Account() {
       ]
     );
   };
+
+  // Handle story creation (following exact same pattern as posts)
+  const handleCreateStory = async (clubId?: string, eventId?: string) => {
+    console.log("🎬 handleCreateStory called");
+    console.log("📱 pickedAsset:", pickedAsset);
+    console.log("📱 profile:", profile);
+
+    if (!pickedAsset || !profile) {
+      console.log("❌ Missing pickedAsset or profile, returning");
+      return;
+    }
+
+    // Use passed parameters or fall back to state
+    const finalClubId = clubId || selectedClubId;
+    const finalEventId = eventId || selectedEventId;
+
+    setUploading(true);
+    try {
+      console.log("🎬 Starting story creation...");
+      console.log("📱 Profile ID:", profile.id);
+      console.log("📸 Asset type:", pickedAssetType);
+      console.log("📝 Caption:", caption);
+      console.log("🔗 Asset URI:", pickedAsset.uri);
+      console.log(
+        "🏢 Active Club:",
+        activeClub?.Name,
+        "(ID:",
+        activeClub?.id,
+        ")"
+      );
+      console.log(
+        "🎪 Active Event:",
+        activeEvent?.title,
+        "(ID:",
+        activeEvent?.id,
+        ")"
+      );
+      console.log("🏷️ Final Club ID:", finalClubId);
+      console.log("🏷️ Final Event ID:", finalEventId);
+
+      // 1. Create the story record first (without media_url yet)
+      console.log("📊 Creating story record in database...");
+      const { data: insertStory, error: insertError } = await supabase
+        .from("stories")
+        .insert({
+          user_id: profile.id,
+          caption: caption || null, // Allow null caption for stories
+          location: undefined,
+          media_type: pickedAssetType,
+          visibility: "friends", // Default to friends-only for direct camera capture
+          club_id: finalClubId,
+          event_id: finalEventId,
+          location_name: activeClub?.Name,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+        })
+        .select()
+        .single();
+
+      console.log("📊 Story insert result:", { insertStory, insertError });
+
+      if (insertError) {
+        console.error("❌ Story insert error:", insertError);
+        throw new Error(`Database error: ${insertError.message}`);
+      }
+
+      if (!insertStory || !insertStory.id) {
+        throw new Error("Failed to create story.");
+      }
+
+      console.log("✅ Story record created with ID:", insertStory.id);
+
+      // 2. Prepare file info (same as posts)
+      console.log("📁 Preparing file info...");
+      const ext =
+        pickedAsset.uri.split(".").pop() ||
+        (pickedAssetType === "video" ? "mp4" : "jpg");
+      const timestamp = Date.now();
+      const fileName = `story_${timestamp}.${ext}`;
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const storyId = insertStory.id;
+      const storagePath = `${profile.id}/${year}/${month}/${day}/${storyId}/original/${fileName}`;
+
+      console.log("📁 File details:", {
+        ext,
+        fileName,
+        year,
+        month,
+        day,
+        storyId,
+        storagePath,
+      });
+
+      // 3. Process media (following ProfileSettings pattern)
+      console.log("🖼️ Processing media...");
+      let processedUri = pickedAsset.uri;
+      let buffer: ArrayBuffer;
+
+      if (pickedAssetType === "photo") {
+        console.log("📸 Compressing image...");
+        const manipulated = await ImageManipulator.manipulateAsync(
+          pickedAsset.uri,
+          [],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        processedUri = manipulated.uri;
+        console.log("✅ Image compressed:", processedUri);
+
+        // Convert to base64 then to ArrayBuffer (ProfileSettings pattern)
+        const base64 = await FileSystem.readAsStringAsync(processedUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        buffer = decode(base64);
+        console.log("📁 Image converted to ArrayBuffer");
+      } else {
+        console.log("🎥 Video processing - reading as binary...");
+        // For videos, read as binary data
+        const binaryData = await FileSystem.readAsStringAsync(processedUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        buffer = decode(binaryData);
+        console.log("📁 Video converted to ArrayBuffer");
+      }
+
+      // 4. Upload using ArrayBuffer (ProfileSettings pattern)
+      console.log("☁️ Uploading to Supabase storage...");
+      console.log("📤 Upload details:", {
+        bucket: "posts",
+        path: storagePath,
+        bufferSize: buffer.byteLength,
+      });
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("posts")
+        .upload(storagePath, buffer, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: pickedAssetType === "photo" ? "image/jpeg" : "video/mp4",
+        });
+
+      console.log("📤 Upload result:", {
+        uploadData,
+        uploadError,
+        uploadDataPath: uploadData?.path,
+        uploadDataId: uploadData?.id,
+      });
+
+      if (uploadError) {
+        console.error("❌ Upload error details:", {
+          message: uploadError.message,
+          statusCode: (uploadError as any).statusCode || "N/A",
+          error: (uploadError as any).error || "N/A",
+        });
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      console.log("✅ File uploaded successfully");
+
+      // 6. Get the public URL (same as posts)
+      console.log("🔗 Getting public URL...");
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("posts").getPublicUrl(storagePath);
+
+      console.log("🔗 Public URL:", publicUrl);
+      console.log("🔗 Storage path used for URL:", storagePath);
+
+      // Test if the URL is accessible
+      try {
+        const response = await fetch(publicUrl, { method: "HEAD" });
+        console.log("🔗 URL accessibility test:", {
+          status: response.status,
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries()),
+        });
+      } catch (urlError) {
+        console.error("❌ URL accessibility test failed:", urlError);
+      }
+
+      // 7. Update story record with the public URL (same as posts)
+      console.log("📝 Updating story record with media URL...");
+      const { data: updateData, error: updateError } = await supabase
+        .from("stories")
+        .update({
+          media_url: publicUrl,
+          thumbnail_url: pickedAssetType === "photo" ? publicUrl : undefined,
+        })
+        .eq("id", storyId);
+
+      console.log("📝 Update result:", { updateData, updateError });
+
+      if (updateError) {
+        console.error("❌ Update error:", updateError);
+        throw new Error(`Update failed: ${updateError.message}`);
+      }
+
+      console.log("✅ Story record updated successfully");
+
+      console.log("🎉 Story creation completed successfully!");
+
+      setShowPostModal(false);
+      setPickedAsset(null);
+      setCaption("");
+
+      // Refresh stories
+      console.log("🔄 Refreshing stories list...");
+      await getUserStories();
+      console.log("✅ Stories refreshed");
+
+      // Show success message with club/event info
+      const clubInfo = activeClub?.Name ? ` at ${activeClub.Name}` : "";
+      const eventInfo = activeEvent?.title ? ` for ${activeEvent.title}` : "";
+      Alert.alert(
+        "Success",
+        `Story created successfully${clubInfo}${eventInfo}!`
+      );
+    } catch (error) {
+      console.error("💥 Story creation failed:", error);
+      console.error("💥 Error details:", {
+        message: (error as Error).message,
+        stack: (error as Error).stack,
+        name: (error as Error).name,
+      });
+
+      Alert.alert(
+        "Error",
+        (error as Error).message || "Failed to create story."
+      );
+    } finally {
+      console.log("🏁 Story creation process finished");
+      setUploading(false);
+    }
+  };
+
+  // Handle story deletion
+  const handleDeleteStory = async (storyId: string) => {
+    if (!profile) return;
+    Alert.alert(
+      "Delete Story",
+      "Are you sure you want to delete this story? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const success = await deleteStory(storyId, profile.id);
+            if (success) {
+              // Refresh stories
+              await getUserStories();
+            } else {
+              Alert.alert("Error", "Failed to delete story.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle story viewing
+  const handleViewStory = (story: Story) => {
+    setSelectedStory(story);
+    setShowStoryModal(true);
+  };
+
+  const handleMediaCaptured = () => {
+    setShowPostModal(false);
+    // Navigate to story creation screen
+    if (pickedAsset && pickedAssetType) {
+      navigation.navigate("StoryCreationScreen", {
+        mediaUri: pickedAsset.uri,
+        mediaType: pickedAssetType,
+      });
+    }
+  };
+
 
   const renderFavouriteClub = ({ item }: { item: types.Club }) => (
     <TouchableOpacity
@@ -570,7 +713,7 @@ export default function Account() {
 
   const ListHeaderComponent = () => (
     <View style={styles.profileContainer}>
-      {/* Instagram-style Profile Header */}
+      {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.profileTopRow}>
           <TouchableOpacity
@@ -590,11 +733,30 @@ export default function Account() {
               </View>
             )}
           </TouchableOpacity>
+
+          <View style={styles.profileStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{posts.length}</Text>
+              <Text style={styles.statLabel}>Posts</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{favourites.length}</Text>
+              <Text style={styles.statLabel}>Clubs</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{attendingEvents.length}</Text>
+              <Text style={styles.statLabel}>Events</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.profileInfo}>
           <Text style={styles.profileName}>
             {profile?.first_name} {profile?.last_name}
+          </Text>
+          <Text style={styles.profileBio}>
+            Welcome to your profile! Share your moments and connect with your
+            community.
           </Text>
         </View>
 
@@ -602,7 +764,7 @@ export default function Account() {
           <TouchableOpacity style={styles.editButton}>
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.shareButton}>
+          <TouchableOpacity style={styles.actionButton}>
             <Ionicons
               name="share-outline"
               size={20}
@@ -610,7 +772,7 @@ export default function Account() {
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.settingsButton}
+            style={styles.actionButton}
             onPress={() => navigation.navigate("ProfileSettings")}
           >
             <Ionicons
@@ -620,9 +782,9 @@ export default function Account() {
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.menuButton}
+            style={styles.actionButton}
             onPress={() =>
-              navigation.navigate("FriendsList", { userId: profile?.id })
+              navigation.navigate("FriendsList", { userId: profile?.id || "" })
             }
           >
             <Ionicons
@@ -631,77 +793,64 @@ export default function Account() {
               color={Constants.whiteCOLOR}
             />
             {pendingRequestsCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{pendingRequestsCount}</Text>
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {pendingRequestsCount}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Instagram-style Stories */}
-      <View style={styles.storiesSection}>
-        <View style={styles.storiesList}>
-          <TouchableOpacity style={styles.addStoryButton}>
-            <View style={styles.addStoryIcon}>
-              <Ionicons name="add" size={20} color={Constants.whiteCOLOR} />
-            </View>
-            <Text style={styles.addStoryText}>Your story</Text>
-          </TouchableOpacity>
-          {stories.map((story, index) => (
-            <TouchableOpacity key={index} style={styles.storyItem}>
-              <View style={styles.storyRing}>
-                <Image
-                  source={{ uri: story.thumbnail }}
-                  style={styles.storyImage}
-                />
-              </View>
-              <Text style={styles.storyUsername} numberOfLines={1}>
-                {story.username}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Instagram-style Tab Bar */}
+      {/* Tab Navigation */}
       <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === "posts" && styles.activeTab]}
-          onPress={() => setActiveTab("posts")}
+          style={[
+            styles.tabButton,
+            activeTab === "stories" && styles.activeTab,
+          ]}
+          onPress={() => setActiveTab("stories")}
         >
           <Ionicons
-            name="grid-outline"
+            name="camera-outline"
             size={24}
             color={
-              activeTab === "posts" ? Constants.whiteCOLOR : Constants.greyCOLOR
-            }
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "reels" && styles.activeTab]}
-          onPress={() => setActiveTab("reels")}
-        >
-          <Ionicons
-            name="play-outline"
-            size={24}
-            color={
-              activeTab === "reels" ? Constants.whiteCOLOR : Constants.greyCOLOR
+              activeTab === "stories"
+                ? Constants.whiteCOLOR
+                : Constants.greyCOLOR
             }
           />
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === "bookmarks" && styles.activeTab,
+            activeTab === "favourites" && styles.activeTab,
           ]}
-          onPress={() => setActiveTab("bookmarks")}
+          onPress={() => setActiveTab("favourites")}
         >
           <Ionicons
-            name="bookmark-outline"
+            name="heart-outline"
             size={24}
             color={
-              activeTab === "bookmarks"
+              activeTab === "favourites"
+                ? Constants.whiteCOLOR
+                : Constants.greyCOLOR
+            }
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "notifications" && styles.activeTab,
+          ]}
+          onPress={() => setActiveTab("notifications")}
+        >
+          <Ionicons
+            name="notifications-outline"
+            size={24}
+            color={
+              activeTab === "notifications"
                 ? Constants.whiteCOLOR
                 : Constants.greyCOLOR
             }
@@ -710,23 +859,84 @@ export default function Account() {
       </View>
 
       {/* Tab Content */}
-      {activeTab === "posts" && (
-        <View style={styles.tabContent}>
-          <Text style={styles.emptyTabText}>Your posts will appear here</Text>
+      {activeTab === "stories" && (
+        <View style={styles.storiesContent}>
+          <View style={styles.storiesSection}>
+            <Text style={styles.sectionTitle}>Your Stories</Text>
+            <FlatList
+              data={[{ id: "add-story", type: "add" } as any, ...stories]}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.storiesList}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                if ("type" in item && item.type === "add") {
+                  return (
+                    <TouchableOpacity
+                      style={styles.addStoryButton}
+                      onPress={handleCaptureMoment}
+                    >
+                      <View style={styles.addStoryIcon}>
+                        <Ionicons
+                          name="add"
+                          size={20}
+                          color={Constants.whiteCOLOR}
+                        />
+                      </View>
+                      <Text style={styles.addStoryText}>Add Story</Text>
+                    </TouchableOpacity>
+                  );
+                }
+
+                return (
+                  <TouchableOpacity
+                    style={styles.storyItem}
+                    onPress={() => handleViewStory(item as any)}
+                  >
+                    <View style={styles.storyRing}>
+                      <Image
+                        source={{
+                          uri:
+                            (item as any).thumbnail_url ||
+                            (item as any).media_url,
+                        }}
+                        style={styles.storyImage}
+                      />
+                      <TouchableOpacity
+                        style={styles.storyDeleteButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleDeleteStory((item as any).id);
+                        }}
+                      >
+                        <Ionicons name="close" size={12} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.storyUsername} numberOfLines={1}>
+                      {(item as any).caption || "Story"}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Posts</Text>
+            </View>
+            <Text style={styles.emptyTabText}>
+              Your recent posts will appear here
+            </Text>
+          </View>
         </View>
       )}
 
-      {activeTab === "reels" && (
-        <View style={styles.tabContent}>
-          <Text style={styles.emptyTabText}>Your reels will appear here</Text>
-        </View>
-      )}
-
-      {activeTab === "bookmarks" && (
-        <View style={styles.bookmarksContent}>
+      {activeTab === "favourites" && (
+        <View style={styles.favouritesContent}>
           {/* Currently Active Club */}
           {activeClub && (
-            <View style={styles.activeClubSection}>
+            <View style={styles.section}>
               <Text style={styles.sectionTitle}>Currently Active</Text>
               <TouchableOpacity
                 style={styles.activeClubCard}
@@ -753,7 +963,7 @@ export default function Account() {
 
           {/* Favourite Clubs */}
           {favourites.length > 0 && (
-            <View style={styles.bookmarkSection}>
+            <View style={styles.section}>
               <Text style={styles.sectionTitle}>Favourite Clubs</Text>
               <View style={styles.clubsGrid}>
                 {favourites.map((club) => (
@@ -775,10 +985,10 @@ export default function Account() {
             </View>
           )}
 
-          {/* Events I'm Attending */}
+          {/* Favourite Events */}
           {attendingEvents.length > 0 && (
-            <View style={styles.bookmarkSection}>
-              <Text style={styles.sectionTitle}>Events I'm Attending</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Favourite Events</Text>
               <View style={styles.eventsList}>
                 {attendingEvents.map((event) => (
                   <TouchableOpacity
@@ -806,9 +1016,9 @@ export default function Account() {
             </View>
           )}
 
-          {/* Tickets */}
+          {/* My Tickets */}
           {tickets.length > 0 && (
-            <View style={styles.bookmarkSection}>
+            <View style={styles.section}>
               <Text style={styles.sectionTitle}>My Tickets</Text>
               <View style={styles.ticketsList}>
                 {tickets.map((ticket) => (
@@ -829,6 +1039,69 @@ export default function Account() {
               </View>
             </View>
           )}
+        </View>
+      )}
+
+      {activeTab === "notifications" && (
+        <View style={styles.notificationsContent}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Event Notifications</Text>
+            <View style={styles.notificationsList}>
+              {notifications.map((notification, index) => (
+                <TouchableOpacity key={index} style={styles.notificationCard}>
+                  <View style={styles.notificationIcon}>
+                    <Ionicons
+                      name={notification.icon}
+                      size={24}
+                      color={notification.iconColor || Constants.purpleCOLOR}
+                    />
+                  </View>
+                  <View style={styles.notificationContent}>
+                    <Text style={styles.notificationTitle}>
+                      {notification.title}
+                    </Text>
+                    <Text style={styles.notificationMessage}>
+                      {notification.message}
+                    </Text>
+                    <Text style={styles.notificationTime}>
+                      {notification.time}
+                    </Text>
+                  </View>
+                  {!notification.read && <View style={styles.unreadDot} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Friend Invitations</Text>
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="people-outline"
+                size={48}
+                color={Constants.greyCOLOR}
+              />
+              <Text style={styles.emptyStateText}>No pending invitations</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Friend invitations will appear here
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Event Confirmations</Text>
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={48}
+                color={Constants.greyCOLOR}
+              />
+              <Text style={styles.emptyStateText}>No confirmations</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Event confirmations will appear here
+              </Text>
+            </View>
+          </View>
         </View>
       )}
     </View>
@@ -874,6 +1147,9 @@ export default function Account() {
           setShowPostModal(true);
         }}
         setPickedAssetType={setPickedAssetType}
+        activeClub={activeClub}
+        activeEvent={activeEvent}
+        navigation={navigation}
       />
       {/* Post Modal */}
       <Modal
@@ -882,80 +1158,73 @@ export default function Account() {
         animationType="slide"
         onRequestClose={() => setShowPostModal(false)}
       >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.8)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: Constants.backgroundCOLOR,
-              borderRadius: 16,
-              padding: 24,
-              width: "90%",
-              alignItems: "center",
-            }}
-          >
-            {pickedAsset &&
-              (pickedAssetType === "video" ? (
-                <Video
-                  source={{ uri: pickedAsset.uri }}
-                  style={{
-                    width: 220,
-                    height: 220,
-                    borderRadius: 12,
-                    marginBottom: 16,
-                  }}
-                  useNativeControls
-                  resizeMode={ResizeMode.CONTAIN}
-                  shouldPlay={true}
-                  isLooping={true}
-                />
-              ) : (
-                <Image
-                  source={{ uri: pickedAsset.uri }}
-                  style={{
-                    width: 220,
-                    height: 220,
-                    borderRadius: 12,
-                    marginBottom: 16,
-                  }}
-                />
-              ))}
-            <TextInput
-              placeholder="Write a caption..."
-              value={caption}
-              onChangeText={setCaption}
-              style={{ color: Constants.whiteCOLOR }}
-              placeholderTextColor={Constants.whiteCOLOR + "80"}
-              mode="outlined"
-              outlineColor="rgba(255,255,255,0.3)"
-              activeOutlineColor={Constants.whiteCOLOR}
-              textColor={Constants.whiteCOLOR}
-            />
-            <Button
-              mode="contained"
-              onPress={handleUploadPost}
-              disabled={uploading}
-              style={{
-                backgroundColor: Constants.purpleCOLOR,
-                borderRadius: 20,
-                width: 120,
-              }}
-              labelStyle={{ fontWeight: "bold" }}
-            >
-              {uploading ? "Posting..." : "Post"}
-            </Button>
-            <Button
-              mode="text"
-              onPress={() => setShowPostModal(false)}
-              labelStyle={{ color: Constants.whiteCOLOR, marginTop: 8 }}
-            >
-              Cancel
-            </Button>
+        <View style={styles.postModalContainer}>
+          <View style={styles.postModalContent}>
+            <View style={styles.postModalHeader}>
+              <TouchableOpacity
+                onPress={() => setShowPostModal(false)}
+                style={styles.postModalCloseButton}
+              >
+                <Ionicons name="close" size={24} color={Constants.whiteCOLOR} />
+              </TouchableOpacity>
+              <Text style={styles.postModalTitle}>
+                {activeTab === "stories" ? "Add to Story" : "Create Post"}
+              </Text>
+              <TouchableOpacity
+                onPress={
+                  activeTab === "stories"
+                    ? handleMediaCaptured
+                    : handleUploadPost
+                }
+                disabled={uploading}
+                style={[
+                  styles.postModalPostButton,
+                  uploading && styles.postModalPostButtonDisabled,
+                ]}
+              >
+                <Text style={styles.postModalPostButtonText}>
+                  {uploading
+                    ? activeTab === "stories"
+                      ? "Creating..."
+                      : "Posting..."
+                    : activeTab === "stories"
+                    ? "Add to Story"
+                    : "Post"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {pickedAsset && (
+              <View style={styles.postModalMediaContainer}>
+                {pickedAssetType === "video" ? (
+                  <Video
+                    source={{ uri: pickedAsset.uri }}
+                    style={styles.postModalMedia}
+                    useNativeControls
+                    resizeMode={ResizeMode.CONTAIN}
+                    shouldPlay={true}
+                    isLooping={true}
+                  />
+                ) : (
+                  <Image
+                    source={{ uri: pickedAsset.uri }}
+                    style={styles.postModalMedia}
+                  />
+                )}
+              </View>
+            )}
+
+            <View style={styles.postModalInputContainer}>
+              <TextInput
+                placeholder="Write a caption..."
+                value={caption}
+                onChangeText={setCaption}
+                style={styles.postModalInput}
+                placeholderTextColor={Constants.greyCOLOR}
+                multiline
+                numberOfLines={4}
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -1047,16 +1316,9 @@ export default function Account() {
         animationType="fade"
         onRequestClose={() => setMediaModalVisible(false)}
       >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.95)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
+        <View style={styles.mediaModalContainer}>
           <TouchableOpacity
-            style={{ position: "absolute", top: 40, right: 20, zIndex: 2 }}
+            style={styles.mediaModalCloseButton}
             onPress={() => setMediaModalVisible(false)}
           >
             <Ionicons name="close" size={36} color="#fff" />
@@ -1064,7 +1326,7 @@ export default function Account() {
           {selectedMedia && selectedMedia.type === "video" && (
             <Video
               source={{ uri: selectedMedia.url }}
-              style={{ width: "90%", aspectRatio: 9 / 16, borderRadius: 16 }}
+              style={styles.mediaModalVideo}
               resizeMode={ResizeMode.CONTAIN}
               shouldPlay
               useNativeControls
@@ -1073,291 +1335,40 @@ export default function Account() {
           {selectedMedia && selectedMedia.type === "photo" && (
             <Image
               source={{ uri: selectedMedia.url }}
-              style={{ width: "90%", aspectRatio: 1, borderRadius: 16 }}
+              style={styles.mediaModalImage}
               resizeMode="contain"
             />
           )}
         </View>
       </Modal>
+      {/* Story Creation Modal */}
+      {/* Story Viewer */}
+      <StoryViewer
+        visible={showStoryModal}
+        story={selectedStory}
+        onClose={() => setShowStoryModal(false)}
+      />
+      {/* Floating Action Button
+      <TouchableOpacity style={styles.fab} onPress={handleCaptureMoment}>
+        <Ionicons name="add" size={24} color={Constants.whiteCOLOR} />
+      </TouchableOpacity> */}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Main Container
   container: {
     flex: 1,
     backgroundColor: Constants.backgroundCOLOR,
   },
-  headerGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-    zIndex: 1,
-  },
-  header: {
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    backgroundColor: Constants.backgroundCOLOR,
-    alignItems: "center",
-    zIndex: 2,
-  },
-  headerRow: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    marginBottom: 12,
-  },
-  avatarContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    overflow: "hidden",
-    backgroundColor: Constants.greyCOLOR,
-    marginBottom: 16,
-    borderWidth: 3,
-    borderColor: Constants.purpleCOLOR,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  avatar: {
-    width: "100%",
-    height: "100%",
-  },
-  placeholderAvatar: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarInitial: {
-    fontSize: 48,
-    color: Constants.whiteCOLOR,
-    fontWeight: "600",
-  },
-  username: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 8,
-    color: Constants.whiteCOLOR,
-  },
-  profileButtonsContainer: {
-    width: "100%",
-    paddingHorizontal: 20,
-    marginTop: 16,
-  },
-  nameAndButtonsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    padding: 16,
-    borderRadius: 12,
-  },
-  nameContainer: {
-    flex: 1,
-  },
-  firstName: {
-    color: Constants.whiteCOLOR,
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  lastName: {
-    color: Constants.whiteCOLOR,
-    fontSize: 18,
-    opacity: 0.8,
-  },
-  buttonsRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  iconButtonContainer: {
-    position: "relative",
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  badge: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    backgroundColor: Constants.purpleCOLOR,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: Constants.whiteCOLOR,
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 16,
-    color: Constants.whiteCOLOR,
-    paddingHorizontal: 20,
-    marginTop: 24,
-  },
-  gridList: {
-    paddingBottom: 20,
-  },
-  gridItem: {
-    flex: 1,
-    aspectRatio: 1,
-    margin: 2,
-    backgroundColor: "#222",
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  gridImage: {
-    width: "100%",
-    height: "100%",
-  },
-  favouritesList: {
-    paddingBottom: 20,
-  },
-  favouritesRow: {
-    justifyContent: "space-between",
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  favouriteItem: {
-    backgroundColor: Constants.greyCOLOR,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    flex: 1,
-    marginHorizontal: 8,
-    width: "45%",
-  },
-  favouriteImage: {
-    width: "100%",
-    height: 120,
-    resizeMode: "cover",
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  favouriteTitle: {
-    fontSize: 16,
-    color: Constants.whiteCOLOR,
-    fontWeight: "600",
-  },
-  activeClubContainer: {
-    marginTop: 20,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 16,
-    padding: 16,
-    width: "100%",
-  },
-  activeClubContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  activeClubImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 16,
-  },
-  activeClubInfo: {
-    flex: 1,
-  },
-  activeClubTitle: {
-    color: Constants.whiteCOLOR,
-    opacity: 0.7,
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  activeClubName: {
-    color: Constants.whiteCOLOR,
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    width: "90%",
-    height: "90%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalImage: {
-    width: "100%",
-    height: "100%",
-  },
-  modalPlaceholder: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: Constants.greyCOLOR,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalPlaceholderText: {
-    fontSize: 80,
-    color: Constants.whiteCOLOR,
-  },
-  favouritesHorizontalList: {
-    paddingVertical: 8,
-    paddingLeft: 20,
-    gap: 12,
-  },
-  favouriteClubItem: {
-    alignItems: "center",
-    marginRight: 18,
-    width: 80,
-  },
-  favouriteClubImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginBottom: 6,
-    backgroundColor: Constants.greyCOLOR,
-  },
-  favouriteClubName: {
-    color: Constants.whiteCOLOR,
-    fontSize: 13,
-    textAlign: "center",
-    width: 70,
-  },
-  eventPlaceholder: {
-    backgroundColor: Constants.greyCOLOR,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  eventDate: {
-    color: Constants.greyCOLOR,
-    fontSize: 11,
-    textAlign: "center",
-    width: 70,
-    marginTop: 2,
-  },
-  // Instagram-style Profile Design
+
+  // Profile Container
   profileContainer: {
     backgroundColor: Constants.blackCOLOR,
   },
+
+  // Profile Header
   profileHeader: {
     padding: 20,
     paddingTop: 60,
@@ -1393,6 +1404,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Constants.whiteCOLOR,
   },
+
+  // Profile Stats
   profileStats: {
     flexDirection: "row",
     flex: 1,
@@ -1411,12 +1424,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Constants.greyCOLOR,
   },
+
+  // Profile Info
   profileInfo: {
     marginBottom: 20,
   },
   profileName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 24,
+    fontWeight: "bold",
     color: Constants.whiteCOLOR,
     marginBottom: 4,
   },
@@ -1425,6 +1440,8 @@ const styles = StyleSheet.create({
     color: Constants.whiteCOLOR,
     lineHeight: 20,
   },
+
+  // Profile Actions
   profileActions: {
     flexDirection: "row",
     gap: 8,
@@ -1441,23 +1458,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  shareButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  menuButton: {
+  actionButton: {
     width: 40,
     height: 40,
     borderRadius: 8,
@@ -1466,75 +1467,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "relative",
   },
-  badge: {
+  notificationBadge: {
     position: "absolute",
     top: -2,
     right: -2,
-    backgroundColor: "#FF3B30",
+    backgroundColor: "#FF4444",
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     justifyContent: "center",
     alignItems: "center",
   },
-  badgeText: {
+  notificationBadgeText: {
     color: Constants.whiteCOLOR,
     fontSize: 12,
     fontWeight: "bold",
   },
-  storiesSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  storiesList: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  addStoryButton: {
-    alignItems: "center",
-    marginRight: 20,
-  },
-  addStoryIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
-  },
-  addStoryText: {
-    fontSize: 12,
-    color: Constants.whiteCOLOR,
-    textAlign: "center",
-  },
-  storyItem: {
-    alignItems: "center",
-    marginRight: 20,
-  },
-  storyRing: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 2,
-    borderColor: Constants.purpleCOLOR,
-    padding: 2,
-    marginBottom: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  storyImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-  },
-  storyUsername: {
-    fontSize: 12,
-    color: Constants.whiteCOLOR,
-    textAlign: "center",
-  },
+
+  // Tab Navigation
   tabBar: {
     flexDirection: "row",
     borderTopWidth: 1,
@@ -1550,11 +1500,33 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: Constants.purpleCOLOR,
   },
-  bookmarksContent: {
+
+  // Tab Content
+  tabContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  emptyTabText: {
+    fontSize: 16,
+    color: Constants.greyCOLOR,
+    textAlign: "center",
+  },
+  favouritesContent: {
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  activeClubSection: {
+  storiesContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  notificationsContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+
+  // Sections
+  section: {
     marginBottom: 24,
   },
   sectionTitle: {
@@ -1563,6 +1535,8 @@ const styles = StyleSheet.create({
     color: Constants.whiteCOLOR,
     marginBottom: 16,
   },
+
+  // Active Club
   activeClubCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1589,9 +1563,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Constants.greyCOLOR,
   },
-  bookmarkSection: {
-    marginBottom: 24,
-  },
+
+  // Clubs Grid
   clubsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1617,6 +1590,8 @@ const styles = StyleSheet.create({
     color: Constants.whiteCOLOR,
     textAlign: "center",
   },
+
+  // Events List
   eventsList: {
     gap: 12,
   },
@@ -1646,6 +1621,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Constants.greyCOLOR,
   },
+
+  // Tickets List
   ticketsList: {
     gap: 12,
   },
@@ -1681,489 +1658,207 @@ const styles = StyleSheet.create({
     color: Constants.purpleCOLOR,
     fontWeight: "500",
   },
-  tabContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 40,
-    alignItems: "center",
+
+  // Posts Grid
+  gridList: {
+    paddingBottom: 20,
   },
-  emptyTabText: {
-    fontSize: 16,
-    color: Constants.greyCOLOR,
-    textAlign: "center",
-  },
-  activeClubStory: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    marginBottom: 20,
-  },
-  clubStoryRing: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: Constants.purpleCOLOR,
-    padding: 2,
-    marginRight: 12,
-  },
-  clubStoryImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  clubStoryText: {
-    fontSize: 16,
-    color: Constants.whiteCOLOR,
-    fontWeight: "500",
-  },
-  highlightsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  highlightsTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Constants.whiteCOLOR,
-    marginBottom: 16,
-  },
-  highlightsList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  highlightItem: {
-    alignItems: "center",
-    width: "12.5%",
-    marginBottom: 16,
-  },
-  highlightRing: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: Constants.purpleCOLOR,
-    padding: 2,
-    marginBottom: 8,
-  },
-  highlightImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-  },
-  highlightName: {
-    fontSize: 12,
-    color: Constants.whiteCOLOR,
-    textAlign: "center",
-  },
-  eventsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  eventsTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Constants.whiteCOLOR,
-    marginBottom: 16,
-  },
-  eventsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  eventItem: {
-    width: "32%",
+  gridItem: {
+    flex: 1,
     aspectRatio: 1,
-    marginBottom: 8,
-    position: "relative",
+    margin: 2,
+    backgroundColor: "#222",
+    borderRadius: 8,
+    overflow: "hidden",
   },
-  eventImage: {
+  gridImage: {
     width: "100%",
     height: "100%",
-    borderRadius: 8,
   },
-  eventOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    padding: 8,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+
+  // Modals
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  eventTitle: {
-    fontSize: 12,
-    fontWeight: "600",
+  modalContent: {
+    width: "90%",
+    height: "90%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalImage: {
+    width: "100%",
+    height: "100%",
+  },
+  modalPlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalPlaceholderText: {
+    fontSize: 80,
     color: Constants.whiteCOLOR,
-    marginBottom: 2,
   },
-  eventDate: {
-    fontSize: 10,
-    color: Constants.greyCOLOR,
+
+  // Post Modal
+  postModalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    justifyContent: "flex-end",
   },
-  section: {
+  postModalContent: {
+    backgroundColor: Constants.backgroundCOLOR,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+    maxHeight: "80%",
+  },
+  postModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 20,
   },
-  favouritesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  favouriteCard: {
-    width: "30%",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  favouriteImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginBottom: 8,
-  },
-  favouriteName: {
-    fontSize: 12,
-    color: Constants.whiteCOLOR,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  eventsList: {
-    paddingHorizontal: 20,
-  },
-  eventCard: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: "center",
-  },
-  eventImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  eventInfo: {
-    flex: 1,
-  },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Constants.whiteCOLOR,
-    marginBottom: 4,
-  },
-  eventDate: {
-    fontSize: 14,
-    color: Constants.greyCOLOR,
-  },
-  ticketsList: {
-    paddingHorizontal: 20,
-  },
-  ticketCard: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: "center",
-  },
-  ticketImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  ticketInfo: {
-    flex: 1,
-  },
-  ticketTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Constants.whiteCOLOR,
-    marginBottom: 4,
-  },
-  ticketDate: {
-    fontSize: 14,
-    color: Constants.greyCOLOR,
-    marginBottom: 2,
-  },
-  ticketStatus: {
-    fontSize: 12,
-    color: Constants.purpleCOLOR,
-    fontWeight: "500",
-  },
-  notificationsList: {
-    paddingHorizontal: 20,
-  },
-  notificationCard: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: "center",
-    position: "relative",
-  },
-  notificationIcon: {
+  postModalCloseButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.1)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
   },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Constants.whiteCOLOR,
-    marginBottom: 4,
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: Constants.greyCOLOR,
-    marginBottom: 2,
-  },
-  notificationTime: {
-    fontSize: 12,
-    color: Constants.greyCOLOR,
-  },
-  unreadDot: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Constants.purpleCOLOR,
-  },
-  profileHeader: {
-    padding: 20,
-    paddingTop: 60,
-  },
-  profileAvatarContainer: {
-    position: "relative",
-  },
-  profileTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  profileAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: Constants.whiteCOLOR,
-  },
-  profileAvatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Constants.greyCOLOR,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: Constants.whiteCOLOR,
-  },
-  profileAvatarInitial: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: Constants.whiteCOLOR,
-  },
-  onlineIndicator: {
-    position: "absolute",
-    bottom: 5,
-    right: 5,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#4CAF50",
-    borderWidth: 3,
-    borderColor: "#1a1a1a",
-  },
-  profileActions: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  notificationBadge: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    backgroundColor: "#FF4444",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  notificationBadgeText: {
-    color: Constants.whiteCOLOR,
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  profileInfo: {
-    marginBottom: 20,
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: Constants.whiteCOLOR,
-    marginBottom: 4,
-  },
-  profileUsername: {
-    fontSize: 16,
-    color: Constants.greyCOLOR,
-    marginBottom: 8,
-  },
-  profileBio: {
-    fontSize: 14,
-    color: Constants.whiteCOLOR,
-    lineHeight: 20,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 20,
-  },
-  statItem: {
-    alignItems: "center",
-    position: "relative",
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: Constants.whiteCOLOR,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: Constants.greyCOLOR,
-  },
-  friendRequestBadge: {
-    position: "absolute",
-    top: -8,
-    right: -8,
-    backgroundColor: "#FF4444",
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  friendRequestBadgeText: {
-    color: Constants.whiteCOLOR,
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  activeClubCard: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  activeClubContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  activeClubImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-  activeClubInfo: {
-    flex: 1,
-  },
-  activeClubLabel: {
-    fontSize: 12,
-    color: Constants.greyCOLOR,
-    marginBottom: 4,
-  },
-  activeClubName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Constants.whiteCOLOR,
-  },
-  tabContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  segmentedButtons: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-  },
-  tabContent: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
+  postModalTitle: {
     fontSize: 18,
     fontWeight: "600",
     color: Constants.whiteCOLOR,
-    marginBottom: 16,
   },
-  storiesContainer: {
-    flexDirection: "row",
-    gap: 12,
+  postModalPostButton: {
+    backgroundColor: Constants.purpleCOLOR,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  addStoryButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
+  postModalPostButtonDisabled: {
+    backgroundColor: Constants.greyCOLOR,
+  },
+  postModalPostButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  postModalMediaContainer: {
+    marginBottom: 20,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: Constants.purpleCOLOR,
-    borderStyle: "dashed",
   },
-  addStoryText: {
-    fontSize: 10,
-    color: Constants.purpleCOLOR,
-    marginTop: 4,
-    textAlign: "center",
+  postModalMedia: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
   },
-  storyItem: {
-    width: 80,
-    height: 80,
-    position: "relative",
-  },
-  storyThumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  storyRing: {
-    position: "absolute",
-    top: -3,
-    left: -3,
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    borderWidth: 3,
-    borderColor: Constants.purpleCOLOR,
-  },
-  ticketCard: {
+  postModalInputContainer: {
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
   },
+  postModalInput: {
+    color: Constants.whiteCOLOR,
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+
+  // Media Modal
+  mediaModalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mediaModalCloseButton: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    zIndex: 2,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mediaModalVideo: {
+    width: "90%",
+    aspectRatio: 9 / 16,
+    borderRadius: 16,
+  },
+  mediaModalImage: {
+    width: "90%",
+    aspectRatio: 1,
+    borderRadius: 16,
+  },
+
+  // Floating Action Button
+  fab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Constants.purpleCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+
+  // Favourite Club Items
+  favouriteClubItem: {
+    alignItems: "center",
+    marginRight: 18,
+    width: 80,
+  },
+  favouriteClubImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 6,
+    backgroundColor: Constants.greyCOLOR,
+  },
+  favouriteClubName: {
+    color: Constants.whiteCOLOR,
+    fontSize: 13,
+    textAlign: "center",
+    width: 70,
+  },
+  eventPlaceholder: {
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  eventDate: {
+    color: Constants.greyCOLOR,
+    fontSize: 11,
+    textAlign: "center",
+    width: 70,
+    marginTop: 2,
+  },
+
+  // Ticket Items
   ticketHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -2175,9 +1870,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 12,
   },
-  ticketInfo: {
-    flex: 1,
-  },
   ticketEventTitle: {
     fontSize: 16,
     fontWeight: "600",
@@ -2188,11 +1880,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Constants.greyCOLOR,
     marginBottom: 4,
-  },
-  ticketStatus: {
-    fontSize: 12,
-    color: "#4CAF50",
-    fontWeight: "500",
   },
   ticketDetails: {
     flexDirection: "row",
@@ -2210,6 +1897,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: Constants.whiteCOLOR,
+  },
+
+  // Notification Items
+  notificationsList: {
+    gap: 12,
   },
   notificationCard: {
     flexDirection: "row",
@@ -2256,6 +1948,164 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#FF4444",
   },
+
+  // Stories Section
+  storiesSection: {
+    marginBottom: 24,
+  },
+  storiesList: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  addStoryButton: {
+    alignItems: "center",
+    marginRight: 16,
+    width: 80,
+  },
+  addStoryIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  addStoryText: {
+    fontSize: 12,
+    color: Constants.whiteCOLOR,
+    textAlign: "center",
+  },
+  storyItem: {
+    alignItems: "center",
+    marginRight: 20,
+  },
+  storyRing: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: Constants.purpleCOLOR,
+    padding: 2,
+    marginBottom: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  storyImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  storyUsername: {
+    fontSize: 12,
+    color: Constants.whiteCOLOR,
+    textAlign: "center",
+  },
+  storyDeleteButton: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#FF4444",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Section Header
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  createPostButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Constants.purpleCOLOR,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  createPostButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+
+  // Story Modal
+  storyModalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  storyModalContent: {
+    width: "90%",
+    maxHeight: "80%",
+    backgroundColor: Constants.blackCOLOR,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  storyModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Constants.greyCOLOR,
+  },
+  storyModalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  storyModalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+  },
+  storyModalSpacer: {
+    width: 32,
+  },
+  storyModalMediaContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  storyModalImage: {
+    width: "100%",
+    height: 400,
+    borderRadius: 8,
+  },
+  storyModalVideo: {
+    width: "100%",
+    height: 400,
+    borderRadius: 8,
+  },
+  storyModalCaption: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 8,
+    width: "100%",
+  },
+  storyModalCaptionText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 16,
+    textAlign: "center",
+  },
+
+  // Empty States
   emptyState: {
     alignItems: "center",
     paddingVertical: 40,

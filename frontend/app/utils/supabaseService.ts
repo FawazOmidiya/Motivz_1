@@ -89,6 +89,41 @@ export const fetchSingleClub = async (clubId: string): Promise<types.Club> => {
   }
 };
 
+export const fetchSingleEvent = async (eventId: string): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select(
+        `
+        id,
+        title,
+        start_date,
+        club_id,
+        club:Clubs!club_id (
+          id,
+          Name,
+          Image
+        )
+      `
+      )
+      .eq("id", eventId)
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Event not found");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching event:", error);
+    throw error;
+  }
+};
+
 export const fetchRecentClubReviews = async (clubId: string) => {
   try {
     // Calculate timestamp for 5 hours ago

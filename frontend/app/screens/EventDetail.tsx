@@ -27,6 +27,9 @@ import {
 } from "../utils/supabaseService";
 import { fetchSingleClub } from "../utils/supabaseService";
 import { useSession } from "@/components/SessionContext";
+import { getEventStories } from "../utils/storiesService";
+import StoryReel from "../components/StoryReel";
+import StoryViewer from "../components/StoryViewer";
 
 const { width } = Dimensions.get("window");
 
@@ -61,11 +64,29 @@ export default function EventDetailScreen() {
     { id: string; avatar_url: string | null }[]
   >([]);
   const [totalAttendees, setTotalAttendees] = useState(0);
+  const [eventStories, setEventStories] = useState<any[]>([]);
+  const [selectedStory, setSelectedStory] = useState<any | null>(null);
+  const [showStoryModal, setShowStoryModal] = useState(false);
+
+  const handleViewStory = (story: any) => {
+    setSelectedStory(story);
+    setShowStoryModal(true);
+  };
 
   useEffect(() => {
     loadClubData();
     loadAttendanceData();
+    loadEventStories();
   }, [event.club_id, event.id, session?.user?.id]);
+
+  const loadEventStories = async () => {
+    try {
+      const stories = await getEventStories(event.id);
+      setEventStories(stories);
+    } catch (error) {
+      console.error("Error loading event stories:", error);
+    }
+  };
 
   const loadClubData = async () => {
     try {
@@ -421,6 +442,15 @@ export default function EventDetailScreen() {
           )}
         </View>
 
+        {/* Event Stories */}
+        {eventStories.length > 0 && (
+          <StoryReel
+            stories={eventStories}
+            onStoryPress={handleViewStory}
+            title="Event Stories"
+          />
+        )}
+
         {/* Event Attendance */}
         {totalAttendees > 0 && (
           <View style={styles.attendanceSection}>
@@ -610,6 +640,13 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         </View>
       </Modal>
+
+      {/* Story Viewer */}
+      <StoryViewer
+        visible={showStoryModal}
+        story={selectedStory}
+        onClose={() => setShowStoryModal(false)}
+      />
     </ScrollView>
   );
 }

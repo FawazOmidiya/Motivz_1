@@ -27,6 +27,7 @@ import GuestlistForm from "./screens/GuestlistForm";
 import UserProfileScreen from "./screens/UserProfileScreen";
 import FriendsList from "./screens/FriendsList";
 import ProfileSettings from "./screens/ProfileSettings";
+import StoryCreationScreen from "./screens/StoryCreationScreen";
 import AuthNavigator from "./navigation/AuthNavigator";
 import { supabase } from "./utils/supabaseService";
 import { Session } from "@supabase/supabase-js";
@@ -42,7 +43,10 @@ const Tab = createBottomTabNavigator<types.RootTabParamList>();
 const HomeStack = createStackNavigator();
 const ExploreStack = createStackNavigator();
 const MapStack = createStackNavigator();
-const ProfileStack = createStackNavigator();
+const ProfileStack = createStackNavigator<types.ProfileStackParamList>();
+
+// Create a Root Stack Navigator for modal screens
+const RootStack = createStackNavigator<types.RootStackParamList>();
 
 function HomeStackScreen() {
   return (
@@ -133,6 +137,22 @@ function MainTabs() {
   );
 }
 
+function RootStackScreen() {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Screen name="MainTabs" component={MainTabs} />
+      <RootStack.Screen
+        name="StoryCreationScreen"
+        component={StoryCreationScreen}
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+    </RootStack.Navigator>
+  );
+}
+
 export default function RootLayout() {
   const [session, setSession] = React.useState<Session | null>(null);
   const [profileComplete, setProfileComplete] = React.useState<boolean | null>(
@@ -178,7 +198,7 @@ export default function RootLayout() {
               <TutorialTrigger>
                 <SafeAreaView style={styles.safeArea}>
                   <StatusBar barStyle="light-content" />
-                  <MainTabs />
+                  <RootStackScreen />
                 </SafeAreaView>
               </TutorialTrigger>
             </TutorialWrapper>

@@ -77,7 +77,6 @@ export async function sendPushNotification(
 
 // Error handler for registration
 function handleRegistrationError(errorMessage: string) {
-  Alert.alert("Registration Error", errorMessage);
   throw new Error(errorMessage);
 }
 

@@ -42,41 +42,27 @@ export type RootTabParamList = {
 
 // Define type-safe navigation routes for the root stack:
 export type RootStackParamList = {
-  Main: undefined;
-  SignIn: undefined;
-  SignUp: undefined;
-  ProfileCompletion: {
-    signUpInfo: {
-      username: string;
-      email: string;
-      password: string;
-    };
-    googleUserData?: {
-      firstName: string;
-      lastName: string;
-      email: string;
-    };
-    googleTokens?: {
-      idToken: string;
-      accessToken: string;
-    };
-    appleUserData?: {
-      firstName: string;
-      lastName: string;
-      email: string;
-    };
+  MainTabs: undefined;
+  StoryCreationScreen: {
+    mediaUri: string;
+    mediaType: "photo" | "video";
   };
-  ClubDetail: { club: Club };
-  EventDetail: { event: Event };
-  ProfileSettings: undefined;
-  UserProfile: { profile: UserProfile };
-  FriendsList: { userId: string };
 };
 
 export type GlobalStackParamList = {
   ClubDetail: { club: Club };
   ProfileSettings: undefined;
   UserProfile: { user: UserProfile };
+};
+
+export type ProfileStackParamList = {
+  ProfileMain: undefined;
+  ProfileSettings: undefined;
+  UserProfile: { profile: UserProfile };
+  ClubDetail: { club: Club };
+  EventDetail: { event: Event };
+  GuestlistForm: { event: Event };
+  FriendsList: { userId: string };
 };
 
 export type FriendStatus = "none" | "pending" | "friends";

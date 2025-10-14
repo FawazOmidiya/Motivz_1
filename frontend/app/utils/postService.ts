@@ -5,7 +5,7 @@ export async function uploadPost(
   userId: string,
   clubId: string | null,
   mediaType: "photo" | "video",
-  file: File,
+  fileUri: string,
   caption?: string,
   location?: string
 ): Promise<types.Post | null> {
@@ -17,15 +17,49 @@ export async function uploadPost(
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
+    const ext = mediaType === "photo" ? "jpg" : "mp4";
+    const fileName = `post_${Date.now()}.${ext}`;
 
-    const storagePath = `posts/${userId}/${year}/${month}/${day}/${postId}/original/${file.name}`;
+    const storagePath = `${userId}/${year}/${month}/${day}/${postId}/original/${fileName}`;
 
-    // Upload the file
+    // Process media (following ProfileSettings pattern)
+    let buffer: ArrayBuffer;
+
+    if (mediaType === "photo") {
+      // For photos, compress first then convert to ArrayBuffer
+      const { manipulateAsync } = await import("expo-image-manipulator");
+      const manipulated = await manipulateAsync(fileUri, [], {
+        compress: 0.7,
+        format: "jpeg" as any,
+      });
+
+      const { readAsStringAsync, EncodingType } = await import(
+        "expo-file-system"
+      );
+      const base64 = await readAsStringAsync(manipulated.uri, {
+        encoding: EncodingType.Base64,
+      });
+      const { decode } = await import("base64-arraybuffer");
+      buffer = decode(base64);
+    } else {
+      // For videos, read as binary data
+      const { readAsStringAsync, EncodingType } = await import(
+        "expo-file-system"
+      );
+      const binaryData = await readAsStringAsync(fileUri, {
+        encoding: EncodingType.Base64,
+      });
+      const { decode } = await import("base64-arraybuffer");
+      buffer = decode(binaryData);
+    }
+
+    // Upload using ArrayBuffer
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from("posts")
-      .upload(storagePath, file, {
+      .upload(storagePath, buffer, {
         cacheControl: "3600",
         upsert: false,
+        contentType: mediaType === "photo" ? "image/jpeg" : "video/mp4",
       });
 
     if (uploadError) throw uploadError;

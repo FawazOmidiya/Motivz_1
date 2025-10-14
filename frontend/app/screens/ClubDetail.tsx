@@ -24,6 +24,7 @@ import {
   fetchFriendsAttending,
   fetchUserProfile,
 } from "../utils/supabaseService";
+import { getClubStories } from "../utils/storiesService";
 import { useSession, useProfile } from "@/components/SessionContext";
 import * as types from "@/app/utils/types";
 import { Club } from "@/app/utils/Club";
@@ -34,6 +35,8 @@ import * as Constants from "@/constants/Constants";
 import ClubGoogleReviews from "@/components/ClubGoogleReviews";
 import ClubAppReviews from "@/components/ClubAppReviews";
 import ReviewForm from "@/components/ReviewForm";
+import StoryReel from "../components/StoryReel";
+import StoryViewer from "../components/StoryViewer";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -73,6 +76,14 @@ export default function ClubDetailScreen() {
   const [friendsAtClub, setFriendsAtClub] = useState<
     { id: string; avatar_url: string | null }[]
   >([]);
+  const [clubStories, setClubStories] = useState<any[]>([]);
+  const [selectedStory, setSelectedStory] = useState<any | null>(null);
+  const [showStoryModal, setShowStoryModal] = useState(false);
+
+  const handleViewStory = (story: any) => {
+    setSelectedStory(story);
+    setShowStoryModal(true);
+  };
 
   useEffect(() => {
     const loadClub = async () => {
@@ -116,9 +127,19 @@ export default function ClubDetailScreen() {
       }
     };
 
+    const loadClubStories = async () => {
+      try {
+        const stories = await getClubStories(club?.id || "");
+        setClubStories(stories);
+      } catch (error) {
+        console.error("Error loading club stories:", error);
+      }
+    };
+
     if (club?.id) {
       loadEvents();
       loadFriendsAtClub();
+      loadClubStories();
     }
     getLocation();
     getMusicSchedule();
@@ -183,7 +204,7 @@ export default function ClubDetailScreen() {
       }
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert("Error", error.message);
+        console.error("Error removing club from favourites:", error);
       }
     } finally {
       setAdding(false);
@@ -396,6 +417,15 @@ export default function ClubDetailScreen() {
 
       {/* Main Content */}
       <View style={styles.contentContainer}>
+        {/* Story Reel */}
+        {clubStories.length > 0 && (
+          <StoryReel
+            stories={clubStories}
+            onStoryPress={handleViewStory}
+            title="Club Stories"
+          />
+        )}
+
         {/* Action Buttons */}
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
@@ -793,6 +823,13 @@ export default function ClubDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Story Viewer */}
+      <StoryViewer
+        visible={showStoryModal}
+        story={selectedStory}
+        onClose={() => setShowStoryModal(false)}
+      />
 
       {/* Schedule Popup */}
       {showSchedulePopup && (
