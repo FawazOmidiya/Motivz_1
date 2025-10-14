@@ -25,6 +25,7 @@ export type UserProfile = {
   active_club_id?: string | null;
   active_club_closed?: string | null; // ISO datetime string when the club closes
   push_token?: string | null; // Expo push token for notifications
+
   // add any additional fields you need
 };
 

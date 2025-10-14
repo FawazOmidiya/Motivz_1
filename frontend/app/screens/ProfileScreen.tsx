@@ -631,7 +631,6 @@ export default function Account() {
     }
   };
 
-
   const renderFavouriteClub = ({ item }: { item: types.Club }) => (
     <TouchableOpacity
       style={styles.favouriteClubItem}
