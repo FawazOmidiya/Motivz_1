@@ -96,7 +96,6 @@ export default function FriendButton({
     const { error } = await sendFriendRequest(profile.id, targetUserId);
     setLoading(false);
     if (error) {
-      Alert.alert("Error", error.message);
     } else {
       setFriendStatus("pending");
       setIsRequester(true);

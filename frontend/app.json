@@ -2,7 +2,7 @@
   "expo": {
     "name": "Motivz",
     "slug": "frontend",
-    "version": "1.5.0",
+    "version": "1.5.2",
     "orientation": "portrait",
     "icon": "./assets/images/iTunesArtwork@1x.png",
     "scheme": "motivz",
@@ -11,14 +11,16 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "12",
+      "buildNumber": "2",
       "icon": "./assets/images/iTunesArtwork@1x.png",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
         "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "entitlements": {
         "aps-environment": "production"

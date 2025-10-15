@@ -394,7 +394,7 @@ export async function sendFriendRequest(
   ]);
 
   // If friend request was sent successfully, send notification to the receiver
-  if (!error && data) {
+  if (!error) {
     try {
       // Get the requester's name for the notification
       const { data: requesterProfile } = await supabase
@@ -407,17 +407,24 @@ export async function sendFriendRequest(
         ? `${requesterProfile.first_name} ${requesterProfile.last_name}`
         : "Someone";
 
-      // Send notification to the receiver
-      await sendNotificationToUser(
-        targetUserId,
-        "New Friend Request",
-        `${requesterName} sent you a friend request!`,
-        {
-          type: "friend_request",
-          requester_id: currentUserId,
-          action: "view_requests",
-        }
-      );
+      // Send notification to the receiver (using dashboard method)
+      const { data: notificationResult, error: notificationError } =
+        await supabase.functions.invoke("send-push-notification", {
+          body: {
+            title: "New Friend Request",
+            body: `${requesterName} sent you a friend request!`,
+            userId: targetUserId,
+            sendToAll: false,
+          },
+        });
+      if (notificationError) {
+        console.error(
+          "Failed to send friend request notification:",
+          notificationError
+        );
+      } else {
+        console.log("Friend request notification sent successfully");
+      }
     } catch (notificationError) {
       console.error(
         "Error sending friend request notification:",
@@ -425,6 +432,8 @@ export async function sendFriendRequest(
       );
       // Don't fail the friend request if notification fails
     }
+  } else {
+    console.error("❌ Friend request failed:", error);
   }
 
   return { data, error };
@@ -487,7 +496,7 @@ export async function acceptFriendRequest(
     .match({ requester_id: targetUserId, receiver_id: currentUserId });
 
   // If friend request was accepted successfully, send notification to the requester
-  if (!error && data) {
+  if (!error) {
     try {
       // Get the accepter's name for the notification
       const { data: accepterProfile } = await supabase
@@ -500,17 +509,22 @@ export async function acceptFriendRequest(
         ? `${accepterProfile.first_name} ${accepterProfile.last_name}`
         : "Someone";
 
-      // Send notification to the requester
-      await sendNotificationToUser(
-        targetUserId,
-        "Friend Request Accepted",
-        `${accepterName} accepted your friend request!`,
-        {
-          type: "friend_request_accepted",
-          accepter_id: currentUserId,
-          action: "view_profile",
-        }
-      );
+      // Send notification to the requester (using dashboard method)
+      const { data: notificationResult, error: notificationError } =
+        await supabase.functions.invoke("send-push-notification", {
+          body: {
+            title: "Friend Request Accepted",
+            body: `${accepterName} accepted your friend request!`,
+            userId: targetUserId,
+            sendToAll: false,
+          },
+        });
+      if (notificationError) {
+        console.error(
+          "Failed to send friend request accepted notification:",
+          notificationError
+        );
+      }
     } catch (notificationError) {
       console.error(
         "Error sending friend request accepted notification:",
@@ -518,6 +532,8 @@ export async function acceptFriendRequest(
       );
       // Don't fail the friend request acceptance if notification fails
     }
+  } else {
+    console.error("❌ Friend request acceptance failed:", error);
   }
 
   return { data, error };
@@ -1091,6 +1107,7 @@ export async function sendNotificationToUser(
           body: body,
           userId: userId,
           sendToAll: false,
+          data: data, // Include the data parameter
         },
       }
     );
