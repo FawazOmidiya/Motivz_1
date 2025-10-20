@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "42P3N5W766.com.fomidiya.frontend",
+        "paths": [
+          "/event/*",
+          "/club/*",
+          "/user/*",
+          "/story/*"
+        ]
+      }
+    ]
+  }
+}
