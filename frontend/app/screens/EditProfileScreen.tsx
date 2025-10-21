@@ -14,15 +14,6 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Constants from "@/constants/Constants";
-import {
-  MUSIC_GENRES,
-  CROWD_PREFERENCES,
-  NIGHTLIFE_GOALS,
-  DRESS_CODE_OPTIONS,
-  BUDGET_OPTIONS,
-  DRINKING_OPTIONS,
-  SMOKING_OPTIONS,
-} from "@/constants/NightlifeConstants";
 import { useSession, useProfile } from "@/components/SessionContext";
 import { updateUserProfile } from "@/app/utils/supabaseService";
 
@@ -52,14 +43,67 @@ export default function EditProfileScreen({
   const [drinkingPreference, setDrinkingPreference] = useState<string>("");
   const [smokingPreference, setSmokingPreference] = useState<string>("");
 
-  // Use imported constants
-  const musicGenres = MUSIC_GENRES;
-  const crowdOptions = CROWD_PREFERENCES;
-  const goalOptions = NIGHTLIFE_GOALS;
-  const dressCodeOptions = DRESS_CODE_OPTIONS;
-  const budgetOptions = BUDGET_OPTIONS;
-  const drinkingOptions = DRINKING_OPTIONS;
-  const smokingOptions = SMOKING_OPTIONS;
+  // Music genres
+  const musicGenres = [
+    "Hip Hop",
+    "Electronic",
+    "Pop",
+    "Rock",
+    "R&B",
+    "Reggaeton",
+    "House",
+    "Techno",
+    "Jazz",
+    "Latin",
+    "Country",
+    "Indie",
+  ];
+
+  // Crowd preferences
+  const crowdOptions = [
+    "Diverse",
+    "Young (18-25)",
+    "Professional (25-35)",
+    "Mixed Age",
+    "LGBTQ+ Friendly",
+    "International",
+    "Local",
+    "Student",
+    "Black",
+    "Asian",
+    "Latinx",
+  ];
+
+  // Nightlife goals
+  const goalOptions = [
+    "Dance",
+    "Meet New People",
+    "Date",
+    "Network",
+    "Celebrate",
+    "Relax",
+    "Party",
+    "Socialize",
+  ];
+
+  // Dress code options
+  const dressCodeOptions = [
+    "Casual",
+    "Smart Casual",
+    "Dressy",
+    "Formal",
+    "Trendy",
+    "Comfortable",
+  ];
+
+  // Budget options
+  const budgetOptions = ["Budget", "Moderate", "Upscale", "Premium"];
+
+  // Drinking preferences
+  const drinkingOptions = ["Non-drinker", "Light", "Moderate", "Heavy"];
+
+  // Smoking preferences
+  const smokingOptions = ["Non-smoker", "Occasional", "Regular", "Vape"];
 
   useEffect(() => {
     if (profile) {
@@ -206,7 +250,7 @@ export default function EditProfileScreen({
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar
         barStyle="light-content"
         backgroundColor={Constants.blackCOLOR}
@@ -370,7 +414,7 @@ export default function EditProfileScreen({
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -385,7 +429,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: 50,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.1)",
   },
@@ -405,10 +448,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 20,
   },
   section: {
-    marginVertical: 12,
+    marginVertical: 16,
   },
   sectionTitle: {
     fontSize: 16,
@@ -417,11 +459,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   categoryTitle: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 20,
+    fontWeight: "700",
     color: Constants.whiteCOLOR,
-    marginTop: 20,
-    marginBottom: 12,
+    marginTop: 24,
+    marginBottom: 16,
   },
   profilePictureContainer: {
     alignItems: "center",
@@ -470,20 +512,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
     color: Constants.whiteCOLOR,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.2)",
   },
   bioContainer: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.2)",
   },
   bioInput: {
     padding: 12,
@@ -508,9 +550,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.2)",
   },
   optionChipSelected: {
     backgroundColor: Constants.purpleCOLOR,

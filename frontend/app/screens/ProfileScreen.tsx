@@ -41,6 +41,9 @@ import { uploadPost, fetchUserPosts, deletePost } from "../utils/postService";
 import {
   createStory,
   getUserStories as fetchUserStories,
+  getUserStoriesPaginated,
+  getInitialUserStories,
+  getNextUserStory,
   uploadStoryMedia,
   deleteStory,
   Story,
@@ -69,6 +72,9 @@ export default function Account() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
+  const [storiesHasMore, setStoriesHasMore] = useState(true);
+  const [storiesLoading, setStoriesLoading] = useState(false);
+  const [storiesTotal, setStoriesTotal] = useState(0);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
 
@@ -86,7 +92,6 @@ export default function Account() {
   const [mediaModalVisible, setMediaModalVisible] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [showStoryModal, setShowStoryModal] = useState(false);
-  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [selectedClubId, setSelectedClubId] = useState<string | undefined>();
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
   const [activeEvent, setActiveEvent] = useState<any>(null);
@@ -97,7 +102,7 @@ export default function Account() {
       getFavourites();
       getPendingRequestsCount();
       getAttendingEvents();
-      getUserStories();
+      getInitialStories(); // Load first 3 stories
     }
   }, [session]);
 
@@ -176,21 +181,67 @@ export default function Account() {
     }
   }
 
-  // Fetch user stories
-  async function getUserStories() {
+  // Load initial 3 stories for immediate display
+  async function getInitialStories() {
     try {
       if (!session?.user) {
         return;
       }
 
-      console.log("📚 Fetching user stories for:", session.user.id);
-      const userStories = await fetchUserStories(session.user.id);
-      setStories(userStories);
+      setStoriesLoading(true);
+      console.log(
+        "📚 ProfileScreen: Loading initial 3 stories for:",
+        session.user.id
+      );
+
+      const result = await getInitialUserStories(session.user.id);
+      setStories(result.stories);
+      setStoriesHasMore(result.hasMore);
+      setStoriesTotal(result.total);
+
+      console.log(
+        "📚 ProfileScreen: Loaded initial stories:",
+        result.stories.length,
+        "total:",
+        result.total,
+        "hasMore:",
+        result.hasMore
+      );
     } catch (error) {
-      console.error("❌ Error fetching user stories:", error);
+      console.error("❌ Error fetching initial stories:", error);
       setStories([]);
+    } finally {
+      setStoriesLoading(false);
     }
   }
+
+  // Load next single story
+  const loadNextStory = async () => {
+    if (!storiesLoading && storiesHasMore && session?.user) {
+      setStoriesLoading(true);
+      console.log(
+        "📚 ProfileScreen: Loading next story, current count:",
+        stories.length
+      );
+
+      try {
+        const result = await getNextUserStory(session.user.id, stories.length);
+
+        if (result.story) {
+          setStories((prev) => [...prev, result.story!]);
+          setStoriesHasMore(result.hasMore);
+          console.log("📚 ProfileScreen: Loaded next story:", result.story.id);
+        } else {
+          setStoriesHasMore(false);
+          console.log("📚 ProfileScreen: No more stories to load");
+        }
+      } catch (error) {
+        console.error("❌ Error loading next story:", error);
+      } finally {
+        setStoriesLoading(false);
+      }
+    }
+  };
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -198,7 +249,7 @@ export default function Account() {
     await getFavourites();
     await getPendingRequestsCount();
     await getAttendingEvents();
-    await getUserStories();
+    await getInitialStories(); // Load first 3 stories
     setRefreshing(false);
   }
 
@@ -561,7 +612,7 @@ export default function Account() {
 
       // Refresh stories
       console.log("🔄 Refreshing stories list...");
-      await getUserStories();
+      await getInitialStories();
       console.log("✅ Stories refreshed");
 
       // Show success message with club/event info
@@ -604,7 +655,7 @@ export default function Account() {
             const success = await deleteStory(storyId, profile.id);
             if (success) {
               // Refresh stories
-              await getUserStories();
+              await getInitialStories();
             } else {
               Alert.alert("Error", "Failed to delete story.");
             }
@@ -612,12 +663,6 @@ export default function Account() {
         },
       ]
     );
-  };
-
-  // Handle story viewing
-  const handleViewStory = (story: Story) => {
-    setSelectedStory(story);
-    setShowStoryModal(true);
   };
 
   const handleMediaCaptured = () => {
@@ -715,23 +760,44 @@ export default function Account() {
       {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.profileTopRow}>
-          <TouchableOpacity
-            style={styles.profileAvatar}
-            onPress={() => setIsImageModalVisible(true)}
-          >
-            {profile?.avatar_url ? (
+          <View style={styles.profileAvatarContainer}>
+            <TouchableOpacity
+              style={[
+                styles.profileAvatar,
+                stories.length > 0 && styles.profileAvatarWithStory,
+              ]}
+              onPress={() => {
+                console.log(
+                  "📱 ProfileScreen: Profile picture tapped, stories count:",
+                  stories.length
+                );
+                if (stories.length > 0) {
+                  console.log("📱 ProfileScreen: Opening story modal");
+                  setShowStoryModal(true);
+                } else {
+                  console.log("📱 ProfileScreen: Opening image modal");
+                  setIsImageModalVisible(true);
+                }
+              }}
+            >
               <Image
-                source={{ uri: profile.avatar_url }}
+                source={
+                  profile?.avatar_url
+                    ? { uri: profile.avatar_url }
+                    : require("@/assets/images/default-avatar.png")
+                }
                 style={styles.avatarImage}
               />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>
-                  {profile?.first_name?.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+
+            {/* Camera icon for adding stories */}
+            <TouchableOpacity
+              style={styles.storyCameraButton}
+              onPress={handleCaptureMoment}
+            >
+              <Ionicons name="camera" size={16} color={Constants.whiteCOLOR} />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.profileStats}>
             <View style={styles.statItem}>
@@ -753,14 +819,32 @@ export default function Account() {
           <Text style={styles.profileName}>
             {profile?.first_name} {profile?.last_name}
           </Text>
-          <Text style={styles.profileBio}>
-            Welcome to your profile! Share your moments and connect with your
-            community.
-          </Text>
+
+          {/* Active Club Display */}
+          {activeClub && (
+            <TouchableOpacity
+              style={styles.activeClubInfo}
+              onPress={() =>
+                navigation.navigate("ClubDetail", { club: activeClub })
+              }
+            >
+              <Ionicons
+                name="location-outline"
+                size={14}
+                color={Constants.purpleCOLOR}
+              />
+              <Text style={styles.activeClubText}>{activeClub.Name}</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.profileBio}>{profile?.bio}</Text>
         </View>
 
         <View style={styles.profileActions}>
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => navigation.navigate("EditProfile")}
+          >
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton}>
@@ -860,72 +944,13 @@ export default function Account() {
       {/* Tab Content */}
       {activeTab === "stories" && (
         <View style={styles.storiesContent}>
-          <View style={styles.storiesSection}>
-            <Text style={styles.sectionTitle}>Your Stories</Text>
-            <FlatList
-              data={[{ id: "add-story", type: "add" } as any, ...stories]}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.storiesList}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => {
-                if ("type" in item && item.type === "add") {
-                  return (
-                    <TouchableOpacity
-                      style={styles.addStoryButton}
-                      onPress={handleCaptureMoment}
-                    >
-                      <View style={styles.addStoryIcon}>
-                        <Ionicons
-                          name="add"
-                          size={20}
-                          color={Constants.whiteCOLOR}
-                        />
-                      </View>
-                      <Text style={styles.addStoryText}>Add Story</Text>
-                    </TouchableOpacity>
-                  );
-                }
-
-                return (
-                  <TouchableOpacity
-                    style={styles.storyItem}
-                    onPress={() => handleViewStory(item as any)}
-                  >
-                    <View style={styles.storyRing}>
-                      <Image
-                        source={{
-                          uri:
-                            (item as any).thumbnail_url ||
-                            (item as any).media_url,
-                        }}
-                        style={styles.storyImage}
-                      />
-                      <TouchableOpacity
-                        style={styles.storyDeleteButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleDeleteStory((item as any).id);
-                        }}
-                      >
-                        <Ionicons name="close" size={12} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={styles.storyUsername} numberOfLines={1}>
-                      {(item as any).caption || "Story"}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Posts</Text>
+              <Text style={styles.sectionTitle}>Your Stories</Text>
             </View>
             <Text style={styles.emptyTabText}>
-              Your recent posts will appear here
+              Tap the camera icon on your profile picture to add a story, or tap
+              your profile picture to view existing stories.
             </Text>
           </View>
         </View>
@@ -934,31 +959,6 @@ export default function Account() {
       {activeTab === "favourites" && (
         <View style={styles.favouritesContent}>
           {/* Currently Active Club */}
-          {activeClub && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Currently Active</Text>
-              <TouchableOpacity
-                style={styles.activeClubCard}
-                onPress={() =>
-                  navigation.navigate("ClubDetail", { club: activeClub })
-                }
-              >
-                <Image
-                  source={{ uri: activeClub.Image }}
-                  style={styles.clubImage}
-                />
-                <View style={styles.clubInfo}>
-                  <Text style={styles.clubName}>{activeClub.Name}</Text>
-                  <Text style={styles.clubStatus}>Currently here</Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={Constants.greyCOLOR}
-                />
-              </TouchableOpacity>
-            </View>
-          )}
 
           {/* Favourite Clubs */}
           {favourites.length > 0 && (
@@ -1121,19 +1121,15 @@ export default function Account() {
           onPress={() => setIsImageModalVisible(false)}
         >
           <View style={styles.modalContent}>
-            {profile?.avatar_url ? (
-              <Image
-                source={{ uri: profile.avatar_url }}
-                style={styles.modalImage}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={styles.modalPlaceholder}>
-                <Text style={styles.modalPlaceholderText}>
-                  {profile?.first_name?.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
+            <Image
+              source={
+                profile?.avatar_url
+                  ? { uri: profile.avatar_url }
+                  : require("@/assets/images/default-avatar.png")
+              }
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1344,8 +1340,12 @@ export default function Account() {
       {/* Story Viewer */}
       <StoryViewer
         visible={showStoryModal}
-        story={selectedStory}
+        stories={stories}
+        initialIndex={0}
         onClose={() => setShowStoryModal(false)}
+        onLoadMore={loadNextStory}
+        hasMore={storiesHasMore}
+        loading={storiesLoading}
       />
       {/* Floating Action Button
       <TouchableOpacity style={styles.fab} onPress={handleCaptureMoment}>
@@ -1377,18 +1377,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
+  profileAvatarContainer: {
+    position: "relative",
+    marginRight: 20,
+  },
   profileAvatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 0,
+    borderColor: "transparent",
+  },
+  profileAvatarWithStory: {
     borderWidth: 3,
     borderColor: Constants.purpleCOLOR,
-    marginRight: 20,
   },
   avatarImage: {
-    width: 94,
-    height: 94,
-    borderRadius: 47,
+    width: "100%",
+    height: "100%",
+    borderRadius: 50,
+  },
+  storyCameraButton: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Constants.purpleCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: Constants.blackCOLOR,
   },
   avatarPlaceholder: {
     width: 94,
@@ -1433,6 +1453,17 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Constants.whiteCOLOR,
     marginBottom: 4,
+  },
+  activeClubInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 4,
+  },
+  activeClubText: {
+    fontSize: 14,
+    color: Constants.purpleCOLOR,
+    fontWeight: "500",
   },
   profileBio: {
     fontSize: 14,
@@ -1533,34 +1564,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Constants.whiteCOLOR,
     marginBottom: 16,
-  },
-
-  // Active Club
-  activeClubCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 16,
-  },
-  clubImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  clubInfo: {
-    flex: 1,
-  },
-  clubName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Constants.whiteCOLOR,
-    marginBottom: 4,
-  },
-  clubStatus: {
-    fontSize: 14,
-    color: Constants.greyCOLOR,
   },
 
   // Clubs Grid
@@ -1950,53 +1953,16 @@ const styles = StyleSheet.create({
 
   // Stories Section
   storiesSection: {
-    marginBottom: 24,
+    marginBottom: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    borderRadius: 12,
+    marginHorizontal: 16,
+    paddingVertical: 8,
   },
   storiesList: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     alignItems: "center",
-  },
-  addStoryButton: {
-    alignItems: "center",
-    marginRight: 16,
-    width: 80,
-  },
-  addStoryIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
-  },
-  addStoryText: {
-    fontSize: 12,
-    color: Constants.whiteCOLOR,
-    textAlign: "center",
-  },
-  storyItem: {
-    alignItems: "center",
-    marginRight: 20,
-  },
-  storyRing: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 2,
-    borderColor: Constants.purpleCOLOR,
-    padding: 2,
-    marginBottom: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  storyImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
   },
   storyUsername: {
     fontSize: 12,
