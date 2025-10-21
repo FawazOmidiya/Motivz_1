@@ -21,6 +21,7 @@ import HomeScreen from "./screens/HomeScreen";
 import ExploreScreen from "./screens/ExploreScreen";
 import MapScreen from "./screens/MapScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import EditProfileScreen from "./screens/EditProfileScreen";
 import ClubDetail from "./screens/ClubDetail";
 import EventDetail from "./screens/EventDetail";
 import GuestlistForm from "./screens/GuestlistForm";
@@ -89,6 +90,7 @@ function ProfileStackScreen() {
   return (
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="ProfileSettings" component={ProfileSettings} />
       <ProfileStack.Screen name="UserProfile" component={UserProfileScreen} />
       <ProfileStack.Screen name="ClubDetail" component={ClubDetail} />
