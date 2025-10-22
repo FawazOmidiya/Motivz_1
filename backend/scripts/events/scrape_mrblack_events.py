@@ -49,7 +49,7 @@ class MrBlackEventScraper:
         """
         try:
             # First, let's try to get all clubs and filter in Python
-            result = supabase.table('Clubs').select('id, Name, mr_black_id, music_schedule').execute()
+            result = supabase.table('Clubs').select('id, Name, mr_black_id, music_schedule, mr_black_referrer_id').execute()
             clubs = result.data or []
             
             # Filter clubs that have mr_black_id
@@ -61,7 +61,7 @@ class MrBlackEventScraper:
             print(f"Error fetching clubs with mr_black_id: {e}")
             return []
         
-    def fetch_events_from_api(self, mr_black_id: str, club_id: str, club_music_schedule: List[str] = None) -> List[Dict[str, Any]]:
+    def fetch_events_from_api(self, mr_black_id: str, club_id: str, club_music_schedule: List[str] = None, referrer_id: str = None) -> List[Dict[str, Any]]:
         """
         Fetch events from Mr Black API endpoint for a specific club
         """
@@ -87,7 +87,7 @@ class MrBlackEventScraper:
             if response.status_code == 200:
                 data = response.json()
                 print(f"Successfully fetched data from API for club {mr_black_id}")
-                return self.parse_api_response(data, mr_black_id, club_id, club_music_schedule)
+                return self.parse_api_response(data, mr_black_id, club_id, club_music_schedule, referrer_id)
             else:
                 print(f"API returned status {response.status_code}")
                 print(f"Response: {response.text[:200]}...")
@@ -118,7 +118,7 @@ class MrBlackEventScraper:
             print(f"Error scraping HTML: {e}")
             return []
     
-    def parse_api_response(self, data: List[Dict[str, Any]], mr_black_id: str, club_id: str, club_music_schedule: List[str] = None) -> List[Dict[str, Any]]:
+    def parse_api_response(self, data: List[Dict[str, Any]], mr_black_id: str, club_id: str, club_music_schedule: List[str] = None, referrer_id: str = None) -> List[Dict[str, Any]]:
         """
         Parse the API response and extract event information
         """
@@ -129,7 +129,7 @@ class MrBlackEventScraper:
             if 'events' in day_data and isinstance(day_data['events'], list):
                 for event_data in day_data['events']:
                     try:
-                        event = self.parse_single_event(event_data, day_data['eventDate'], mr_black_id, club_id, club_music_schedule)
+                        event = self.parse_single_event(event_data, day_data['eventDate'], mr_black_id, club_id, club_music_schedule, referrer_id)
                         if event:
                             events.append(event)
                     except Exception as e:
@@ -138,7 +138,7 @@ class MrBlackEventScraper:
         
         return events
     
-    def parse_single_event(self, event_data: Dict[str, Any], event_date: str, mr_black_id: str, club_id: str, club_music_schedule: List[str] = None) -> Dict[str, Any]:
+    def parse_single_event(self, event_data: Dict[str, Any], event_date: str, mr_black_id: str, club_id: str, club_music_schedule: List[str] = None, referrer_id: str = None) -> Dict[str, Any]:
         """
         Parse a single event from the API response
         """
@@ -198,6 +198,10 @@ class MrBlackEventScraper:
             
             # Construct ticketing URL using the club's mr_black_id
             ticketing_url = f"https://themrblack.com/embed/{mr_black_id}/form?date={event_date}&eventId={mr_black_event_id}"
+            
+            # Add referrer_id if available (Motivz specific tracking)
+            if referrer_id:
+                ticketing_url += f"&referrerId={referrer_id}"
             
             # Create event object matching the database schema
             event = {
@@ -265,7 +269,7 @@ class MrBlackEventScraper:
                 return None
             
             # Mr Black times appear to be 4 hours behind what we expect
-            # Adjust by adding 4 hours to get the correct time
+            # Adjust by adding 4 hours to get the correct time #TODO: make this consider timezone differences
             adjusted_dt = dt + timedelta(hours=4)
             
             print(f"   🕐 Time adjustment: {dt} → {adjusted_dt} (adjusted +4 hours)")
@@ -407,8 +411,11 @@ class MrBlackEventScraper:
             club_name = club['Name']
             mr_black_id = club['mr_black_id']
             club_music_schedule = club.get('music_schedule', [])
+            referrer_id = club.get('mr_black_referrer_id')
             
             print(f"\n🏢 Processing club: {club_name} (ID: {club_id}, Mr Black ID: {mr_black_id})")
+            if referrer_id:
+                print(f"   🎫 Referrer ID: {referrer_id}")
             if club_music_schedule and isinstance(club_music_schedule, dict):
                 print(f"   🎵 Club music schedule: {len(club_music_schedule)} days configured")
                 for day, genres in club_music_schedule.items():
@@ -417,7 +424,7 @@ class MrBlackEventScraper:
                 print(f"   🎵 Club music schedule: {club_music_schedule}")
             
             # Fetch events for this club
-            events = self.fetch_events_from_api(mr_black_id, club_id, club_music_schedule)
+            events = self.fetch_events_from_api(mr_black_id, club_id, club_music_schedule, referrer_id)
             
             if events:
                 all_events.extend(events)
