@@ -23,11 +23,10 @@ export const MUSIC_GENRES = [
 // Crowd preferences for nightlife
 export const CROWD_PREFERENCES = [
   "Diverse",
-  "Young (18-25)",
-  "Professional (25-35)",
-  "Mixed Age",
-  "LGBTQ+ Friendly",
-  "International",
+  "Young (18-30)",
+  "Professional (30-45)",
+  "Mixed Ages",
+  "LGBTQ+",
   "Local",
   "Student",
   "Black",
