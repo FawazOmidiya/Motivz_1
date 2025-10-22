@@ -1,13 +1,13 @@
 // Music genres used throughout the app (matching event filtering)
 export const MUSIC_GENRES = [
-  "HipHop",
+  "Hip Hop",
+  "Electronic",
   "Pop",
-  "Soul",
   "Rap",
   "House",
-  "Latin",
-  "EDM",
+  "Techno",
   "Jazz",
+  "Latin",
   "Country",
   "Blues",
   "DanceHall",
@@ -18,6 +18,8 @@ export const MUSIC_GENRES = [
   "2000's",
   "2010's",
   "R&B",
+  "Soca",
+  "Mashups",
 ] as const;
 
 // Crowd preferences for nightlife

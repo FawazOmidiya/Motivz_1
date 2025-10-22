@@ -38,18 +38,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { uploadPost, fetchUserPosts, deletePost } from "../utils/postService";
-import {
-  createStory,
-  getUserStories as fetchUserStories,
-  getUserStoriesPaginated,
-  getInitialUserStories,
-  getNextUserStory,
-  uploadStoryMedia,
-  deleteStory,
-  Story,
-} from "../utils/storiesService";
-import StoryViewer from "../components/StoryViewer";
-import CameraModal from "../components/CameraModal";
 import { decode } from "base64-arraybuffer";
 import { Video, ResizeMode } from "expo-av";
 import * as FileSystem from "expo-file-system";
@@ -68,13 +56,9 @@ export default function Account() {
   const [posts, setPosts] = useState<types.Post[]>([]);
   const [attendingEvents, setAttendingEvents] = useState<types.Event[]>([]);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [activeTab, setActiveTab] = useState("stories");
+  const [activeTab, setActiveTab] = useState("favourites");
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
-  const [stories, setStories] = useState<Story[]>([]);
-  const [storiesHasMore, setStoriesHasMore] = useState(true);
-  const [storiesLoading, setStoriesLoading] = useState(false);
-  const [storiesTotal, setStoriesTotal] = useState(0);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
 
@@ -90,10 +74,6 @@ export default function Account() {
     type: "photo" | "video";
   } | null>(null);
   const [mediaModalVisible, setMediaModalVisible] = useState(false);
-  const [showCameraModal, setShowCameraModal] = useState(false);
-  const [showStoryModal, setShowStoryModal] = useState(false);
-  const [selectedClubId, setSelectedClubId] = useState<string | undefined>();
-  const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
   const [activeEvent, setActiveEvent] = useState<any>(null);
 
   useEffect(() => {
@@ -102,7 +82,6 @@ export default function Account() {
       getFavourites();
       getPendingRequestsCount();
       getAttendingEvents();
-      getInitialStories(); // Load first 3 stories
     }
   }, [session]);
 
@@ -181,97 +160,14 @@ export default function Account() {
     }
   }
 
-  // Load initial 3 stories for immediate display
-  async function getInitialStories() {
-    try {
-      if (!session?.user) {
-        return;
-      }
-
-      setStoriesLoading(true);
-      console.log(
-        "📚 ProfileScreen: Loading initial 3 stories for:",
-        session.user.id
-      );
-
-      const result = await getInitialUserStories(session.user.id);
-      setStories(result.stories);
-      setStoriesHasMore(result.hasMore);
-      setStoriesTotal(result.total);
-
-      console.log(
-        "📚 ProfileScreen: Loaded initial stories:",
-        result.stories.length,
-        "total:",
-        result.total,
-        "hasMore:",
-        result.hasMore
-      );
-    } catch (error) {
-      console.error("❌ Error fetching initial stories:", error);
-      setStories([]);
-    } finally {
-      setStoriesLoading(false);
-    }
-  }
-
-  // Load next single story
-  const loadNextStory = async () => {
-    if (!storiesLoading && storiesHasMore && session?.user) {
-      setStoriesLoading(true);
-      console.log(
-        "📚 ProfileScreen: Loading next story, current count:",
-        stories.length
-      );
-
-      try {
-        const result = await getNextUserStory(session.user.id, stories.length);
-
-        if (result.story) {
-          setStories((prev) => [...prev, result.story!]);
-          setStoriesHasMore(result.hasMore);
-          console.log("📚 ProfileScreen: Loaded next story:", result.story.id);
-        } else {
-          setStoriesHasMore(false);
-          console.log("📚 ProfileScreen: No more stories to load");
-        }
-      } catch (error) {
-        console.error("❌ Error loading next story:", error);
-      } finally {
-        setStoriesLoading(false);
-      }
-    }
-  };
-
   async function handleRefresh() {
     setRefreshing(true);
     await getProfile();
     await getFavourites();
     await getPendingRequestsCount();
     await getAttendingEvents();
-    await getInitialStories(); // Load first 3 stories
     setRefreshing(false);
   }
-
-  const handleCaptureMoment = async () => {
-    // Request camera permissions first
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Camera permission is required!",
-        "Please enable permissions in your device settings.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Open Settings",
-            onPress: () => Linking.openSettings(),
-          },
-        ]
-      );
-      return;
-    }
-    setShowCameraModal(true);
-  };
 
   const handleUploadPost = async () => {
     if (!pickedAsset || !profile) return;
@@ -405,277 +301,6 @@ export default function Account() {
     );
   };
 
-  // Handle story creation (following exact same pattern as posts)
-  const handleCreateStory = async (clubId?: string, eventId?: string) => {
-    console.log("🎬 handleCreateStory called");
-    console.log("📱 pickedAsset:", pickedAsset);
-    console.log("📱 profile:", profile);
-
-    if (!pickedAsset || !profile) {
-      console.log("❌ Missing pickedAsset or profile, returning");
-      return;
-    }
-
-    // Use passed parameters or fall back to state
-    const finalClubId = clubId || selectedClubId;
-    const finalEventId = eventId || selectedEventId;
-
-    setUploading(true);
-    try {
-      console.log("🎬 Starting story creation...");
-      console.log("📱 Profile ID:", profile.id);
-      console.log("📸 Asset type:", pickedAssetType);
-      console.log("📝 Caption:", caption);
-      console.log("🔗 Asset URI:", pickedAsset.uri);
-      console.log(
-        "🏢 Active Club:",
-        activeClub?.Name,
-        "(ID:",
-        activeClub?.id,
-        ")"
-      );
-      console.log(
-        "🎪 Active Event:",
-        activeEvent?.title,
-        "(ID:",
-        activeEvent?.id,
-        ")"
-      );
-      console.log("🏷️ Final Club ID:", finalClubId);
-      console.log("🏷️ Final Event ID:", finalEventId);
-
-      // 1. Create the story record first (without media_url yet)
-      console.log("📊 Creating story record in database...");
-      const { data: insertStory, error: insertError } = await supabase
-        .from("stories")
-        .insert({
-          user_id: profile.id,
-          caption: caption || null, // Allow null caption for stories
-          location: undefined,
-          media_type: pickedAssetType,
-          visibility: "friends", // Default to friends-only for direct camera capture
-          club_id: finalClubId,
-          event_id: finalEventId,
-          location_name: activeClub?.Name,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
-        })
-        .select()
-        .single();
-
-      console.log("📊 Story insert result:", { insertStory, insertError });
-
-      if (insertError) {
-        console.error("❌ Story insert error:", insertError);
-        throw new Error(`Database error: ${insertError.message}`);
-      }
-
-      if (!insertStory || !insertStory.id) {
-        throw new Error("Failed to create story.");
-      }
-
-      console.log("✅ Story record created with ID:", insertStory.id);
-
-      // 2. Prepare file info (same as posts)
-      console.log("📁 Preparing file info...");
-      const ext =
-        pickedAsset.uri.split(".").pop() ||
-        (pickedAssetType === "video" ? "mp4" : "jpg");
-      const timestamp = Date.now();
-      const fileName = `story_${timestamp}.${ext}`;
-      const date = new Date();
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const storyId = insertStory.id;
-      const storagePath = `${profile.id}/${year}/${month}/${day}/${storyId}/original/${fileName}`;
-
-      console.log("📁 File details:", {
-        ext,
-        fileName,
-        year,
-        month,
-        day,
-        storyId,
-        storagePath,
-      });
-
-      // 3. Process media (following ProfileSettings pattern)
-      console.log("🖼️ Processing media...");
-      let processedUri = pickedAsset.uri;
-      let buffer: ArrayBuffer;
-
-      if (pickedAssetType === "photo") {
-        console.log("📸 Compressing image...");
-        const manipulated = await ImageManipulator.manipulateAsync(
-          pickedAsset.uri,
-          [],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        processedUri = manipulated.uri;
-        console.log("✅ Image compressed:", processedUri);
-
-        // Convert to base64 then to ArrayBuffer (ProfileSettings pattern)
-        const base64 = await FileSystem.readAsStringAsync(processedUri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        buffer = decode(base64);
-        console.log("📁 Image converted to ArrayBuffer");
-      } else {
-        console.log("🎥 Video processing - reading as binary...");
-        // For videos, read as binary data
-        const binaryData = await FileSystem.readAsStringAsync(processedUri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        buffer = decode(binaryData);
-        console.log("📁 Video converted to ArrayBuffer");
-      }
-
-      // 4. Upload using ArrayBuffer (ProfileSettings pattern)
-      console.log("☁️ Uploading to Supabase storage...");
-      console.log("📤 Upload details:", {
-        bucket: "posts",
-        path: storagePath,
-        bufferSize: buffer.byteLength,
-      });
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("posts")
-        .upload(storagePath, buffer, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: pickedAssetType === "photo" ? "image/jpeg" : "video/mp4",
-        });
-
-      console.log("📤 Upload result:", {
-        uploadData,
-        uploadError,
-        uploadDataPath: uploadData?.path,
-        uploadDataId: uploadData?.id,
-      });
-
-      if (uploadError) {
-        console.error("❌ Upload error details:", {
-          message: uploadError.message,
-          statusCode: (uploadError as any).statusCode || "N/A",
-          error: (uploadError as any).error || "N/A",
-        });
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-
-      console.log("✅ File uploaded successfully");
-
-      // 6. Get the public URL (same as posts)
-      console.log("🔗 Getting public URL...");
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("posts").getPublicUrl(storagePath);
-
-      console.log("🔗 Public URL:", publicUrl);
-      console.log("🔗 Storage path used for URL:", storagePath);
-
-      // Test if the URL is accessible
-      try {
-        const response = await fetch(publicUrl, { method: "HEAD" });
-        console.log("🔗 URL accessibility test:", {
-          status: response.status,
-          ok: response.ok,
-          headers: Object.fromEntries(response.headers.entries()),
-        });
-      } catch (urlError) {
-        console.error("❌ URL accessibility test failed:", urlError);
-      }
-
-      // 7. Update story record with the public URL (same as posts)
-      console.log("📝 Updating story record with media URL...");
-      const { data: updateData, error: updateError } = await supabase
-        .from("stories")
-        .update({
-          media_url: publicUrl,
-          thumbnail_url: pickedAssetType === "photo" ? publicUrl : undefined,
-        })
-        .eq("id", storyId);
-
-      console.log("📝 Update result:", { updateData, updateError });
-
-      if (updateError) {
-        console.error("❌ Update error:", updateError);
-        throw new Error(`Update failed: ${updateError.message}`);
-      }
-
-      console.log("✅ Story record updated successfully");
-
-      console.log("🎉 Story creation completed successfully!");
-
-      setShowPostModal(false);
-      setPickedAsset(null);
-      setCaption("");
-
-      // Refresh stories
-      console.log("🔄 Refreshing stories list...");
-      await getInitialStories();
-      console.log("✅ Stories refreshed");
-
-      // Show success message with club/event info
-      const clubInfo = activeClub?.Name ? ` at ${activeClub.Name}` : "";
-      const eventInfo = activeEvent?.title ? ` for ${activeEvent.title}` : "";
-      Alert.alert(
-        "Success",
-        `Story created successfully${clubInfo}${eventInfo}!`
-      );
-    } catch (error) {
-      console.error("💥 Story creation failed:", error);
-      console.error("💥 Error details:", {
-        message: (error as Error).message,
-        stack: (error as Error).stack,
-        name: (error as Error).name,
-      });
-
-      Alert.alert(
-        "Error",
-        (error as Error).message || "Failed to create story."
-      );
-    } finally {
-      console.log("🏁 Story creation process finished");
-      setUploading(false);
-    }
-  };
-
-  // Handle story deletion
-  const handleDeleteStory = async (storyId: string) => {
-    if (!profile) return;
-    Alert.alert(
-      "Delete Story",
-      "Are you sure you want to delete this story? This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            const success = await deleteStory(storyId, profile.id);
-            if (success) {
-              // Refresh stories
-              await getInitialStories();
-            } else {
-              Alert.alert("Error", "Failed to delete story.");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleMediaCaptured = () => {
-    setShowPostModal(false);
-    // Navigate to story creation screen
-    if (pickedAsset && pickedAssetType) {
-      navigation.navigate("StoryCreationScreen", {
-        mediaUri: pickedAsset.uri,
-        mediaType: pickedAssetType,
-      });
-    }
-  };
-
   const renderFavouriteClub = ({ item }: { item: types.Club }) => (
     <TouchableOpacity
       style={styles.favouriteClubItem}
@@ -762,22 +387,9 @@ export default function Account() {
         <View style={styles.profileTopRow}>
           <View style={styles.profileAvatarContainer}>
             <TouchableOpacity
-              style={[
-                styles.profileAvatar,
-                stories.length > 0 && styles.profileAvatarWithStory,
-              ]}
+              style={styles.profileAvatar}
               onPress={() => {
-                console.log(
-                  "📱 ProfileScreen: Profile picture tapped, stories count:",
-                  stories.length
-                );
-                if (stories.length > 0) {
-                  console.log("📱 ProfileScreen: Opening story modal");
-                  setShowStoryModal(true);
-                } else {
-                  console.log("📱 ProfileScreen: Opening image modal");
-                  setIsImageModalVisible(true);
-                }
+                setIsImageModalVisible(true);
               }}
             >
               <Image
@@ -788,14 +400,6 @@ export default function Account() {
                 }
                 style={styles.avatarImage}
               />
-            </TouchableOpacity>
-
-            {/* Camera icon for adding stories */}
-            <TouchableOpacity
-              style={styles.storyCameraButton}
-              onPress={handleCaptureMoment}
-            >
-              <Ionicons name="camera" size={16} color={Constants.whiteCOLOR} />
             </TouchableOpacity>
           </View>
 
@@ -891,23 +495,6 @@ export default function Account() {
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === "stories" && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab("stories")}
-        >
-          <Ionicons
-            name="camera-outline"
-            size={24}
-            color={
-              activeTab === "stories"
-                ? Constants.whiteCOLOR
-                : Constants.greyCOLOR
-            }
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
             activeTab === "favourites" && styles.activeTab,
           ]}
           onPress={() => setActiveTab("favourites")}
@@ -940,21 +527,6 @@ export default function Account() {
           />
         </TouchableOpacity>
       </View>
-
-      {/* Tab Content */}
-      {activeTab === "stories" && (
-        <View style={styles.storiesContent}>
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Stories</Text>
-            </View>
-            <Text style={styles.emptyTabText}>
-              Tap the camera icon on your profile picture to add a story, or tap
-              your profile picture to view existing stories.
-            </Text>
-          </View>
-        </View>
-      )}
 
       {activeTab === "favourites" && (
         <View style={styles.favouritesContent}>
@@ -1133,21 +705,8 @@ export default function Account() {
           </View>
         </TouchableOpacity>
       </Modal>
-      <CameraModal
-        visible={showCameraModal}
-        onClose={() => setShowCameraModal(false)}
-        onCapture={(media) => {
-          setPickedAsset(media);
-          setShowCameraModal(false);
-          setShowPostModal(true);
-        }}
-        setPickedAssetType={setPickedAssetType}
-        activeClub={activeClub}
-        activeEvent={activeEvent}
-        navigation={navigation}
-      />
       {/* Post Modal */}
-      <Modal
+      {/* <Modal
         visible={showPostModal}
         transparent={true}
         animationType="slide"
@@ -1162,15 +721,9 @@ export default function Account() {
               >
                 <Ionicons name="close" size={24} color={Constants.whiteCOLOR} />
               </TouchableOpacity>
-              <Text style={styles.postModalTitle}>
-                {activeTab === "stories" ? "Add to Story" : "Create Post"}
-              </Text>
+              <Text style={styles.postModalTitle}>Create Post</Text>
               <TouchableOpacity
-                onPress={
-                  activeTab === "stories"
-                    ? handleMediaCaptured
-                    : handleUploadPost
-                }
+                onPress={handleUploadPost}
                 disabled={uploading}
                 style={[
                   styles.postModalPostButton,
@@ -1178,13 +731,7 @@ export default function Account() {
                 ]}
               >
                 <Text style={styles.postModalPostButtonText}>
-                  {uploading
-                    ? activeTab === "stories"
-                      ? "Creating..."
-                      : "Posting..."
-                    : activeTab === "stories"
-                    ? "Add to Story"
-                    : "Post"}
+                  {uploading ? "Posting..." : "Post"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1222,7 +769,7 @@ export default function Account() {
             </View>
           </View>
         </View>
-      </Modal>
+      </Modal> */}
       {/* Posts Section (main FlatList) */}
       <FlatList
         data={posts}
@@ -1336,17 +883,7 @@ export default function Account() {
           )}
         </View>
       </Modal>
-      {/* Story Creation Modal */}
-      {/* Story Viewer */}
-      <StoryViewer
-        visible={showStoryModal}
-        stories={stories}
-        initialIndex={0}
-        onClose={() => setShowStoryModal(false)}
-        onLoadMore={loadNextStory}
-        hasMore={storiesHasMore}
-        loading={storiesLoading}
-      />
+
       {/* Floating Action Button
       <TouchableOpacity style={styles.fab} onPress={handleCaptureMoment}>
         <Ionicons name="add" size={24} color={Constants.whiteCOLOR} />

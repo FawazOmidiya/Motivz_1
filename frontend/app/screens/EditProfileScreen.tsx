@@ -16,6 +16,15 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Constants from "@/constants/Constants";
 import { useSession, useProfile } from "@/components/SessionContext";
 import { updateUserProfile } from "@/app/utils/supabaseService";
+import {
+  MUSIC_GENRES,
+  CROWD_PREFERENCES,
+  NIGHTLIFE_GOALS,
+  DRESS_CODE_OPTIONS,
+  BUDGET_OPTIONS,
+  DRINKING_OPTIONS,
+  SMOKING_OPTIONS,
+} from "@/constants/NightlifeConstants";
 
 interface EditProfileScreenProps {
   navigation: any;
@@ -44,66 +53,14 @@ export default function EditProfileScreen({
   const [smokingPreference, setSmokingPreference] = useState<string>("");
 
   // Music genres
-  const musicGenres = [
-    "Hip Hop",
-    "Electronic",
-    "Pop",
-    "Rock",
-    "R&B",
-    "Reggaeton",
-    "House",
-    "Techno",
-    "Jazz",
-    "Latin",
-    "Country",
-    "Indie",
-  ];
-
-  // Crowd preferences
-  const crowdOptions = [
-    "Diverse",
-    "Young (18-25)",
-    "Professional (25-35)",
-    "Mixed Age",
-    "LGBTQ+ Friendly",
-    "International",
-    "Local",
-    "Student",
-    "Black",
-    "Asian",
-    "Latinx",
-  ];
-
-  // Nightlife goals
-  const goalOptions = [
-    "Dance",
-    "Meet New People",
-    "Date",
-    "Network",
-    "Celebrate",
-    "Relax",
-    "Party",
-    "Socialize",
-  ];
-
-  // Dress code options
-  const dressCodeOptions = [
-    "Casual",
-    "Smart Casual",
-    "Dressy",
-    "Formal",
-    "Trendy",
-    "Comfortable",
-  ];
-
-  // Budget options
-  const budgetOptions = ["Budget", "Moderate", "Upscale", "Premium"];
-
-  // Drinking preferences
-  const drinkingOptions = ["Non-drinker", "Light", "Moderate", "Heavy"];
-
-  // Smoking preferences
-  const smokingOptions = ["Non-smoker", "Occasional", "Regular", "Vape"];
+  // Import constants from NightlifeConstants
+  const musicGenres = [...MUSIC_GENRES];
+  const crowdOptions = [...CROWD_PREFERENCES];
+  const goalOptions = [...NIGHTLIFE_GOALS];
+  const dressCodeOptions = [...DRESS_CODE_OPTIONS];
+  const budgetOptions = [...BUDGET_OPTIONS];
+  const drinkingOptions = [...DRINKING_OPTIONS];
+  const smokingOptions = [...SMOKING_OPTIONS];
 
   useEffect(() => {
     if (profile) {

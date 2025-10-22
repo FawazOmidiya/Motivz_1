@@ -25,6 +25,14 @@ export type UserProfile = {
   active_club_id?: string | null;
   active_club_closed?: string | null; // ISO datetime string when the club closes
   push_token?: string | null; // Expo push token for notifications
+  bio?: string | null;
+  favorite_music?: string[] | null;
+  crowd_preferences?: string[] | null;
+  nightlife_goals?: string[] | null;
+  dress_code?: string[] | null;
+  budget?: string | null;
+  drinking_preference?: string | null;
+  smoking_preference?: string | null;
   // add any additional fields you need
 };
 

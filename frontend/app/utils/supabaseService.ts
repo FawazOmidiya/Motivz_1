@@ -89,6 +89,41 @@ export const fetchSingleClub = async (clubId: string): Promise<types.Club> => {
   }
 };
 
+export const fetchSingleEvent = async (eventId: string): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select(
+        `
+        id,
+        title,
+        start_date,
+        club_id,
+        club:Clubs!club_id (
+          id,
+          Name,
+          Image
+        )
+      `
+      )
+      .eq("id", eventId)
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Event not found");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching event:", error);
+    throw error;
+  }
+};
+
 export const fetchRecentClubReviews = async (clubId: string) => {
   try {
     // Calculate timestamp for 5 hours ago
@@ -394,7 +429,7 @@ export async function sendFriendRequest(
   ]);
 
   // If friend request was sent successfully, send notification to the receiver
-  if (!error) {
+  if (!error && data) {
     try {
       // Get the requester's name for the notification
       const { data: requesterProfile } = await supabase
@@ -407,24 +442,17 @@ export async function sendFriendRequest(
         ? `${requesterProfile.first_name} ${requesterProfile.last_name}`
         : "Someone";
 
-      // Send notification to the receiver (using dashboard method)
-      const { data: notificationResult, error: notificationError } =
-        await supabase.functions.invoke("send-push-notification", {
-          body: {
-            title: "New Friend Request",
-            body: `${requesterName} sent you a friend request!`,
-            userId: targetUserId,
-            sendToAll: false,
-          },
-        });
-      if (notificationError) {
-        console.error(
-          "Failed to send friend request notification:",
-          notificationError
-        );
-      } else {
-        console.log("Friend request notification sent successfully");
-      }
+      // Send notification to the receiver
+      await sendNotificationToUser(
+        targetUserId,
+        "New Friend Request",
+        `${requesterName} sent you a friend request!`,
+        {
+          type: "friend_request",
+          requester_id: currentUserId,
+          action: "view_requests",
+        }
+      );
     } catch (notificationError) {
       console.error(
         "Error sending friend request notification:",
@@ -432,8 +460,6 @@ export async function sendFriendRequest(
       );
       // Don't fail the friend request if notification fails
     }
-  } else {
-    console.error("❌ Friend request failed:", error);
   }
 
   return { data, error };
@@ -496,7 +522,7 @@ export async function acceptFriendRequest(
     .match({ requester_id: targetUserId, receiver_id: currentUserId });
 
   // If friend request was accepted successfully, send notification to the requester
-  if (!error) {
+  if (!error && data) {
     try {
       // Get the accepter's name for the notification
       const { data: accepterProfile } = await supabase
@@ -509,22 +535,17 @@ export async function acceptFriendRequest(
         ? `${accepterProfile.first_name} ${accepterProfile.last_name}`
         : "Someone";
 
-      // Send notification to the requester (using dashboard method)
-      const { data: notificationResult, error: notificationError } =
-        await supabase.functions.invoke("send-push-notification", {
-          body: {
-            title: "Friend Request Accepted",
-            body: `${accepterName} accepted your friend request!`,
-            userId: targetUserId,
-            sendToAll: false,
-          },
-        });
-      if (notificationError) {
-        console.error(
-          "Failed to send friend request accepted notification:",
-          notificationError
-        );
-      }
+      // Send notification to the requester
+      await sendNotificationToUser(
+        targetUserId,
+        "Friend Request Accepted",
+        `${accepterName} accepted your friend request!`,
+        {
+          type: "friend_request_accepted",
+          accepter_id: currentUserId,
+          action: "view_profile",
+        }
+      );
     } catch (notificationError) {
       console.error(
         "Error sending friend request accepted notification:",
@@ -532,8 +553,6 @@ export async function acceptFriendRequest(
       );
       // Don't fail the friend request acceptance if notification fails
     }
-  } else {
-    console.error("❌ Friend request acceptance failed:", error);
   }
 
   return { data, error };
@@ -1107,7 +1126,6 @@ export async function sendNotificationToUser(
           body: body,
           userId: userId,
           sendToAll: false,
-          data: data, // Include the data parameter
         },
       }
     );
@@ -1984,5 +2002,40 @@ export const isUserAttendingEvent = async (
   } catch (error) {
     console.error("Error checking if user is attending event:", error);
     return false;
+  }
+};
+
+// Fetch events that a user is attending
+export const fetchUserAttendingEvents = async (
+  userId: string
+): Promise<types.Event[]> => {
+  try {
+    const { data: events, error } = await supabase
+      .from("events")
+      .select(
+        `
+        *,
+        Clubs!inner(
+          id,
+          Name,
+          Address,
+          latitude,
+          longitude,
+          Image
+        )
+      `
+      )
+      .contains("attendees", [userId])
+      .order("start_date", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching user attending events:", error);
+      return [];
+    }
+
+    return events || [];
+  } catch (error) {
+    console.error("Error fetching user attending events:", error);
+    return [];
   }
 };
