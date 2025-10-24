@@ -121,7 +121,7 @@ export default function MasterDashboard() {
       username: string;
       first_name: string;
       last_name: string;
-      expo_push_token: string | null;
+      push_token: string | null;
     }[]
   >([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
@@ -305,7 +305,7 @@ export default function MasterDashboard() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, first_name, last_name, expo_push_token")
+        .select("id, username, first_name, last_name, push_token")
         .or(
           `username.ilike.%${query}%, first_name.ilike.%${query}%, last_name.ilike.%${query}%`
         )
@@ -1430,7 +1430,7 @@ export default function MasterDashboard() {
                                 </p>
                               </div>
                               <div className="text-xs">
-                                {user.expo_push_token ? "📱" : "❌"}
+                                {user.push_token ? "📱" : "❌"}
                               </div>
                             </div>
                           </div>

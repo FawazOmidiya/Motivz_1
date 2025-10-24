@@ -110,7 +110,7 @@ export default function CreateEventPage() {
     if (startDate && endDate && clubHours) {
       checkEventHours();
     }
-  }, [startDate, endDate, startTime, endTime, clubHours, checkEventHours]);
+  }, [startDate, endDate, startTime, endTime, clubHours]);
 
   const fetchClubHours = async () => {
     try {

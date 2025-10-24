@@ -18,17 +18,17 @@ import {
 } from "react-native";
 import { Button, Text, TextInput, SegmentedButtons } from "react-native-paper";
 
-import { useSession } from "@/components/SessionContext";
+import { useSession, useProfile } from "@/components/SessionContext";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../utils/types";
 import {
   fetchUserFavourites,
-  fetchUserProfile,
   fetchSingleClub,
   fetchSingleEvent,
   fetchPendingFriendRequestsCount,
   fetchUserAttendingEvents,
+  fetchFriendsCount,
   storeUserPushToken,
   supabase,
 } from "../utils/supabaseService";
@@ -50,12 +50,14 @@ export default function Account() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [favourites, setFavourites] = useState<types.Club[]>([]);
-  const [profile, setProfile] = useState<types.UserProfile | null>(null);
+  const profile = useProfile();
   const [activeClub, setActiveClub] = useState<types.Club | null>(null);
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [posts, setPosts] = useState<types.Post[]>([]);
   const [attendingEvents, setAttendingEvents] = useState<types.Event[]>([]);
+  const [savedEvents, setSavedEvents] = useState<types.Event[]>([]);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [friendsCount, setFriendsCount] = useState(0);
   const [activeTab, setActiveTab] = useState("favourites");
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -78,39 +80,25 @@ export default function Account() {
 
   useEffect(() => {
     if (session) {
-      getProfile();
       getFavourites();
       getPendingRequestsCount();
+      getFriendsCount();
       getAttendingEvents();
     }
   }, [session]);
 
-  async function getProfile() {
-    try {
-      setLoading(true);
-      if (!session?.user) throw new Error("No user on the session!");
-
-      const data = await fetchUserProfile(session.user.id);
-      if (data) {
-        setProfile(data);
-        if (data.active_club_id) {
-          const club = await fetchSingleClub(data.active_club_id);
-          setActiveClub(club);
-        }
-
-        if (data.active_event_id) {
-          const event = await fetchSingleEvent(data.active_event_id);
-          setActiveEvent(event);
-        }
+  // Watch for profile changes to update saved events and active club/event
+  useEffect(() => {
+    if (profile) {
+      getSavedEvents();
+      if (profile.active_club_id) {
+        fetchSingleClub(profile.active_club_id).then(setActiveClub);
       }
-    } catch (error) {
-      if (error instanceof Error) {
-        Alert.alert("Profile Error", error.message);
+      if (profile.active_event_id) {
+        fetchSingleEvent(profile.active_event_id).then(setActiveEvent);
       }
-    } finally {
-      setLoading(false);
     }
-  }
+  }, [profile]);
 
   // Pull user Favourites
   async function getFavourites() {
@@ -144,6 +132,51 @@ export default function Account() {
     } catch (error) {
       console.error("Error fetching pending friend requests count:", error);
       setPendingRequestsCount(0);
+    }
+  }
+
+  async function getFriendsCount() {
+    try {
+      if (!session?.user) return;
+
+      const count = await fetchFriendsCount(session.user.id);
+      setFriendsCount(count);
+    } catch (error) {
+      console.error("Error fetching friends count:", error);
+      setFriendsCount(0);
+    }
+  }
+
+  async function getSavedEvents() {
+    try {
+      if (!session?.user || !profile) return;
+
+      if (
+        profile.saved_events &&
+        Array.isArray(profile.saved_events) &&
+        profile.saved_events.length > 0
+      ) {
+        // Convert saved events array to Event objects
+        const events = profile.saved_events.map((savedEvent) => {
+          const eventId = Object.keys(savedEvent)[0];
+          const eventData = savedEvent[eventId] as any;
+          return {
+            id: eventId,
+            title: eventData.title || "",
+            poster_url: eventData.poster_url || "",
+            start_date: eventData.start_date || "",
+            end_date: eventData.end_date || "",
+            music_genres: eventData.music_genres || [],
+            club_id: eventData.club_id || "",
+          };
+        }) as types.Event[];
+        setSavedEvents(events);
+      } else {
+        setSavedEvents([]);
+      }
+    } catch (error) {
+      console.error("Error fetching saved events:", error);
+      setSavedEvents([]);
     }
   }
 
@@ -405,8 +438,8 @@ export default function Account() {
 
           <View style={styles.profileStats}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{posts.length}</Text>
-              <Text style={styles.statLabel}>Posts</Text>
+              <Text style={styles.statNumber}>{friendsCount}</Text>
+              <Text style={styles.statLabel}>Friends</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{favourites.length}</Text>
@@ -533,59 +566,93 @@ export default function Account() {
           {/* Currently Active Club */}
 
           {/* Favourite Clubs */}
-          {favourites.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Favourite Clubs</Text>
-              <View style={styles.clubsGrid}>
+          <View style={styles.favouritesSection}>
+            <Text style={styles.favouritesSectionTitle}>Favourite Clubs</Text>
+            {favourites.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScrollContent}
+              >
                 {favourites.map((club) => (
                   <TouchableOpacity
                     key={club?.id}
-                    style={styles.clubCard}
+                    style={styles.horizontalClubCard}
                     onPress={() => navigation.navigate("ClubDetail", { club })}
                   >
                     <Image
                       source={{ uri: club?.Image }}
-                      style={styles.clubCardImage}
+                      style={styles.horizontalClubImage}
                     />
-                    <Text style={styles.clubCardName} numberOfLines={2}>
-                      {club?.Name}
-                    </Text>
+                    <View style={styles.horizontalClubInfo}>
+                      <Text style={styles.horizontalClubName} numberOfLines={1}>
+                        {club?.Name}
+                      </Text>
+                      
+                    </View>
                   </TouchableOpacity>
                 ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.simpleEmptyState}>
+                <Text style={styles.simpleEmptyText}>
+                  Go find your favourite clubs!{" "}
+                </Text>
               </View>
-            </View>
-          )}
+            )}
+          </View>
 
-          {/* Favourite Events */}
-          {attendingEvents.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Favourite Events</Text>
-              <View style={styles.eventsList}>
-                {attendingEvents.map((event) => (
+          {/* Saved Events */}
+          <View style={styles.favouritesSection}>
+            <Text style={styles.favouritesSectionTitle}>Saved Events</Text>
+            {savedEvents.length > 0 ? (
+              <View style={styles.verticalEventsList}>
+                {savedEvents.map((event) => (
                   <TouchableOpacity
                     key={event?.id}
-                    style={styles.eventCard}
+                    style={styles.verticalEventCard}
                     onPress={() =>
                       navigation.navigate("EventDetail", { event })
                     }
                   >
                     <Image
                       source={{ uri: event?.poster_url }}
-                      style={styles.eventCardImage}
+                      style={styles.verticalEventImage}
                     />
-                    <View style={styles.eventCardInfo}>
-                      <Text style={styles.eventCardTitle} numberOfLines={2}>
+                    <View style={styles.verticalEventContent}>
+                      <Text style={styles.verticalEventTitle} numberOfLines={2}>
                         {event?.title}
                       </Text>
-                      <Text style={styles.eventCardDate}>
-                        {new Date(event?.start_date).toLocaleDateString()}
+                      <Text style={styles.verticalEventDate}>
+                        {new Date(event?.start_date).toLocaleDateString("en", {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                        })}
                       </Text>
+                      <Text style={styles.verticalEventTime}>
+                        {new Date(event?.start_date).toLocaleTimeString("en", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                    </View>
+                    <View style={styles.verticalEventArrow}>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color={Constants.greyCOLOR}
+                      />
                     </View>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
-          )}
+            ) : (
+              <View style={styles.simpleEmptyState}>
+                <Text style={styles.simpleEmptyText}>No saved events yet</Text>
+              </View>
+            )}
+          </View>
 
           {/* My Tickets */}
           {tickets.length > 0 && (
@@ -616,51 +683,9 @@ export default function Account() {
       {activeTab === "notifications" && (
         <View style={styles.notificationsContent}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Event Notifications</Text>
-            <View style={styles.notificationsList}>
-              {notifications.map((notification, index) => (
-                <TouchableOpacity key={index} style={styles.notificationCard}>
-                  <View style={styles.notificationIcon}>
-                    <Ionicons
-                      name={notification.icon}
-                      size={24}
-                      color={notification.iconColor || Constants.purpleCOLOR}
-                    />
-                  </View>
-                  <View style={styles.notificationContent}>
-                    <Text style={styles.notificationTitle}>
-                      {notification.title}
-                    </Text>
-                    <Text style={styles.notificationMessage}>
-                      {notification.message}
-                    </Text>
-                    <Text style={styles.notificationTime}>
-                      {notification.time}
-                    </Text>
-                  </View>
-                  {!notification.read && <View style={styles.unreadDot} />}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Friend Invitations</Text>
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="people-outline"
-                size={48}
-                color={Constants.greyCOLOR}
-              />
-              <Text style={styles.emptyStateText}>No pending invitations</Text>
-              <Text style={styles.emptyStateSubtext}>
-                Friend invitations will appear here
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Event Confirmations</Text>
+            <Text style={styles.sectionTitle}>
+              Event Notifications & Confirmations
+            </Text>
             <View style={styles.emptyState}>
               <Ionicons
                 name="checkmark-circle-outline"
@@ -739,17 +764,17 @@ export default function Account() {
             {pickedAsset && (
               <View style={styles.postModalMediaContainer}>
                 {pickedAssetType === "video" ? (
-                  <Video
-                    source={{ uri: pickedAsset.uri }}
+                <Video
+                  source={{ uri: pickedAsset.uri }}
                     style={styles.postModalMedia}
-                    useNativeControls
-                    resizeMode={ResizeMode.CONTAIN}
-                    shouldPlay={true}
-                    isLooping={true}
-                  />
-                ) : (
-                  <Image
-                    source={{ uri: pickedAsset.uri }}
+                  useNativeControls
+                  resizeMode={ResizeMode.CONTAIN}
+                  shouldPlay={true}
+                  isLooping={true}
+                />
+              ) : (
+                <Image
+                  source={{ uri: pickedAsset.uri }}
                     style={styles.postModalMedia}
                   />
                 )}
@@ -757,17 +782,17 @@ export default function Account() {
             )}
 
             <View style={styles.postModalInputContainer}>
-              <TextInput
-                placeholder="Write a caption..."
-                value={caption}
-                onChangeText={setCaption}
+            <TextInput
+              placeholder="Write a caption..."
+              value={caption}
+              onChangeText={setCaption}
                 style={styles.postModalInput}
                 placeholderTextColor={Constants.greyCOLOR}
                 multiline
                 numberOfLines={4}
               />
-            </View>
           </View>
+        </View>
         </View>
       </Modal> */}
       {/* Posts Section (main FlatList) */}
@@ -1621,6 +1646,105 @@ const styles = StyleSheet.create({
   },
   emptyStateSubtext: {
     fontSize: 14,
+    color: Constants.greyCOLOR,
+    textAlign: "center",
+  },
+
+  // New Clean Favourites Design
+  favouritesSection: {
+    marginBottom: 32,
+  },
+  favouritesSectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Constants.blackCOLOR,
+    marginBottom: 16,
+  },
+  horizontalScrollContent: {
+    paddingRight: 20,
+  },
+  horizontalClubCard: {
+    width: 140,
+    marginRight: 12,
+    borderRadius: 16,
+    overflow: "hidden",
+    position: "relative",
+  },
+  horizontalClubImage: {
+    width: "100%",
+    height: 100,
+    position: "absolute",
+    resizeMode: "cover",
+    top: 0,
+    left: 0,
+  },
+  horizontalClubInfo: {
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    borderRadius: 12,
+    marginTop: 50,
+    marginHorizontal: 8,
+    marginBottom: 8,
+    position: "relative",
+    zIndex: 1,
+  },
+  horizontalClubName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  horizontalClubLocation: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
+  },
+  verticalEventsList: {
+    gap: 12,
+  },
+  verticalEventCard: {
+    flexDirection: "row",
+    backgroundColor: Constants.greyCOLOR,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  verticalEventImage: {
+    width: 100,
+    height: 100,
+  },
+  verticalEventContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.02)",
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  verticalEventTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.blackCOLOR,
+    marginBottom: 6,
+  },
+  verticalEventDate: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    marginBottom: 2,
+  },
+  verticalEventTime: {
+    fontSize: 14,
+    color: Constants.purpleCOLOR,
+    fontWeight: "500",
+  },
+  verticalEventArrow: {
+    justifyContent: "center",
+    paddingRight: 16,
+  },
+  simpleEmptyState: {
+    paddingVertical: 24,
+    alignItems: "center",
+  },
+  simpleEmptyText: {
+    fontSize: 16,
     color: Constants.greyCOLOR,
     textAlign: "center",
   },

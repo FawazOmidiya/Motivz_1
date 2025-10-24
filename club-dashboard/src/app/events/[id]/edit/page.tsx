@@ -114,7 +114,7 @@ export default function EditEventPage() {
     if (startDate && endDate && clubHours) {
       checkEventHours();
     }
-  }, [startDate, endDate, startTime, endTime, clubHours, checkEventHours]);
+  }, [startDate, endDate, startTime, endTime, clubHours]);
 
   const fetchEventData = async () => {
     try {

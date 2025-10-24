@@ -33,6 +33,9 @@ export type UserProfile = {
   budget?: string | null;
   drinking_preference?: string | null;
   smoking_preference?: string | null;
+  saved_events?: Record<string, string>[] | null;
+  active_event_id?: string | null;
+  last_active?: string | null; // ISO datetime string of when user last opened the app
   // add any additional fields you need
 };
 
@@ -214,6 +217,7 @@ export interface Event {
   end_date: string;
   music_genres?: string[];
   attendees?: string[]; // Array of user IDs attending the event
+  save_count?: number; // Number of times this event has been saved
   created_at: string;
   updated_at: string;
   recurring_config?: RecurringConfig;

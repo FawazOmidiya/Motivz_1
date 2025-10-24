@@ -58,10 +58,10 @@ export async function sendPushNotification(
       sound: "default",
       title: title,
       body: body,
-      data: data || { someData: "goes here" },
+      data: data || {},
     };
 
-    await fetch("https://exp.host/--/api/v2/push/send", {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -70,6 +70,13 @@ export async function sendPushNotification(
       },
       body: JSON.stringify(message),
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("Notification sent successfully:", result);
   } catch (error) {
     console.error("Error sending notification:", error);
   }
@@ -199,6 +206,56 @@ export function useNotifications() {
     sendNotification: (title: string, body: string, data?: any) =>
       sendPushNotification(expoPushToken, title, body, data),
   };
+}
+
+// Function to silently register for notifications (for settings toggle)
+export async function registerForPushNotificationsSilently(): Promise<
+  string | null
+> {
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "default",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#FF231F7C",
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+
+    // If already granted, get the token
+    if (existingStatus === "granted") {
+      const projectId = Constants?.expoConfig?.extra?.eas?.projectId;
+
+      if (!projectId) {
+        console.error("Project ID not found in app configuration");
+        return null;
+      }
+
+      try {
+        const pushTokenString = (
+          await Notifications.getExpoPushTokenAsync({
+            projectId,
+            development: __DEV__,
+          })
+        ).data;
+        return pushTokenString;
+      } catch (e: unknown) {
+        console.error("Error generating push token:", e);
+        return null;
+      }
+    } else {
+      console.log(
+        "Notification permission not granted, cannot register silently"
+      );
+      return null;
+    }
+  } else {
+    console.log("Must use physical device for push notifications");
+    return null;
+  }
 }
 
 // Hook for app-wide notification management (one-time setup)

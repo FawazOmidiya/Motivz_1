@@ -1,12 +1,16 @@
 // SessionContext.tsx
 import React, { createContext, useState, useEffect, useContext } from "react";
+import { AppState } from "react-native";
 import { supabase } from "../app/utils/supabaseService";
 import { Session } from "@supabase/supabase-js";
 import * as types from "@/app/utils/types";
 import {
   fetchUserProfile,
   checkAndClearExpiredAttendance,
+  storeUserPushToken,
+  updateLastActive,
 } from "@/app/utils/supabaseService";
+import { registerForPushNotificationsSilently } from "../app/utils/notificationService";
 
 const SessionContext = createContext<Session | null>(null);
 const ProfileContext = createContext<types.UserProfile | null>(null);
@@ -18,6 +22,34 @@ export const SessionProvider = ({
 }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
+
+  // Function to check and update notification status (like Instagram)
+  const checkNotificationStatus = async (userId: string) => {
+    try {
+      const pushToken = await registerForPushNotificationsSilently();
+
+      if (pushToken) {
+        // User has granted permission, ensure we have the token stored
+        console.log("🔔 Device notifications enabled, updating token");
+        const { error } = await storeUserPushToken(userId, pushToken);
+        if (error) {
+          console.error("Error storing push token:", error);
+        }
+      } else {
+        // User has denied permission, clear the token
+        console.log("🔔 Device notifications disabled, clearing token");
+        const { error } = await supabase
+          .from("profiles")
+          .update({ push_token: "Notification Permission not granted" })
+          .eq("id", userId);
+        if (error) {
+          console.error("Error clearing push token:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking notification status:", error);
+    }
+  };
 
   // Function to fetch profile and check expired attendance
   const fetchProfileAndCheckAttendance = async (userId: string) => {
@@ -46,8 +78,27 @@ export const SessionProvider = ({
       setSession(session);
       if (session?.user) {
         fetchProfileAndCheckAttendance(session.user.id);
+        // Update last active on initial app load
+        updateLastActive(session.user.id);
       }
     });
+
+    // Monitor app state changes (like Instagram does)
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === "active" && session?.user) {
+        console.log("📱 App became active, checking notification status");
+        checkNotificationStatus(session.user.id);
+
+        // Update last active timestamp
+        console.log("📱 Updating last active timestamp");
+        updateLastActive(session.user.id);
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
 
     // Subscribe to auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
@@ -55,6 +106,8 @@ export const SessionProvider = ({
         setSession(session);
         if (session?.user) {
           fetchProfileAndCheckAttendance(session.user.id);
+          // Update last active when user logs in
+          updateLastActive(session.user.id);
         } else {
           setProfile(null);
         }
@@ -81,6 +134,7 @@ export const SessionProvider = ({
     return () => {
       authListener.subscription.unsubscribe();
       profileSubscription.unsubscribe();
+      subscription.remove();
     };
   }, [session?.user?.id]);
 

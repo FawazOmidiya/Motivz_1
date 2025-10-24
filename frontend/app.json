@@ -18,13 +18,12 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
         "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background.",
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["remote-notification"]
       },
       "entitlements": {
         "aps-environment": "production"
-      }
+      },
+      "associatedDomains": ["applinks:42P3N5W766.motivz-frontend.expo.app"]
     },
     "android": {
       "adaptiveIcon": {

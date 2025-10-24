@@ -1063,6 +1063,144 @@ export async function fetchPendingFriendRequestsCount(
   }
 }
 
+export async function fetchFriendsCount(userId: string): Promise<number> {
+  try {
+    // Count friends where user is the requester
+    const { count: requesterCount, error: requesterError } = await supabase
+      .from("friendships")
+      .select("*", { count: "exact", head: true })
+      .eq("requester_id", userId)
+      .eq("status", "friends");
+
+    if (requesterError) {
+      throw new Error(requesterError.message);
+    }
+
+    // Count friends where user is the receiver
+    const { count: receiverCount, error: receiverError } = await supabase
+      .from("friendships")
+      .select("*", { count: "exact", head: true })
+      .eq("receiver_id", userId)
+      .eq("status", "friends");
+
+    if (receiverError) {
+      throw new Error(receiverError.message);
+    }
+
+    return (requesterCount || 0) + (receiverCount || 0);
+  } catch (error) {
+    console.error("Error fetching friends count:", error);
+    return 0;
+  }
+}
+
+export async function saveEvent(userId: string, event: any): Promise<boolean> {
+  try {
+    const { data: profile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("saved_events")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const currentSavedEvents = Array.isArray(profile?.saved_events)
+      ? profile.saved_events
+      : [];
+    const eventData = {
+      [event.id]: {
+        title: event.title,
+        poster_url: event.poster_url,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        music_genres: event.music_genres,
+        club_id: event.club_id,
+      },
+    };
+
+    // Check if event is already saved
+    const isAlreadySaved = currentSavedEvents.some(
+      (savedEvent) => Object.keys(savedEvent)[0] === event.id
+    );
+
+    if (isAlreadySaved) {
+      return true; // Already saved
+    }
+
+    const updatedSavedEvents = [...currentSavedEvents, eventData];
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ saved_events: updatedSavedEvents })
+      .eq("id", userId);
+
+    if (updateError) throw updateError;
+
+    // Increment save_count on the event
+    const { error: eventUpdateError } = await supabase.rpc(
+      "increment_save_count",
+      {
+        event_id: event.id,
+      }
+    );
+
+    if (eventUpdateError) {
+      console.error("Error incrementing save count:", eventUpdateError);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error saving event:", error);
+    return false;
+  }
+}
+
+export async function unsaveEvent(
+  userId: string,
+  eventId: string
+): Promise<boolean> {
+  try {
+    const { data: profile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("saved_events")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const currentSavedEvents = Array.isArray(profile?.saved_events)
+      ? profile.saved_events
+      : [];
+    const updatedSavedEvents = currentSavedEvents.filter(
+      (savedEvent) => Object.keys(savedEvent)[0] !== eventId
+    );
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ saved_events: updatedSavedEvents })
+      .eq("id", userId);
+
+    if (updateError) throw updateError;
+
+    // Decrement save_count on the event
+    const { error: eventUpdateError } = await supabase.rpc(
+      "decrement_save_count",
+      {
+        event_id: eventId,
+      }
+    );
+
+    if (eventUpdateError) {
+      console.error("Error decrementing save count:", eventUpdateError);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error unsaving event:", error);
+    return false;
+  }
+}
+
 /**
  * Store user's push token in the database
  */
@@ -1073,7 +1211,7 @@ export async function storeUserPushToken(
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .update({ expo_push_token: pushToken })
+      .update({ push_token: pushToken })
       .eq("id", userId);
 
     return { data, error };
@@ -1084,13 +1222,46 @@ export async function storeUserPushToken(
 }
 
 /**
+ * Silently register for notifications (for settings toggle)
+ */
+export async function registerNotificationsSilently(
+  userId: string
+): Promise<boolean> {
+  try {
+    const { registerForPushNotificationsSilently } = await import(
+      "./notificationService"
+    );
+    const pushToken = await registerForPushNotificationsSilently();
+
+    if (pushToken) {
+      console.log(
+        "🔔 Silent registration successful, storing token:",
+        pushToken
+      );
+      const { error } = await storeUserPushToken(userId, pushToken);
+      if (error) {
+        console.error("Error storing push token:", error);
+        return false;
+      }
+      return true;
+    } else {
+      console.log("🔔 Silent registration failed - permission not granted");
+      return false;
+    }
+  } catch (error) {
+    console.error("Error in silent notification registration:", error);
+    return false;
+  }
+}
+
+/**
  * Get user's push token from the database
  */
 export async function getUserPushToken(userId: string): Promise<string | null> {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("expo_push_token")
+      .select("push_token")
       .eq("id", userId)
       .single();
 
@@ -1099,7 +1270,7 @@ export async function getUserPushToken(userId: string): Promise<string | null> {
       return null;
     }
 
-    return data?.expo_push_token || null;
+    return data?.push_token || null;
   } catch (error) {
     console.error("Error fetching push token:", error);
     return null;
@@ -2039,3 +2210,24 @@ export const fetchUserAttendingEvents = async (
     return [];
   }
 };
+
+// Function to update user's last active timestamp
+export async function updateLastActive(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ last_active: new Date().toISOString() })
+      .eq("id", userId);
+
+    if (error) {
+      console.error("Error updating last active:", error);
+      return false;
+    }
+
+    console.log("✅ Last active updated for user:", userId);
+    return true;
+  } catch (error) {
+    console.error("Error updating last active:", error);
+    return false;
+  }
+}

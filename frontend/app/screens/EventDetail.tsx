@@ -27,6 +27,7 @@ import {
 } from "../utils/supabaseService";
 import { fetchSingleClub } from "../utils/supabaseService";
 import { useSession } from "@/components/SessionContext";
+import { useSavedEvents } from "../hooks/useSavedEvents";
 
 const { width } = Dimensions.get("window");
 
@@ -61,6 +62,13 @@ export default function EventDetailScreen() {
     { id: string; avatar_url: string | null }[]
   >([]);
   const [totalAttendees, setTotalAttendees] = useState(0);
+
+  // Saved events functionality
+  const {
+    isEventSaved,
+    toggleSaveEvent,
+    loading: saveLoading,
+  } = useSavedEvents();
 
   useEffect(() => {
     loadClubData();
@@ -143,6 +151,14 @@ export default function EventDetailScreen() {
 
   const handleMoreDetails = () => {
     setShowMoreDetails(!showMoreDetails);
+  };
+
+  const handleSaveEvent = async () => {
+    try {
+      await toggleSaveEvent(event);
+    } catch (error) {
+      console.error("Error saving event:", error);
+    }
   };
 
   const handleTicketPurchase = async () => {
@@ -353,16 +369,29 @@ export default function EventDetailScreen() {
         {/* Event Title with Share Button */}
         <View style={styles.titleRow}>
           <Text style={styles.eventTitle}>{event.title}</Text>
-          <TouchableOpacity
-            style={styles.shareButtonContent}
-            onPress={handleShare}
-          >
-            <Ionicons
-              name="share-outline"
-              size={20}
-              color={Constants.purpleCOLOR}
-            />
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.saveButtonContent}
+              onPress={handleSaveEvent}
+              disabled={saveLoading}
+            >
+              <Ionicons
+                name={isEventSaved(event.id) ? "bookmark" : "bookmark-outline"}
+                size={20}
+                color={Constants.purpleCOLOR}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.shareButtonContent}
+              onPress={handleShare}
+            >
+              <Ionicons
+                name="share-outline"
+                size={20}
+                color={Constants.purpleCOLOR}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Essential Info Only */}
@@ -704,11 +733,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 20,
   },
+  actionButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 12,
+  },
+  saveButtonContent: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginRight: 8,
+  },
   shareButtonContent: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
-    marginLeft: 12,
   },
   essentialInfo: {
     marginBottom: 20,
