@@ -26,7 +26,7 @@ import { Animated } from "react-native";
 import * as types from "@/app/utils/types";
 import { Club } from "@/app/utils/Club";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation"; // Import the types
+import { RootStackParamList } from "@/app/utils/types";
 import {
   fetchClubs,
   isClubOpenDynamic,
@@ -49,9 +49,19 @@ import { useAppNotifications } from "../utils/notificationService";
 
 const { width } = Dimensions.get("window");
 
+type HomeStackParamList = {
+  HomeMain: undefined;
+  ClubDetail: { club: types.Club };
+  EventDetail: { event: types.Event };
+  GuestlistForm: { event: types.Event };
+  UserProfile: { user: types.UserProfile };
+  DMScreen: undefined;
+  Chat: { conversationId: string; otherUser: types.UserProfile };
+};
+
 type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "Home"
+  HomeStackParamList,
+  "HomeMain"
 >;
 
 export default function HomeScreen() {
@@ -412,9 +422,21 @@ export default function HomeScreen() {
         style={styles.headerGradient}
       />
       <View style={styles.header}>
-        <Text style={styles.title}>
-          Tonight's <Text style={styles.Motivz}>Motivz</Text>
-        </Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>
+            Tonight's <Text style={styles.Motivz}>Motivz</Text>
+          </Text>
+          <TouchableOpacity
+            style={styles.dmButton}
+            onPress={() => navigation.navigate("DMScreen")}
+          >
+            <Ionicons
+              name="paper-plane-outline"
+              size={24}
+              color={Constants.whiteCOLOR}
+            />
+          </TouchableOpacity>
+        </View>
         <View style={styles.searchRow}>
           <View style={styles.searchContainer}>
             <Ionicons
@@ -718,10 +740,20 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     zIndex: 2,
   },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  dmButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 20,
     color: "#fff",
   },
   searchRow: {

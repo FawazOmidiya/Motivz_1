@@ -11,6 +11,10 @@ import {
   Modal,
   Linking,
   Share,
+  SafeAreaView,
+  TextInput,
+  ActivityIndicator,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,6 +22,11 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Constants from "../../constants/Constants";
 import * as types from "../utils/types";
+import {
+  searchUsers,
+  sendEventInvitation,
+  sendMessage,
+} from "../utils/messagingService";
 import {
   supabase,
   trackEventClick,
@@ -38,6 +47,8 @@ type EventDetailNavigationProp = NativeStackNavigationProp<
     EventDetail: { event: types.Event };
     GuestlistForm: { event: types.Event };
     UserProfile: { user: types.UserProfile };
+    DMScreen: { shareEvent?: types.Event; shareClub?: types.Club };
+    Chat: { conversationId: string; otherUser: types.UserProfile };
   },
   "EventDetail"
 >;
@@ -69,6 +80,13 @@ export default function EventDetailScreen() {
     toggleSaveEvent,
     loading: saveLoading,
   } = useSavedEvents();
+  const [localSaveCount, setLocalSaveCount] = useState(event.save_count || 0);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteSearchQuery, setInviteSearchQuery] = useState("");
+  const [inviteSearchResults, setInviteSearchResults] = useState<
+    types.UserProfile[]
+  >([]);
+  const [inviteSearching, setInviteSearching] = useState(false);
 
   useEffect(() => {
     loadClubData();
@@ -155,7 +173,15 @@ export default function EventDetailScreen() {
 
   const handleSaveEvent = async () => {
     try {
+      const wasSaved = isEventSaved(event.id);
       await toggleSaveEvent(event);
+
+      // Update local save count immediately
+      if (wasSaved) {
+        setLocalSaveCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setLocalSaveCount((prev) => prev + 1);
+      }
     } catch (error) {
       console.error("Error saving event:", error);
     }
@@ -311,6 +337,59 @@ export default function EventDetailScreen() {
     }
   };
 
+  const handleShareInDM = () => {
+    // Navigate to DM screen with event sharing context
+    navigation.navigate("DMScreen", {
+      shareEvent: event,
+      shareClub: club || undefined,
+    });
+  };
+
+  const handleInviteSearch = async (query: string) => {
+    if (!session?.user || query.length < 2) {
+      setInviteSearchResults([]);
+      return;
+    }
+
+    setInviteSearching(true);
+    try {
+      const results = await searchUsers(query, session.user.id);
+      setInviteSearchResults(results);
+    } catch (error) {
+      console.error("Error searching users:", error);
+    } finally {
+      setInviteSearching(false);
+    }
+  };
+
+  const handleSendInvitation = async (user: types.UserProfile) => {
+    if (!session?.user) return;
+
+    try {
+      const invitation = await sendEventInvitation(
+        event.id,
+        session.user.id,
+        user.id,
+        `You're invited to ${event.title}!`
+      );
+
+      if (invitation) {
+        Alert.alert(
+          "Invitation Sent!",
+          `You've invited ${user.first_name} ${user.last_name} to ${event.title}. They'll receive a notification.`
+        );
+        setShowInviteModal(false);
+        setInviteSearchQuery("");
+        setInviteSearchResults([]);
+      } else {
+        Alert.alert("Error", "Failed to send invitation. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      Alert.alert("Error", "Failed to send invitation. Please try again.");
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -370,23 +449,55 @@ export default function EventDetailScreen() {
         <View style={styles.titleRow}>
           <Text style={styles.eventTitle}>{event.title}</Text>
           <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.saveButtonContent}
-              onPress={handleSaveEvent}
-              disabled={saveLoading}
-            >
-              <Ionicons
-                name={isEventSaved(event.id) ? "bookmark" : "bookmark-outline"}
-                size={20}
-                color={Constants.purpleCOLOR}
-              />
-            </TouchableOpacity>
+            <View style={styles.saveButtonContainer}>
+              <TouchableOpacity
+                style={styles.saveButtonContent}
+                onPress={handleSaveEvent}
+                disabled={saveLoading}
+              >
+                <Ionicons
+                  name={
+                    isEventSaved(event.id) ? "bookmark" : "bookmark-outline"
+                  }
+                  size={20}
+                  color={Constants.purpleCOLOR}
+                />
+                {/* Save Count Badge */}
+                {localSaveCount > 0 && (
+                  <View style={styles.saveCountBadge}>
+                    <Text style={styles.saveCountBadgeText}>
+                      {localSaveCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={styles.shareButtonContent}
               onPress={handleShare}
             >
               <Ionicons
                 name="share-outline"
+                size={20}
+                color={Constants.purpleCOLOR}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dmShareButtonContent}
+              onPress={handleShareInDM}
+            >
+              <Ionicons
+                name="chatbubble-outline"
+                size={20}
+                color={Constants.purpleCOLOR}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.inviteButtonContent}
+              onPress={() => setShowInviteModal(true)}
+            >
+              <Ionicons
+                name="person-add-outline"
                 size={20}
                 color={Constants.purpleCOLOR}
               />
@@ -639,6 +750,99 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         </View>
       </Modal>
+
+      {/* Invite Modal */}
+      <Modal
+        visible={showInviteModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowInviteModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowInviteModal(false)}>
+              <Ionicons name="close" size={24} color={Constants.whiteCOLOR} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Invite Friends</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search for users..."
+              placeholderTextColor={Constants.greyCOLOR}
+              value={inviteSearchQuery}
+              onChangeText={(text: string) => {
+                setInviteSearchQuery(text);
+                handleInviteSearch(text);
+              }}
+              autoFocus
+            />
+          </View>
+
+          {inviteSearching ? (
+            <View style={styles.searchLoading}>
+              <ActivityIndicator size="small" color={Constants.purpleCOLOR} />
+              <Text style={styles.searchLoadingText}>Searching...</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={inviteSearchResults}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }: { item: types.UserProfile }) => (
+                <TouchableOpacity
+                  style={styles.inviteUserItem}
+                  onPress={() => handleSendInvitation(item)}
+                >
+                  <View style={styles.userAvatarContainer}>
+                    {item.avatar_url ? (
+                      <Image
+                        source={{ uri: item.avatar_url }}
+                        style={styles.userAvatar}
+                      />
+                    ) : (
+                      <View style={styles.userAvatarPlaceholder}>
+                        <Text style={styles.userAvatarInitial}>
+                          {item.first_name?.charAt(0).toUpperCase() || "?"}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>
+                      {item.first_name} {item.last_name}
+                    </Text>
+                    <Text style={styles.userUsername}>@{item.username}</Text>
+                  </View>
+
+                  <Ionicons
+                    name="person-add-outline"
+                    size={20}
+                    color={Constants.purpleCOLOR}
+                  />
+                </TouchableOpacity>
+              )}
+              style={styles.inviteList}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                inviteSearchQuery.length > 0 ? (
+                  <View style={styles.emptySearch}>
+                    <Text style={styles.emptySearchText}>No users found</Text>
+                  </View>
+                ) : (
+                  <View style={styles.emptySearch}>
+                    <Text style={styles.emptySearchText}>
+                      Search for users to invite
+                    </Text>
+                  </View>
+                )
+              }
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -738,16 +942,131 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginLeft: 12,
   },
+  saveButtonContainer: {
+    alignItems: "center",
+    marginRight: 8,
+  },
   saveButtonContent: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
-    marginRight: 8,
+    position: "relative",
   },
   shareButtonContent: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  dmShareButtonContent: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginLeft: 8,
+  },
+  inviteButtonContent: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginLeft: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Constants.blackCOLOR,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  searchInput: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  searchLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+    gap: 8,
+  },
+  searchLoadingText: {
+    color: Constants.greyCOLOR,
+    fontSize: 14,
+  },
+  inviteList: {
+    flex: 1,
+  },
+  inviteUserItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
+  userAvatarContainer: {
+    marginRight: 12,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  userAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Constants.purpleCOLOR,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  userAvatarInitial: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+  },
+  userUsername: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+  },
+  emptySearch: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  emptySearchText: {
+    fontSize: 16,
+    color: Constants.greyCOLOR,
   },
   essentialInfo: {
     marginBottom: 20,
@@ -883,6 +1202,23 @@ const styles = StyleSheet.create({
   detailValue: {
     color: "#fff",
     fontSize: 14,
+    fontWeight: "600",
+  },
+  saveCountBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: Constants.purpleCOLOR,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  saveCountBadgeText: {
+    color: "white",
+    fontSize: 10,
     fontWeight: "600",
   },
   expandIndicator: {

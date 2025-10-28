@@ -28,6 +28,8 @@ import GuestlistForm from "./screens/GuestlistForm";
 import UserProfileScreen from "./screens/UserProfileScreen";
 import FriendsList from "./screens/FriendsList";
 import ProfileSettings from "./screens/ProfileSettings";
+import DMScreen from "./screens/DMScreen";
+import ChatScreen from "./screens/ChatScreen";
 import AuthNavigator from "./navigation/AuthNavigator";
 import { supabase } from "./utils/supabaseService";
 import { Session } from "@supabase/supabase-js";
@@ -53,6 +55,8 @@ function HomeStackScreen() {
       <HomeStack.Screen name="EventDetail" component={EventDetail} />
       <HomeStack.Screen name="GuestlistForm" component={GuestlistForm} />
       <HomeStack.Screen name="UserProfile" component={UserProfileScreen} />
+      <HomeStack.Screen name="DMScreen" component={DMScreen} />
+      <HomeStack.Screen name="Chat" component={ChatScreen} />
     </HomeStack.Navigator>
   );
 }

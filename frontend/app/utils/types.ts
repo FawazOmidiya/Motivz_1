@@ -36,8 +36,69 @@ export type UserProfile = {
   saved_events?: Record<string, string>[] | null;
   active_event_id?: string | null;
   last_active?: string | null; // ISO datetime string of when user last opened the app
+  friends_count?: number; // Number of friends
+  clubs_count?: number; // Number of favourite clubs
+  events_count?: number; // Number of saved events
+  date_of_birth?: Date | null; // Date object
+  age?: number | null; // Calculated age from date_of_birth
   // add any additional fields you need
 };
+
+// Messaging System Types
+export interface Conversation {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  last_message_at: string;
+  last_message_content?: string;
+  last_message_sender_id?: string;
+  participants?: ConversationParticipant[];
+  messages?: Message[];
+}
+
+export interface ConversationParticipant {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  joined_at: string;
+  last_read_at: string;
+  is_active: boolean;
+  user?: UserProfile;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content?: string;
+  message_type: "text" | "event_share" | "club_share" | "image" | "system";
+  shared_event_id?: string;
+  shared_club_id?: string;
+  image_url?: string;
+  created_at: string;
+  updated_at: string;
+  is_edited: boolean;
+  reply_to_message_id?: string;
+  sender?: UserProfile;
+  shared_event?: Event;
+  shared_club?: Club;
+  reply_to_message?: Message;
+}
+
+export interface EventInvitation {
+  id: string;
+  event_id: string;
+  inviter_id: string;
+  invitee_id: string;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  message?: string;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+  event?: Event;
+  inviter?: UserProfile;
+  invitee?: UserProfile;
+}
 
 // Define the bottom tab param list:
 export type RootTabParamList = {
@@ -82,6 +143,13 @@ export type RootStackParamList = {
   ProfileSettings: undefined;
   UserProfile: { profile: UserProfile };
   FriendsList: { userId: string };
+  Chat: {
+    conversationId: string;
+    otherUser: UserProfile;
+    shareEvent?: Event;
+    shareClub?: Club;
+  };
+  DMScreen: { shareEvent?: Event; shareClub?: Club };
 };
 
 export type GlobalStackParamList = {

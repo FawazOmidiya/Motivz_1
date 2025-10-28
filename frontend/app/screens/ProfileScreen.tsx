@@ -28,7 +28,6 @@ import {
   fetchSingleEvent,
   fetchPendingFriendRequestsCount,
   fetchUserAttendingEvents,
-  fetchFriendsCount,
   storeUserPushToken,
   supabase,
 } from "../utils/supabaseService";
@@ -42,6 +41,10 @@ import { decode } from "base64-arraybuffer";
 import { Video, ResizeMode } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
+import {
+  getEventInvitations,
+  respondToEventInvitation,
+} from "../utils/messagingService";
 
 type ProfileScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
@@ -57,9 +60,11 @@ export default function Account() {
   const [attendingEvents, setAttendingEvents] = useState<types.Event[]>([]);
   const [savedEvents, setSavedEvents] = useState<types.Event[]>([]);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [friendsCount, setFriendsCount] = useState(0);
   const [activeTab, setActiveTab] = useState("favourites");
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [eventInvitations, setEventInvitations] = useState<
+    types.EventInvitation[]
+  >([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const session = useSession();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
@@ -82,7 +87,6 @@ export default function Account() {
     if (session) {
       getFavourites();
       getPendingRequestsCount();
-      getFriendsCount();
       getAttendingEvents();
     }
   }, [session]);
@@ -91,6 +95,7 @@ export default function Account() {
   useEffect(() => {
     if (profile) {
       getSavedEvents();
+      loadEventInvitations();
       if (profile.active_club_id) {
         fetchSingleClub(profile.active_club_id).then(setActiveClub);
       }
@@ -132,18 +137,6 @@ export default function Account() {
     } catch (error) {
       console.error("Error fetching pending friend requests count:", error);
       setPendingRequestsCount(0);
-    }
-  }
-
-  async function getFriendsCount() {
-    try {
-      if (!session?.user) return;
-
-      const count = await fetchFriendsCount(session.user.id);
-      setFriendsCount(count);
-    } catch (error) {
-      console.error("Error fetching friends count:", error);
-      setFriendsCount(0);
     }
   }
 
@@ -193,14 +186,57 @@ export default function Account() {
     }
   }
 
+  // Load event invitations
+  async function loadEventInvitations() {
+    try {
+      if (!session?.user) return;
+
+      const invitations = await getEventInvitations(session.user.id);
+      setEventInvitations(invitations);
+    } catch (error) {
+      console.error("Error loading event invitations:", error);
+      setEventInvitations([]);
+    }
+  }
+
   async function handleRefresh() {
     setRefreshing(true);
-    await getProfile();
     await getFavourites();
     await getPendingRequestsCount();
     await getAttendingEvents();
+    await loadEventInvitations();
+    // getSavedEvents() is called automatically when profile changes via useEffect
     setRefreshing(false);
   }
+
+  // Handle invitation response
+  const handleInvitationResponse = async (
+    invitationId: string,
+    response: "accepted" | "declined"
+  ) => {
+    try {
+      const success = await respondToEventInvitation(invitationId, response);
+      if (success) {
+        // Reload invitations to update the list
+        await loadEventInvitations();
+        Alert.alert(
+          "Success",
+          `Invitation ${response === "accepted" ? "accepted" : "declined"}!`
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          "Failed to respond to invitation. Please try again."
+        );
+      }
+    } catch (error) {
+      console.error("Error responding to invitation:", error);
+      Alert.alert(
+        "Error",
+        "Failed to respond to invitation. Please try again."
+      );
+    }
+  };
 
   const handleUploadPost = async () => {
     if (!pickedAsset || !profile) return;
@@ -438,15 +474,19 @@ export default function Account() {
 
           <View style={styles.profileStats}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{friendsCount}</Text>
+              <Text style={styles.statNumber}>
+                {profile?.friends_count || 0}
+              </Text>
               <Text style={styles.statLabel}>Friends</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{favourites.length}</Text>
+              <Text style={styles.statNumber}>{profile?.clubs_count || 0}</Text>
               <Text style={styles.statLabel}>Clubs</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{attendingEvents.length}</Text>
+              <Text style={styles.statNumber}>
+                {profile?.events_count || 0}
+              </Text>
               <Text style={styles.statLabel}>Events</Text>
             </View>
           </View>
@@ -480,7 +520,7 @@ export default function Account() {
         <View style={styles.profileActions}>
           <TouchableOpacity
             style={styles.editButton}
-            onPress={() => navigation.navigate("EditProfile")}
+            onPress={() => navigation.navigate("ProfileSettings")}
           >
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
@@ -588,7 +628,6 @@ export default function Account() {
                       <Text style={styles.horizontalClubName} numberOfLines={1}>
                         {club?.Name}
                       </Text>
-                      
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -636,6 +675,24 @@ export default function Account() {
                           minute: "2-digit",
                         })}
                       </Text>
+                      {event?.music_genres && event.music_genres.length > 0 && (
+                        <View style={styles.verticalEventGenres}>
+                          {event.music_genres
+                            .slice(0, 2)
+                            .map((genre: string, index: number) => (
+                              <View key={index} style={styles.genreChip}>
+                                <Text style={styles.genreChipText}>
+                                  {genre}
+                                </Text>
+                              </View>
+                            ))}
+                          {event.music_genres.length > 2 && (
+                            <Text style={styles.moreGenresText}>
+                              +{event.music_genres.length - 2} more
+                            </Text>
+                          )}
+                        </View>
+                      )}
                     </View>
                     <View style={styles.verticalEventArrow}>
                       <Ionicons
@@ -682,6 +739,82 @@ export default function Account() {
 
       {activeTab === "notifications" && (
         <View style={styles.notificationsContent}>
+          {/* Event Invitations */}
+          {eventInvitations.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Event Invitations</Text>
+              {eventInvitations.map((invitation) => (
+                <View key={invitation.id} style={styles.invitationCard}>
+                  <View style={styles.invitationHeader}>
+                    <View style={styles.invitationUserInfo}>
+                      {invitation.inviter?.avatar_url ? (
+                        <Image
+                          source={{ uri: invitation.inviter.avatar_url }}
+                          style={styles.invitationAvatar}
+                        />
+                      ) : (
+                        <View style={styles.invitationAvatarPlaceholder}>
+                          <Text style={styles.invitationAvatarInitial}>
+                            {invitation.inviter?.first_name
+                              ?.charAt(0)
+                              .toUpperCase() || "?"}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.invitationTextContainer}>
+                        <Text style={styles.invitationTitle}>
+                          {invitation.inviter?.first_name}{" "}
+                          {invitation.inviter?.last_name} invited you to
+                        </Text>
+                        <Text style={styles.invitationEventTitle}>
+                          {invitation.event?.title}
+                        </Text>
+                        {invitation.message && (
+                          <Text style={styles.invitationMessage}>
+                            "{invitation.message}"
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <Text style={styles.invitationTime}>
+                      {new Date(invitation.created_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+
+                  <View style={styles.invitationActions}>
+                    <TouchableOpacity
+                      style={styles.acceptButton}
+                      onPress={() =>
+                        handleInvitationResponse(invitation.id, "accepted")
+                      }
+                    >
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={Constants.whiteCOLOR}
+                      />
+                      <Text style={styles.acceptButtonText}>Accept</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.declineButton}
+                      onPress={() =>
+                        handleInvitationResponse(invitation.id, "declined")
+                      }
+                    >
+                      <Ionicons
+                        name="close"
+                        size={16}
+                        color={Constants.whiteCOLOR}
+                      />
+                      <Text style={styles.declineButtonText}>Decline</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Other Notifications */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               Event Notifications & Confirmations
@@ -692,7 +825,11 @@ export default function Account() {
                 size={48}
                 color={Constants.greyCOLOR}
               />
-              <Text style={styles.emptyStateText}>No confirmations</Text>
+              <Text style={styles.emptyStateText}>
+                {eventInvitations.length === 0
+                  ? "No confirmations"
+                  : "No other notifications"}
+              </Text>
               <Text style={styles.emptyStateSubtext}>
                 Event confirmations will appear here
               </Text>
@@ -908,7 +1045,6 @@ export default function Account() {
           )}
         </View>
       </Modal>
-
       {/* Floating Action Button
       <TouchableOpacity style={styles.fab} onPress={handleCaptureMoment}>
         <Ionicons name="add" size={24} color={Constants.whiteCOLOR} />
@@ -1091,6 +1227,7 @@ const styles = StyleSheet.create({
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: Constants.purpleCOLOR,
+    marginBottom: 4,
   },
 
   // Tab Content
@@ -1652,12 +1789,12 @@ const styles = StyleSheet.create({
 
   // New Clean Favourites Design
   favouritesSection: {
-    marginBottom: 32,
+    marginBottom: 4,
   },
   favouritesSectionTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: Constants.blackCOLOR,
+    color: Constants.purpleCOLOR,
     marginBottom: 16,
   },
   horizontalScrollContent: {
@@ -1732,8 +1869,31 @@ const styles = StyleSheet.create({
   },
   verticalEventTime: {
     fontSize: 14,
-    color: Constants.purpleCOLOR,
+    color: Constants.blackCOLOR,
     fontWeight: "500",
+  },
+  verticalEventGenres: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+    gap: 6,
+  },
+  genreChip: {
+    backgroundColor: Constants.purpleCOLOR,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  genreChipText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  moreGenresText: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+    fontStyle: "italic",
+    alignSelf: "center",
   },
   verticalEventArrow: {
     justifyContent: "center",
@@ -1747,5 +1907,98 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Constants.greyCOLOR,
     textAlign: "center",
+  },
+
+  // Invitation Styles
+  invitationCard: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  invitationHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  invitationUserInfo: {
+    flexDirection: "row",
+    flex: 1,
+  },
+  invitationAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  invitationAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Constants.purpleCOLOR,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  invitationAvatarInitial: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
+  },
+  invitationTextContainer: {
+    flex: 1,
+  },
+  invitationTitle: {
+    fontSize: 14,
+    color: Constants.whiteCOLOR,
+    marginBottom: 4,
+  },
+  invitationEventTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.purpleCOLOR,
+    marginBottom: 4,
+  },
+  invitationMessage: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    fontStyle: "italic",
+  },
+  invitationTime: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+  },
+  invitationActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  acceptButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  acceptButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  declineButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F44336",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  declineButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
