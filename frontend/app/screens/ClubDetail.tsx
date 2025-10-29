@@ -42,9 +42,9 @@ const { width } = Dimensions.get("window");
 type ClubDetailNavigationProp = NativeStackNavigationProp<
   {
     HomeMain: undefined;
-    ClubDetail: { club: types.Club };
-    EventDetail: { event: types.Event };
-    UserProfile: { user: types.UserProfile };
+    ClubDetail: { clubId: string };
+    EventDetail: { eventId: string };
+    UserProfile: { userId: string };
   },
   "ClubDetail"
 >;
@@ -278,7 +278,7 @@ export default function ClubDetailScreen() {
     try {
       const userProfile = await fetchUserProfile(friendId);
       if (userProfile) {
-        navigation.navigate("UserProfile", { user: userProfile });
+        navigation.navigate("UserProfile", { userId: userProfile.id });
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -614,7 +614,7 @@ export default function ClubDetailScreen() {
                     style={styles.featuredEventCard}
                     onPress={() =>
                       navigation.navigate("EventDetail", {
-                        event: featuredEvent,
+                        eventId: featuredEvent.id,
                       })
                     }
                     activeOpacity={0.7}
@@ -715,7 +715,9 @@ export default function ClubDetailScreen() {
                       <TouchableOpacity
                         style={styles.horizontalEventCard}
                         onPress={() =>
-                          navigation.navigate("EventDetail", { event: item })
+                          navigation.navigate("EventDetail", {
+                            eventId: item.id,
+                          })
                         }
                         activeOpacity={0.7}
                       >

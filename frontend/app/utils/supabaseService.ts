@@ -88,6 +88,108 @@ export const fetchSingleClub = async (clubId: string): Promise<types.Club> => {
     throw error;
   }
 };
+export const fetchFullEvent = async (eventId: string): Promise<types.Event> => {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .eq("id", eventId)
+      .single();
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Event not found");
+    }
+
+    return data as types.Event;
+  } catch (error) {
+    console.error("Error fetching event:", error);
+    throw error;
+  }
+};
+
+export async function fetchEventsWithTrending(
+  limit: number = 50,
+  offset: number = 0,
+  filters?: { genres?: string[]; date?: string }
+): Promise<{ events: types.Event[]; hasMore: boolean }> {
+  try {
+    const now = new Date().toISOString();
+    let query = supabase.from("events").select("*").gt("end_date", now);
+
+    // Apply filters
+    if (filters?.genres && filters.genres.length > 0) {
+      query = query.contains("music_genres", filters.genres);
+    }
+
+    if (filters?.date) {
+      const filterDate = new Date(filters.date);
+      const startOfDay = new Date(
+        filterDate.getFullYear(),
+        filterDate.getMonth(),
+        filterDate.getDate()
+      );
+      const endOfDay = new Date(
+        filterDate.getFullYear(),
+        filterDate.getMonth(),
+        filterDate.getDate() + 1
+      );
+
+      query = query
+        .gte("start_date", startOfDay.toISOString())
+        .lt("start_date", endOfDay.toISOString());
+    }
+
+    // Order by trending first, then by start date
+    const { data: events, error } = await query
+      .order("trending", { ascending: false })
+      .order("start_date", { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    return {
+      events: events || [],
+      hasMore: (events?.length || 0) === limit,
+    };
+  } catch (error) {
+    console.error("Error fetching events with trending:", error);
+    return {
+      events: [],
+      hasMore: false,
+    };
+  }
+}
+
+export async function fetchEventsByIds(
+  eventIds: string[]
+): Promise<types.Event[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "get-events-by-ids",
+      {
+        body: { event_ids: eventIds },
+      }
+    );
+
+    if (error) throw error;
+
+    return data.events || [];
+  } catch (error) {
+    console.error("Error fetching events by IDs:", error);
+    // Fallback to regular query
+    const { data, error: fallbackError } = await supabase
+      .from("events")
+      .select("*")
+      .in("id", eventIds);
+
+    if (fallbackError) throw fallbackError;
+
+    return data || [];
+  }
+}
 
 export const fetchSingleEvent = async (eventId: string): Promise<any> => {
   try {
@@ -614,6 +716,36 @@ export async function fetchFriendshipStatus(
   return "none";
 }
 
+// Check if two users are friends
+export async function areFriends(
+  userId1: string,
+  userId2: string
+): Promise<boolean> {
+  try {
+    if (!userId1 || !userId2) return false;
+
+    // Check if there's a friendship record in either direction with status "friends"
+    const { data, error } = await supabase
+      .from("friendships")
+      .select("status")
+      .or(
+        `and(requester_id.eq.${userId1},receiver_id.eq.${userId2}),and(requester_id.eq.${userId2},receiver_id.eq.${userId1})`
+      )
+      .eq("status", "friends")
+      .limit(1);
+
+    if (error) {
+      console.error("Error checking friendship status:", error);
+      return false;
+    }
+
+    return data && data.length > 0;
+  } catch (error) {
+    console.error("Error checking friendship status:", error);
+    return false;
+  }
+}
+
 /**
  * Dynamically calculates whether the club is open based on its operating periods.
  * It converts the open and close times into "absolute minutes" relative to the start of the week.
@@ -880,7 +1012,24 @@ export async function addAppReviewSimple(
  */
 export async function updateUserProfile(
   userId: string,
-  updates: { avatar_url?: string; username?: string; website?: string }
+  updates: {
+    avatar_url?: string;
+    username?: string;
+    website?: string;
+    bio?: string;
+    first_name?: string;
+    last_name?: string;
+    date_of_birth?: string;
+    age?: number;
+    favorite_music?: string[];
+    crowd_preferences?: string[];
+    nightlife_goals?: string[];
+    dress_code?: string[];
+    budget?: string;
+    drinking_preference?: string;
+    smoking_preference?: string;
+    updated_at?: string;
+  }
 ) {
   const { data, error } = await supabase
     .from("profiles")
@@ -1059,37 +1208,6 @@ export async function fetchPendingFriendRequestsCount(
     return count || 0;
   } catch (error) {
     console.error("Error fetching pending friend requests count:", error);
-    return 0;
-  }
-}
-
-export async function fetchFriendsCount(userId: string): Promise<number> {
-  try {
-    // Count friends where user is the requester
-    const { count: requesterCount, error: requesterError } = await supabase
-      .from("friendships")
-      .select("*", { count: "exact", head: true })
-      .eq("requester_id", userId)
-      .eq("status", "friends");
-
-    if (requesterError) {
-      throw new Error(requesterError.message);
-    }
-
-    // Count friends where user is the receiver
-    const { count: receiverCount, error: receiverError } = await supabase
-      .from("friendships")
-      .select("*", { count: "exact", head: true })
-      .eq("receiver_id", userId)
-      .eq("status", "friends");
-
-    if (receiverError) {
-      throw new Error(receiverError.message);
-    }
-
-    return (requesterCount || 0) + (receiverCount || 0);
-  } catch (error) {
-    console.error("Error fetching friends count:", error);
     return 0;
   }
 }
@@ -2228,6 +2346,57 @@ export async function updateLastActive(userId: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("Error updating last active:", error);
+    return false;
+  }
+}
+
+// Function to update friends count
+export async function updateFriendsCount(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc("update_friends_count", {
+      user_id: userId,
+    });
+    if (error) {
+      console.error("Error updating friends count:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error updating friends count:", error);
+    return false;
+  }
+}
+
+// Function to update clubs count
+export async function updateClubsCount(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc("update_clubs_count", {
+      user_id: userId,
+    });
+    if (error) {
+      console.error("Error updating clubs count:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error updating clubs count:", error);
+    return false;
+  }
+}
+
+// Function to update events count
+export async function updateEventsCount(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc("update_events_count", {
+      user_id: userId,
+    });
+    if (error) {
+      console.error("Error updating events count:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error updating events count:", error);
     return false;
   }
 }

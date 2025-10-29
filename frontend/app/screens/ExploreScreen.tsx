@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -22,6 +22,7 @@ import {
   searchUsersByName,
   searchEventsByName,
   searchClubsByName,
+  fetchEventsWithTrending,
 } from "../utils/supabaseService";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -76,28 +77,10 @@ const EventSkeleton = () => {
 };
 
 // Music genres for filtering
-const MUSIC_GENRES = [
-  "HipHop",
-  "Pop",
-  "Soul",
-  "Rap",
-  "House",
-  "Latin",
-  "EDM",
-  "Jazz",
-  "Country",
-  "Blues",
-  "DanceHall",
-  "Afrobeats",
-  "Top 40",
-  "Amapiano",
-  "90's",
-  "2000's",
-  "2010's",
-  "R&B",
-];
+import { MUSIC_GENRES } from "@/constants/NightlifeConstants";
 
 export default function SearchScreen() {
+  const flatListRef = useRef<FlatList>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<
     (types.UserProfile | types.Event | types.Club)[]
@@ -142,6 +125,7 @@ export default function SearchScreen() {
         .from("events")
         .select("*")
         .gt("end_date", now)
+        .order("trending", { ascending: false })
         .order("start_date", { ascending: true })
         .range(offset, offset + limit - 1);
 
@@ -243,6 +227,7 @@ export default function SearchScreen() {
           // Add trending properties to the event
           const trendingEvent = {
             ...event,
+            trending: true, // Set trending to true so it gets the badge
             is_trending: true,
             has_friends_attending: true,
             friends_attending_count: friendsAttendingCount,
@@ -278,6 +263,10 @@ export default function SearchScreen() {
       }
       // Refresh events
       await fetchEvents(0, true);
+      // Reset scroll position to top
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }, 100);
     } catch (error) {
       console.error("Error refreshing:", error);
     } finally {
@@ -428,7 +417,12 @@ export default function SearchScreen() {
       return (
         <TouchableOpacity
           style={styles.resultItem}
-          onPress={() => navigation.navigate("EventDetail", { event: item })}
+          onPress={() =>
+            navigation.navigate("EventDetail", {
+              eventId: item.id,
+              event: item,
+            })
+          }
         >
           <View style={styles.userInfoContainer}>
             {item.poster_url ? (
@@ -477,7 +471,10 @@ export default function SearchScreen() {
   }
 
   const handleEventPress = (event: types.Event) => {
-    navigation.navigate("EventDetail", { event });
+    navigation.navigate("EventDetail", {
+      eventId: event.id,
+      event: event,
+    });
   };
 
   async function handleFocus() {
@@ -596,6 +593,7 @@ export default function SearchScreen() {
         ) : filteredEvents.length > 0 ? (
           /* Events Grid */
           <FlatList
+            ref={flatListRef}
             data={filteredEvents}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (

@@ -28,7 +28,6 @@ import {
   fetchSingleEvent,
   fetchPendingFriendRequestsCount,
   fetchUserAttendingEvents,
-  fetchFriendsCount,
   storeUserPushToken,
   supabase,
 } from "../utils/supabaseService";
@@ -57,7 +56,6 @@ export default function Account() {
   const [attendingEvents, setAttendingEvents] = useState<types.Event[]>([]);
   const [savedEvents, setSavedEvents] = useState<types.Event[]>([]);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [friendsCount, setFriendsCount] = useState(0);
   const [activeTab, setActiveTab] = useState("favourites");
   const [notifications, setNotifications] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -82,7 +80,6 @@ export default function Account() {
     if (session) {
       getFavourites();
       getPendingRequestsCount();
-      getFriendsCount();
       getAttendingEvents();
     }
   }, [session]);
@@ -135,18 +132,6 @@ export default function Account() {
     }
   }
 
-  async function getFriendsCount() {
-    try {
-      if (!session?.user) return;
-
-      const count = await fetchFriendsCount(session.user.id);
-      setFriendsCount(count);
-    } catch (error) {
-      console.error("Error fetching friends count:", error);
-      setFriendsCount(0);
-    }
-  }
-
   async function getSavedEvents() {
     try {
       if (!session?.user || !profile) return;
@@ -195,10 +180,10 @@ export default function Account() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    await getProfile();
     await getFavourites();
     await getPendingRequestsCount();
     await getAttendingEvents();
+    // getSavedEvents() is called automatically when profile changes via useEffect
     setRefreshing(false);
   }
 
@@ -349,7 +334,12 @@ export default function Account() {
   const renderAttendingEvent = ({ item }: { item: types.Event }) => (
     <TouchableOpacity
       style={styles.favouriteClubItem}
-      onPress={() => navigation.navigate("EventDetail", { event: item })}
+      onPress={() =>
+        navigation.navigate("EventDetail", {
+          eventId: item.id,
+          event: item,
+        })
+      }
     >
       {item.poster_url ? (
         <Image
@@ -438,15 +428,19 @@ export default function Account() {
 
           <View style={styles.profileStats}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{friendsCount}</Text>
+              <Text style={styles.statNumber}>
+                {profile?.friends_count || 0}
+              </Text>
               <Text style={styles.statLabel}>Friends</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{favourites.length}</Text>
+              <Text style={styles.statNumber}>{profile?.clubs_count || 0}</Text>
               <Text style={styles.statLabel}>Clubs</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{attendingEvents.length}</Text>
+              <Text style={styles.statNumber}>
+                {profile?.events_count || 0}
+              </Text>
               <Text style={styles.statLabel}>Events</Text>
             </View>
           </View>
@@ -588,7 +582,6 @@ export default function Account() {
                       <Text style={styles.horizontalClubName} numberOfLines={1}>
                         {club?.Name}
                       </Text>
-                      
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -612,7 +605,10 @@ export default function Account() {
                     key={event?.id}
                     style={styles.verticalEventCard}
                     onPress={() =>
-                      navigation.navigate("EventDetail", { event })
+                      navigation.navigate("EventDetail", {
+                        eventId: event.id,
+                        event: event,
+                      })
                     }
                   >
                     <Image
@@ -623,19 +619,35 @@ export default function Account() {
                       <Text style={styles.verticalEventTitle} numberOfLines={2}>
                         {event?.title}
                       </Text>
-                      <Text style={styles.verticalEventDate}>
+                      <Text style={styles.verticalEventTime}>
                         {new Date(event?.start_date).toLocaleDateString("en", {
                           weekday: "long",
                           month: "long",
                           day: "numeric",
-                        })}
-                      </Text>
-                      <Text style={styles.verticalEventTime}>
+                        })}{" "}
                         {new Date(event?.start_date).toLocaleTimeString("en", {
                           hour: "numeric",
                           minute: "2-digit",
                         })}
                       </Text>
+                      {event?.music_genres && event.music_genres.length > 0 && (
+                        <View style={styles.verticalEventGenres}>
+                          {event.music_genres
+                            .slice(0, 2)
+                            .map((genre: string, index: number) => (
+                              <View key={index} style={styles.genreChip}>
+                                <Text style={styles.genreChipText}>
+                                  {genre}
+                                </Text>
+                              </View>
+                            ))}
+                          {event.music_genres.length > 2 && (
+                            <Text style={styles.moreGenresText}>
+                              +{event.music_genres.length - 2} more
+                            </Text>
+                          )}
+                        </View>
+                      )}
                     </View>
                     <View style={styles.verticalEventArrow}>
                       <Ionicons
@@ -649,7 +661,9 @@ export default function Account() {
               </View>
             ) : (
               <View style={styles.simpleEmptyState}>
-                <Text style={styles.simpleEmptyText}>No saved events yet</Text>
+                <Text style={styles.simpleEmptyText}>
+                  Your saved events will appear here
+                </Text>
               </View>
             )}
           </View>
@@ -908,7 +922,6 @@ export default function Account() {
           )}
         </View>
       </Modal>
-
       {/* Floating Action Button
       <TouchableOpacity style={styles.fab} onPress={handleCaptureMoment}>
         <Ionicons name="add" size={24} color={Constants.whiteCOLOR} />
@@ -1091,6 +1104,7 @@ const styles = StyleSheet.create({
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: Constants.purpleCOLOR,
+    marginBottom: 4,
   },
 
   // Tab Content
@@ -1652,12 +1666,12 @@ const styles = StyleSheet.create({
 
   // New Clean Favourites Design
   favouritesSection: {
-    marginBottom: 32,
+    marginBottom: 4,
   },
   favouritesSectionTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: Constants.blackCOLOR,
+    color: Constants.purpleCOLOR,
     marginBottom: 16,
   },
   horizontalScrollContent: {
@@ -1723,7 +1737,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: Constants.blackCOLOR,
-    marginBottom: 6,
+    marginBottom: 2,
   },
   verticalEventDate: {
     fontSize: 14,
@@ -1732,8 +1746,31 @@ const styles = StyleSheet.create({
   },
   verticalEventTime: {
     fontSize: 14,
-    color: Constants.purpleCOLOR,
+    color: Constants.blackCOLOR,
     fontWeight: "500",
+  },
+  verticalEventGenres: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+    gap: 6,
+  },
+  genreChip: {
+    backgroundColor: Constants.purpleCOLOR,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  genreChipText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  moreGenresText: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+    fontStyle: "italic",
+    alignSelf: "center",
   },
   verticalEventArrow: {
     justifyContent: "center",
@@ -1745,6 +1782,11 @@ const styles = StyleSheet.create({
   },
   simpleEmptyText: {
     fontSize: 16,
+    color: Constants.greyCOLOR,
+    textAlign: "center",
+  },
+  simpleEmptySubtext: {
+    fontSize: 14,
     color: Constants.greyCOLOR,
     textAlign: "center",
   },

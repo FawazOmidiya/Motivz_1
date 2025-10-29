@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Modal,
   Linking,
   Share,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -24,18 +25,130 @@ import {
   addUserToEventAttendees,
   fetchFriendsAttendingEvent,
   isUserAttendingEvent,
+  fetchFullEvent,
 } from "../utils/supabaseService";
-import { fetchSingleClub } from "../utils/supabaseService";
+import { fetchSingleClub, fetchSingleEvent } from "../utils/supabaseService";
 import { useSession } from "@/components/SessionContext";
 import { useSavedEvents } from "../hooks/useSavedEvents";
 
 const { width } = Dimensions.get("window");
 
+// Skeleton component for EventDetail loading state
+const EventDetailSkeleton = () => {
+  const shimmerAnimation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const shimmer = () => {
+      Animated.sequence([
+        Animated.timing(shimmerAnimation, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnimation, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]).start(() => shimmer());
+    };
+    shimmer();
+  }, []);
+
+  const opacity = shimmerAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header Skeleton */}
+      <View style={styles.headerContainer}>
+        <Animated.View style={[styles.skeletonPoster, { opacity }]} />
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.7)"]}
+          style={styles.gradientOverlay}
+        />
+        {/* Back Button Skeleton */}
+        <View style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </View>
+      </View>
+
+      {/* Content Skeleton */}
+      <View style={styles.contentContainer}>
+        {/* Title Row Skeleton */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleContainer}>
+            <Animated.View style={[styles.skeletonTitle, { opacity }]} />
+          </View>
+          <View style={styles.actionButtons}>
+            <Animated.View style={[styles.skeletonActionButton, { opacity }]} />
+            <Animated.View style={[styles.skeletonActionButton, { opacity }]} />
+          </View>
+        </View>
+
+        {/* Essential Info Skeleton */}
+        <View style={styles.essentialInfo}>
+          <View style={styles.infoRow}>
+            <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+            <Animated.View style={[styles.skeletonInfoText, { opacity }]} />
+          </View>
+          <View style={styles.infoRow}>
+            <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+            <Animated.View style={[styles.skeletonInfoText, { opacity }]} />
+          </View>
+          <View style={styles.infoRow}>
+            <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+            <View style={styles.genresContainer}>
+              <Animated.View style={[styles.skeletonGenreTag, { opacity }]} />
+              <Animated.View style={[styles.skeletonGenreTag, { opacity }]} />
+              <Animated.View style={[styles.skeletonGenreTag, { opacity }]} />
+            </View>
+          </View>
+          {/* Attendance Skeleton */}
+          <View style={styles.attendanceContainer}>
+            <View style={styles.infoRow}>
+              <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+              <Animated.View style={[styles.skeletonInfoText, { opacity }]} />
+            </View>
+            <View style={styles.friendsAvatarsRow}>
+              <Animated.View
+                style={[styles.skeletonFriendAvatar, { opacity }]}
+              />
+              <Animated.View
+                style={[styles.skeletonFriendAvatar, { opacity }]}
+              />
+              <Animated.View
+                style={[styles.skeletonFriendAvatar, { opacity }]}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Ticket Button Skeleton */}
+        <Animated.View style={[styles.skeletonTicketButton, { opacity }]} />
+
+        {/* Attendance Toggle Skeleton */}
+        <Animated.View style={[styles.skeletonAttendanceToggle, { opacity }]} />
+
+        {/* Expanded Details Skeleton */}
+        <View style={styles.expandedDetails}>
+          <Animated.View style={[styles.skeletonDetailTitle, { opacity }]} />
+          <Animated.View style={[styles.skeletonDetailText, { opacity }]} />
+          <Animated.View style={[styles.skeletonDetailText, { opacity }]} />
+          <Animated.View style={[styles.skeletonDetailText, { opacity }]} />
+        </View>
+      </View>
+    </ScrollView>
+  );
+};
+
 type EventDetailNavigationProp = NativeStackNavigationProp<
   {
     HomeMain: undefined;
     ClubDetail: { club: types.Club };
-    EventDetail: { event: types.Event };
+    EventDetail: { event_id: string };
     GuestlistForm: { event: types.Event };
     UserProfile: { user: types.UserProfile };
   },
@@ -43,20 +156,26 @@ type EventDetailNavigationProp = NativeStackNavigationProp<
 >;
 
 type EventDetailRouteProp = {
-  event: types.Event;
+  eventId: string;
+  event?: types.Event;
+  club?: types.Club;
 };
 
 export default function EventDetailScreen() {
   const navigation = useNavigation<EventDetailNavigationProp>();
   const route = useRoute();
-  const { event } = route.params as EventDetailRouteProp;
+  const {
+    eventId,
+    event: preloadedEvent,
+    club: preloadedClub,
+  } = route.params as EventDetailRouteProp;
   const session = useSession();
 
+  const [event, setEvent] = useState<types.Event>();
   const [club, setClub] = useState<types.Club | null>(null);
   const [loading, setLoading] = useState(true);
   const [showExpandedPoster, setShowExpandedPoster] = useState(false);
   const [showMoreDetails, setShowMoreDetails] = useState(false);
-  const [ticketCount, setTicketCount] = useState(0);
   const [isAttending, setIsAttending] = useState(false);
   const [friendsAttending, setFriendsAttending] = useState<
     { id: string; avatar_url: string | null }[]
@@ -69,34 +188,55 @@ export default function EventDetailScreen() {
     toggleSaveEvent,
     loading: saveLoading,
   } = useSavedEvents();
+  const [localSaveCount, setLocalSaveCount] = useState(0);
 
   useEffect(() => {
-    loadClubData();
-    loadAttendanceData();
-  }, [event.club_id, event.id, session?.user?.id]);
+    const loadData = async () => {
+      // Always fetch complete event data to ensure we have all fields
+      const eventData = await fetchFullEvent(eventId);
+      setEvent(eventData);
+      setLocalSaveCount(eventData.save_count || 0);
 
-  const loadClubData = async () => {
+      // Use pre-loaded club data if available, otherwise fetch it
+      if (preloadedClub) {
+        setClub(preloadedClub);
+      } else {
+        await loadClubData(eventData);
+      }
+
+      await loadAttendanceData(eventData);
+      setLoading(false);
+    };
+    loadData();
+  }, [eventId, session?.user?.id, preloadedClub]);
+
+  const loadClubData = async (eventData?: types.Event) => {
+    const currentEvent = eventData || event;
+    if (!currentEvent?.club_id) return;
+
     try {
-      const clubData = await fetchSingleClub(event.club_id);
+      const clubData = await fetchSingleClub(currentEvent.club_id);
       setClub(clubData);
     } catch (error) {
       console.error("Error loading club data:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const loadAttendanceData = async () => {
-    if (!session?.user?.id) return;
+  const loadAttendanceData = async (eventData?: types.Event) => {
+    const currentEvent = eventData || event;
+    if (!session?.user?.id || !currentEvent?.id) return;
 
     try {
       // Check if user is attending
-      const attending = await isUserAttendingEvent(event.id, session.user.id);
+      const attending = await isUserAttendingEvent(
+        currentEvent.id,
+        session.user.id
+      );
       setIsAttending(attending);
 
       // Get friends attending
       const friends = await fetchFriendsAttendingEvent(
-        event.id,
+        currentEvent.id,
         session.user.id
       );
       setFriendsAttending(friends);
@@ -105,7 +245,7 @@ export default function EventDetailScreen() {
       const { data: eventData } = await supabase
         .from("events")
         .select("attendees")
-        .eq("id", event.id)
+        .eq("id", currentEvent.id)
         .single();
 
       setTotalAttendees(eventData?.attendees?.length || 0);
@@ -134,9 +274,12 @@ export default function EventDetailScreen() {
   };
 
   const getEventStatus = () => {
+    if (!displayEvent)
+      return { status: "loading", color: "#9E9E9E", text: "Loading..." };
+
     const now = new Date();
-    const start = new Date(event.start_date);
-    const end = new Date(event.end_date);
+    const start = new Date(displayEvent.start_date);
+    const end = new Date(displayEvent.end_date);
 
     if (now < start) {
       return { status: "upcoming", color: "#4CAF50", text: "Upcoming" };
@@ -154,61 +297,71 @@ export default function EventDetailScreen() {
   };
 
   const handleSaveEvent = async () => {
+    if (!displayEvent) return;
+
     try {
-      await toggleSaveEvent(event);
+      const wasSaved = isEventSaved(displayEvent.id);
+      await toggleSaveEvent(displayEvent);
+
+      // Update local save count immediately
+      if (wasSaved) {
+        setLocalSaveCount((prev) => Math.max(0, prev - 1));
+      } else {
+        setLocalSaveCount((prev) => prev + 1);
+      }
     } catch (error) {
       console.error("Error saving event:", error);
     }
   };
 
   const handleTicketPurchase = async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || !displayEvent) return;
 
     try {
-      if (event.ticket_link) {
+      if (displayEvent.ticket_link) {
         // Track ticket purchase click
         await trackEventClick(
-          event.id,
+          displayEvent.id,
           session.user.id,
           "ticket_purchase",
           "event_detail",
           {
-            event_title: event.title,
-            club_id: event.club_id,
+            event_title: displayEvent.title,
+            club_id: displayEvent.club_id,
             purchase_method: "ticket_link",
           }
         );
 
         // Add user to attendees
-        await addUserToEventAttendees(event.id, session.user.id);
+        await addUserToEventAttendees(displayEvent.id, session.user.id);
 
         // Refresh attendance data
-        await loadAttendanceData();
+        await loadAttendanceData(displayEvent);
 
         // Open ticket link
-        Linking.openURL(event.ticket_link);
-      } else if (event.guestlist_available) {
+        Linking.openURL(displayEvent.ticket_link);
+      } else if (displayEvent.guestlist_available) {
         // Track guestlist request click
         await trackEventClick(
-          event.id,
+          displayEvent.id,
           session.user.id,
           "guestlist_request",
           "event_detail",
           {
-            event_title: event.title,
-            club_id: event.club_id,
+            event_title: displayEvent.title,
+            club_id: displayEvent.club_id,
             request_method: "guestlist_form",
           }
         );
 
         // Add user to attendees
-        await addUserToEventAttendees(event.id, session.user.id);
+        await addUserToEventAttendees(displayEvent.id, session.user.id);
 
         // Refresh attendance data
-        await loadAttendanceData();
+        await loadAttendanceData(displayEvent);
 
         // Navigate to guestlist form
-        navigation.navigate("GuestlistForm", { event });
+        navigation.navigate("GuestlistForm", { event: displayEvent });
       }
     } catch (error) {
       console.error("Error handling ticket purchase:", error);
@@ -217,11 +370,11 @@ export default function EventDetailScreen() {
   };
 
   const handleMarkAsAttending = async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || !displayEvent) return;
 
     try {
       // Add user to attendees
-      await addUserToEventAttendees(event.id, session.user.id);
+      await addUserToEventAttendees(displayEvent.id, session.user.id);
 
       Alert.alert(
         "You're Going!",
@@ -241,7 +394,7 @@ export default function EventDetailScreen() {
   };
 
   const handleMarkAsNotAttending = async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || !displayEvent) return;
 
     try {
       // Remove user from attendees
@@ -249,9 +402,10 @@ export default function EventDetailScreen() {
         .from("events")
         .update({
           attendees:
-            event.attendees?.filter((id) => id !== session.user.id) || [],
+            displayEvent.attendees?.filter((id) => id !== session.user.id) ||
+            [],
         })
-        .eq("id", event.id);
+        .eq("id", displayEvent.id);
 
       if (error) throw error;
 
@@ -273,32 +427,36 @@ export default function EventDetailScreen() {
   };
 
   const handleShare = async () => {
+    if (!displayEvent) return;
+
     try {
       // Create deep link URL that opens the app directly
-      const deepLinkUrl = `motivz://event/${event.id}`;
+      const deepLinkUrl = `motivz://event/${displayEvent.id}`;
 
       const shareContent = {
-        message: `🎉 Check out this event: ${event.title}\n\n📅 ${formatDate(
-          event.start_date
-        )} at ${formatTime(event.start_date)}\n📍 ${
-          club?.Name || "Location TBD"
+        message: `🎉 Check out this event: ${
+          displayEvent.title
+        }\n\n📅 ${formatDate(displayEvent.start_date)} at ${formatTime(
+          displayEvent.start_date
+        )}\n📍 ${
+          displayClub?.Name || "Location TBD"
         }\n\nDownload Motivz to view more events: ${deepLinkUrl}\n\nDiscover more events!`,
-        title: event.title,
+        title: displayEvent.title,
       };
 
       const result = await Share.share(shareContent);
 
       if (result.action === Share.sharedAction) {
         // Track the share event
-        if (session?.user?.id) {
+        if (session?.user?.id && displayEvent) {
           await trackEventClick(
-            event.id,
+            displayEvent.id,
             session.user.id,
             "share",
             "event_detail",
             {
-              event_title: event.title,
-              club_id: event.club_id,
+              event_title: displayEvent.title,
+              club_id: displayEvent.club_id,
               share_method: "native_share",
             }
           );
@@ -311,25 +469,26 @@ export default function EventDetailScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading event details...</Text>
-      </View>
-    );
+  // Show skeleton only if we have no pre-loaded data and are still loading
+  if (loading && !preloadedEvent) {
+    return <EventDetailSkeleton />;
   }
+
+  // Use freshly fetched data if available, otherwise fall back to pre-loaded data
+  const displayEvent = event || preloadedEvent;
+  const displayClub = club || preloadedClub;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header with Poster */}
       <View style={styles.headerContainer}>
-        {event.poster_url ? (
+        {displayEvent?.poster_url ? (
           <TouchableOpacity
             onPress={() => setShowExpandedPoster(true)}
             activeOpacity={0.9}
           >
             <Image
-              source={{ uri: event.poster_url }}
+              source={{ uri: displayEvent.poster_url }}
               style={styles.eventPoster}
             />
             <View style={styles.expandIndicator}>
@@ -368,19 +527,41 @@ export default function EventDetailScreen() {
       <View style={styles.contentContainer}>
         {/* Event Title with Share Button */}
         <View style={styles.titleRow}>
-          <Text style={styles.eventTitle}>{event.title}</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.eventTitle}>{displayEvent?.title}</Text>
+            {displayEvent?.trending && (
+              <View style={styles.trendingBadge}>
+                <Ionicons name="flame" size={12} color="#fff" />
+                <Text style={styles.trendingText}>Trending</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.saveButtonContent}
-              onPress={handleSaveEvent}
-              disabled={saveLoading}
-            >
-              <Ionicons
-                name={isEventSaved(event.id) ? "bookmark" : "bookmark-outline"}
-                size={20}
-                color={Constants.purpleCOLOR}
-              />
-            </TouchableOpacity>
+            <View style={styles.saveButtonContainer}>
+              <TouchableOpacity
+                style={styles.saveButtonContent}
+                onPress={handleSaveEvent}
+                disabled={saveLoading}
+              >
+                <Ionicons
+                  name={
+                    isEventSaved(displayEvent?.id || "")
+                      ? "bookmark"
+                      : "bookmark-outline"
+                  }
+                  size={20}
+                  color={Constants.purpleCOLOR}
+                />
+                {/* Save Count Badge */}
+                {localSaveCount > 0 && (
+                  <View style={styles.saveCountBadge}>
+                    <Text style={styles.saveCountBadgeText}>
+                      {localSaveCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={styles.shareButtonContent}
               onPress={handleShare}
@@ -403,20 +584,28 @@ export default function EventDetailScreen() {
               color={Constants.purpleCOLOR}
             />
             <Text style={styles.infoText}>
-              {formatDate(event.start_date)} • {formatTime(event.start_date)}
+              {displayEvent?.start_date
+                ? formatDate(displayEvent.start_date)
+                : ""}{" "}
+              •{" "}
+              {displayEvent?.start_date
+                ? formatTime(displayEvent.start_date)
+                : ""}
             </Text>
           </View>
-          {club && (
+          {displayClub && (
             <TouchableOpacity
               style={styles.infoRow}
-              onPress={() => navigation.navigate("ClubDetail", { club })}
+              onPress={() =>
+                navigation.navigate("ClubDetail", { club: displayClub })
+              }
             >
               <Ionicons
                 name="location"
                 size={18}
                 color={Constants.purpleCOLOR}
               />
-              <Text style={styles.infoText}>{club.Name}</Text>
+              <Text style={styles.infoText}>{displayClub.Name}</Text>
               <Ionicons
                 name="chevron-forward"
                 size={16}
@@ -425,101 +614,98 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           )}
           {/* Music Genres */}
-          {event.music_genres && event.music_genres.length > 0 && (
-            <View style={styles.infoRow}>
-              <Ionicons
-                name="musical-notes"
-                size={18}
-                color={Constants.purpleCOLOR}
-              />
-              <View style={styles.genresContainer}>
-                {event.music_genres
-                  .slice(0, 3)
-                  .map((genre: string, index: number) => (
-                    <View key={index} style={styles.genreTag}>
-                      <Text style={styles.genreText}>{genre}</Text>
-                    </View>
-                  ))}
-                {event.music_genres.length > 3 && (
-                  <Text style={styles.moreGenresText}>
-                    +{event.music_genres.length - 3} more
-                  </Text>
-                )}
+          {displayEvent?.music_genres &&
+            displayEvent.music_genres.length > 0 && (
+              <View style={styles.infoRow}>
+                <Ionicons
+                  name="musical-notes"
+                  size={18}
+                  color={Constants.purpleCOLOR}
+                />
+                <View style={styles.genresContainer}>
+                  {displayEvent.music_genres
+                    .slice(0, 3)
+                    .map((genre: string, index: number) => (
+                      <View key={index} style={styles.genreTag}>
+                        <Text style={styles.genreText}>{genre}</Text>
+                      </View>
+                    ))}
+                  {displayEvent.music_genres.length > 3 && (
+                    <Text style={styles.moreGenresText}>
+                      +{displayEvent.music_genres.length - 3} more
+                    </Text>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
-        </View>
-
-        {/* Event Attendance */}
-        {totalAttendees > 0 && (
-          <View style={styles.attendanceSection}>
-            <View style={styles.attendanceHeader}>
-              <Ionicons name="people" size={20} color={Constants.purpleCOLOR} />
-              <Text style={styles.attendanceText}>
-                {totalAttendees}{" "}
-                {totalAttendees === 1 ? "person is" : "people are"} going
-              </Text>
-            </View>
-
-            {/* Friends attending */}
-            {friendsAttending.length > 0 && (
-              <View style={styles.friendsAttending}>
-                <Text style={styles.friendsAttendingLabel}>Your friends:</Text>
-                <View style={styles.friendsAvatars}>
+            )}
+          {/* Event Attendance */}
+          {totalAttendees > 0 && (
+            <View style={styles.attendanceContainer}>
+              <View style={styles.infoRow}>
+                <Ionicons
+                  name="people"
+                  size={18}
+                  color={Constants.purpleCOLOR}
+                />
+                <Text style={styles.infoText}>
+                  {totalAttendees}{" "}
+                  {totalAttendees === 1 ? "person is" : "people are"} going
+                  {isAttending && " • You're going!"}
+                </Text>
+              </View>
+              {/* Friends attending avatars */}
+              {friendsAttending.length > 0 && (
+                <View style={styles.friendsAvatarsRow}>
                   {friendsAttending.slice(0, 5).map((friend, index) => (
-                    <View key={friend.id} style={styles.friendAvatar}>
+                    <View key={friend.id} style={styles.friendAvatarBeneath}>
                       {friend.avatar_url ? (
                         <Image
                           source={{ uri: friend.avatar_url }}
-                          style={styles.avatarImage}
+                          style={styles.avatarImageBeneath}
                         />
                       ) : (
-                        <View style={styles.avatarPlaceholder}>
-                          <Ionicons name="person" size={16} color="#fff" />
+                        <View style={styles.avatarPlaceholderBeneath}>
+                          <Ionicons name="person" size={14} color="#fff" />
                         </View>
                       )}
                     </View>
                   ))}
                   {friendsAttending.length > 5 && (
-                    <View style={styles.moreFriends}>
-                      <Text style={styles.moreFriendsText}>
+                    <View style={styles.moreFriendsBeneath}>
+                      <Text style={styles.moreFriendsTextBeneath}>
                         +{friendsAttending.length - 5}
                       </Text>
                     </View>
                   )}
                 </View>
-              </View>
-            )}
-
-            {/* User attending status */}
-            {isAttending && (
-              <View style={styles.userAttendingStatus}>
-                <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-                <Text style={styles.userAttendingText}>You're going!</Text>
-              </View>
-            )}
-          </View>
-        )}
+              )}
+            </View>
+          )}
+        </View>
 
         {/* Primary Action - Tickets */}
         <TouchableOpacity
           style={[
             styles.ticketButton,
-            !event.ticket_link &&
-              !event.guestlist_available &&
+            !displayEvent?.ticket_link &&
+              !displayEvent?.guestlist_available &&
               styles.ticketButtonDisabled,
           ]}
           onPress={handleTicketPurchase}
-          disabled={!event.ticket_link && !event.guestlist_available}
+          disabled={
+            !displayEvent?.ticket_link && !displayEvent?.guestlist_available
+          }
           activeOpacity={
-            event.ticket_link || event.guestlist_available ? 0.8 : 1
+            displayEvent?.ticket_link || displayEvent?.guestlist_available
+              ? 0.8
+              : 1
           }
         >
           <Ionicons
             name="ticket"
             size={20}
             color={
-              event.ticket_link || event.guestlist_available
+              displayEvent?.ticket_link || displayEvent?.guestlist_available
                 ? "#fff"
                 : "rgba(255, 255, 255, 0.4)"
             }
@@ -527,14 +713,14 @@ export default function EventDetailScreen() {
           <Text
             style={[
               styles.ticketButtonText,
-              !event.ticket_link &&
-                !event.guestlist_available &&
+              !displayEvent?.ticket_link &&
+                !displayEvent?.guestlist_available &&
                 styles.ticketButtonTextDisabled,
             ]}
           >
-            {event.ticket_link
+            {displayEvent?.ticket_link
               ? "Get Tickets / Guestlist"
-              : event.guestlist_available
+              : displayEvent?.guestlist_available
               ? "Request Guestlist"
               : "Ticketing Coming Soon"}
           </Text>
@@ -553,44 +739,33 @@ export default function EventDetailScreen() {
               : "Already got tickets? Click here"}
           </Text>
         </TouchableOpacity>
-
-        {/* More Info Button */}
-        <TouchableOpacity
-          style={styles.moreInfoButton}
-          onPress={handleMoreDetails}
-        >
-          <Text style={styles.moreInfoText}>More Details</Text>
-          <Ionicons
-            name={showMoreDetails ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={Constants.purpleCOLOR}
-          />
-        </TouchableOpacity>
-
         {/* Expandable Details */}
-        {showMoreDetails && (
+        {displayEvent && (
           <View style={styles.expandedDetails}>
             {/* Description */}
-            {event.caption && (
+            {displayEvent.caption && (
               <View style={styles.detailSection}>
                 <Text style={styles.detailTitle}>About This Event</Text>
-                <Text style={styles.detailText}>{event.caption}</Text>
+                <Text style={styles.detailText}>{displayEvent.caption}</Text>
               </View>
             )}
 
             {/* Music Genres */}
-            {event.music_genres && event.music_genres.length > 0 && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailTitle}>Music</Text>
-                <View style={styles.genresContainer}>
-                  {event.music_genres.map((genre: string, index: number) => (
-                    <View key={index} style={styles.genreTag}>
-                      <Text style={styles.genreText}>{genre}</Text>
-                    </View>
-                  ))}
+            {displayEvent.music_genres &&
+              displayEvent.music_genres.length > 0 && (
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailTitle}>Music</Text>
+                  <View style={styles.genresContainer}>
+                    {displayEvent.music_genres.map(
+                      (genre: string, index: number) => (
+                        <View key={index} style={styles.genreTag}>
+                          <Text style={styles.genreText}>{genre}</Text>
+                        </View>
+                      )
+                    )}
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
 
             {/* Event Details */}
             <View style={styles.detailSection}>
@@ -598,13 +773,17 @@ export default function EventDetailScreen() {
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Start Time:</Text>
                 <Text style={styles.detailValue}>
-                  {formatTime(event.start_date)}
+                  {displayEvent.start_date
+                    ? formatTime(displayEvent.start_date)
+                    : ""}
                 </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>End Time:</Text>
                 <Text style={styles.detailValue}>
-                  {formatTime(event.end_date)}
+                  {displayEvent.end_date
+                    ? formatTime(displayEvent.end_date)
+                    : ""}
                 </Text>
               </View>
             </View>
@@ -632,7 +811,7 @@ export default function EventDetailScreen() {
             activeOpacity={1}
           >
             <Image
-              source={{ uri: event.poster_url }}
+              source={{ uri: displayEvent?.poster_url }}
               style={styles.expandedPoster}
               resizeMode="contain"
             />
@@ -723,9 +902,27 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 20,
+    marginBottom: 8,
     lineHeight: 34,
     flex: 1,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  trendingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF6B35",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    gap: 4,
+  },
+  trendingText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
   },
   titleRow: {
     flexDirection: "row",
@@ -738,11 +935,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginLeft: 12,
   },
+  saveButtonContainer: {
+    alignItems: "center",
+    marginRight: 8,
+  },
   saveButtonContent: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
-    marginRight: 8,
+    position: "relative",
   },
   shareButtonContent: {
     padding: 8,
@@ -885,6 +1086,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  saveCountBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: Constants.purpleCOLOR,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  saveCountBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "600",
+  },
   expandIndicator: {
     position: "absolute",
     top: 20,
@@ -999,5 +1217,131 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginLeft: 4,
+  },
+  // Attendance container and beneath avatars
+  attendanceContainer: {
+    marginBottom: 8,
+  },
+  friendsAvatarsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    marginLeft: 26, // Align with text content
+  },
+  friendAvatarBeneath: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: -6,
+    borderWidth: 2,
+    borderColor: Constants.backgroundCOLOR,
+    overflow: "hidden",
+  },
+  avatarImageBeneath: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarPlaceholderBeneath: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: Constants.purpleCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  moreFriendsBeneath: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Constants.greyCOLOR,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 6,
+  },
+  moreFriendsTextBeneath: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  // Skeleton Styles
+  skeletonPoster: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  skeletonTitle: {
+    height: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 8,
+    marginBottom: 8,
+    width: "80%",
+  },
+  skeletonTrendingBadge: {
+    height: 24,
+    backgroundColor: "rgba(255, 107, 53, 0.3)",
+    borderRadius: 12,
+    width: 80,
+    marginBottom: 8,
+  },
+  skeletonActionButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 20,
+    marginLeft: 8,
+  },
+  skeletonIcon: {
+    width: 18,
+    height: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 9,
+  },
+  skeletonInfoText: {
+    height: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 4,
+    flex: 1,
+    marginLeft: 8,
+  },
+  skeletonGenreTag: {
+    height: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    width: 60,
+    marginRight: 6,
+  },
+  skeletonFriendAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginRight: -6,
+  },
+  skeletonTicketButton: {
+    height: 56,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  skeletonAttendanceToggle: {
+    height: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 4,
+    width: 200,
+    marginBottom: 16,
+  },
+  skeletonDetailTitle: {
+    height: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 4,
+    width: 150,
+    marginBottom: 12,
+  },
+  skeletonDetailText: {
+    height: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 4,
+    marginBottom: 8,
+    width: "100%",
   },
 });

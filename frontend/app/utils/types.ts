@@ -36,6 +36,11 @@ export type UserProfile = {
   saved_events?: Record<string, string>[] | null;
   active_event_id?: string | null;
   last_active?: string | null; // ISO datetime string of when user last opened the app
+  friends_count?: number; // Number of friends
+  clubs_count?: number; // Number of favourite clubs
+  events_count?: number; // Number of saved events
+  date_of_birth?: Date | null; // Date object
+  age?: number | null; // Calculated age from date_of_birth
   // add any additional fields you need
 };
 
@@ -78,7 +83,7 @@ export type RootStackParamList = {
     };
   };
   ClubDetail: { club: Club };
-  EventDetail: { event: Event };
+  EventDetail: { eventId: string; event?: Event; club?: Club };
   ProfileSettings: undefined;
   UserProfile: { profile: UserProfile };
   FriendsList: { userId: string };
@@ -218,6 +223,7 @@ export interface Event {
   music_genres?: string[];
   attendees?: string[]; // Array of user IDs attending the event
   save_count?: number; // Number of times this event has been saved
+  trending?: boolean; // Marks events as trending to prioritize them in user feeds
   created_at: string;
   updated_at: string;
   recurring_config?: RecurringConfig;

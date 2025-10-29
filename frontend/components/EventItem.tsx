@@ -78,10 +78,11 @@ export default function EventItem({
       {/* Gradient Overlay */}
       <View style={styles.gradientOverlay} />
 
-      {/* Trending Fire Emoji - Top Right */}
-      {event.is_trending && (
+      {/* Trending Badge - Top Right */}
+      {event.trending && (
         <View style={styles.trendingBadge}>
-          <Text style={styles.trendingEmoji}>🔥</Text>
+          <Ionicons name="flame" size={12} color="#fff" />
+          <Text style={styles.trendingText}>Trending</Text>
         </View>
       )}
 
@@ -222,20 +223,23 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "rgba(255, 140, 0, 0.9)",
-    borderRadius: 16,
-    width: 32,
-    height: 32,
-    justifyContent: "center",
+    backgroundColor: "#FF6B35",
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    flexDirection: "row",
     alignItems: "center",
     zIndex: 10,
+    gap: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
   },
-  trendingEmoji: {
-    fontSize: 16,
+  trendingText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "600",
   },
 });

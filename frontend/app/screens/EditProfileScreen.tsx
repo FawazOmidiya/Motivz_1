@@ -10,12 +10,18 @@ import {
   Alert,
   StatusBar,
   SafeAreaView,
+  Platform,
+  Modal,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Constants from "@/constants/Constants";
 import { useSession, useProfile } from "@/components/SessionContext";
-import { updateUserProfile } from "@/app/utils/supabaseService";
+import { updateUserProfile, supabase } from "@/app/utils/supabaseService";
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
+import { decode } from "base64-arraybuffer";
 import {
   MUSIC_GENRES,
   CROWD_PREFERENCES,
@@ -36,12 +42,16 @@ export default function EditProfileScreen({
   const session = useSession();
   const profile = useProfile();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
 
   // Bio and basic info
   const [bio, setBio] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Nightlife preferences
   const [favoriteMusic, setFavoriteMusic] = useState<string[]>([]);
@@ -68,6 +78,10 @@ export default function EditProfileScreen({
       setFirstName(profile.first_name || "");
       setLastName(profile.last_name || "");
       setUsername(profile.username || "");
+      setAvatarUrl(profile.avatar_url || "");
+      setDateOfBirth(
+        profile.date_of_birth ? new Date(profile.date_of_birth) : null
+      );
 
       // Load existing preferences
       setFavoriteMusic(profile.favorite_music || []);
@@ -85,11 +99,22 @@ export default function EditProfileScreen({
 
     setLoading(true);
     try {
+      // Calculate age from date of birth
+      const age = dateOfBirth
+        ? Math.floor(
+            (Date.now() - dateOfBirth.getTime()) /
+              (365.25 * 24 * 60 * 60 * 1000)
+          )
+        : null;
+
       const { data, error } = await updateUserProfile(session.user.id, {
         bio,
         first_name: firstName,
         last_name: lastName,
         username,
+        avatar_url: avatarUrl,
+        date_of_birth: dateOfBirth?.toISOString() || undefined,
+        age: age || undefined,
         favorite_music: favoriteMusic,
         crowd_preferences: crowdPreferences,
         nightlife_goals: nightlifeGoals,
@@ -112,6 +137,73 @@ export default function EditProfileScreen({
     }
   };
 
+  async function pickAndUploadImage() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      return Alert.alert("Permission Denied", "Media access is required.");
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+      base64: true,
+    });
+    if (result.canceled) return;
+    setUploading(true);
+    const asset = result.assets[0];
+    if (!asset.base64) {
+      return Alert.alert("Error", "Failed to get image data.");
+    }
+
+    setUploading(true);
+    try {
+      // Compress image using ImageManipulator
+      const compressedImage = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 400, height: 400 } }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        }
+      );
+
+      if (!compressedImage.base64) {
+        throw new Error("Failed to compress image");
+      }
+
+      // Convert base64 to ArrayBuffer
+      const buffer = decode(compressedImage.base64);
+
+      // Upload to Supabase Storage
+      const storage = supabase.storage.from("avatars");
+
+      // Generate filename & path
+      const ext = "jpg"; // Always use jpg for compressed images
+      const timestamp = Date.now();
+      const fileName = `${session!.user.id}_${timestamp}.${ext}`;
+      const filePath = `avatars/${fileName}`;
+
+      // Upload using ArrayBuffer
+      const { error: uploadError } = await storage.upload(filePath, buffer, {
+        upsert: true,
+        contentType: `image/${ext}`,
+      });
+
+      if (uploadError) {
+        Alert.alert("Upload Error", uploadError.message);
+      }
+
+      const { data } = storage.getPublicUrl(filePath);
+      // after getting publicURL:
+      setAvatarUrl(data.publicUrl);
+    } catch (e) {
+      Alert.alert("Upload Error", (e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   const toggleArrayItem = (
     array: string[],
     setArray: (arr: string[]) => void,
@@ -121,6 +213,13 @@ export default function EditProfileScreen({
       setArray(array.filter((i) => i !== item));
     } else {
       setArray([...array, item]);
+    }
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setDateOfBirth(selectedDate);
     }
   };
 
@@ -223,7 +322,7 @@ export default function EditProfileScreen({
           <Text
             style={[styles.saveButton, loading && styles.saveButtonDisabled]}
           >
-            {loading ? "Saving..." : "Done"}
+            {loading ? "Saving..." : "Save"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -233,9 +332,9 @@ export default function EditProfileScreen({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Picture</Text>
           <View style={styles.profilePictureContainer}>
-            {profile.avatar_url ? (
+            {avatarUrl ? (
               <Image
-                source={{ uri: profile.avatar_url }}
+                source={{ uri: avatarUrl }}
                 style={styles.profilePicture}
               />
             ) : (
@@ -245,9 +344,15 @@ export default function EditProfileScreen({
                 </Text>
               </View>
             )}
-            <TouchableOpacity style={styles.changePhotoButton}>
+            <TouchableOpacity
+              style={styles.changePhotoButton}
+              onPress={pickAndUploadImage}
+              disabled={uploading}
+            >
               <Ionicons name="camera" size={16} color={Constants.whiteCOLOR} />
-              <Text style={styles.changePhotoText}>Change Photo</Text>
+              <Text style={styles.changePhotoText}>
+                {uploading ? "Uploading..." : "Change Photo"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -284,6 +389,33 @@ export default function EditProfileScreen({
               placeholder="Enter your username"
               placeholderTextColor={Constants.greyCOLOR}
             />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Birthday</Text>
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={styles.datePickerText}>
+                {dateOfBirth
+                  ? dateOfBirth.toLocaleDateString()
+                  : "Select your birthday"}
+              </Text>
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={Constants.purpleCOLOR}
+              />
+            </TouchableOpacity>
+            {dateOfBirth && (
+              <Text style={styles.ageText}>
+                {Math.floor(
+                  (Date.now() - dateOfBirth.getTime()) /
+                    (365.25 * 24 * 60 * 60 * 1000)
+                )}{" "}
+                years old
+              </Text>
+            )}
           </View>
         </View>
 
@@ -371,6 +503,40 @@ export default function EditProfileScreen({
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      {/* Date Picker Modal */}
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.datePickerModal}>
+          <View style={styles.datePickerContainer}>
+            <View style={styles.datePickerHeader}>
+              <Text style={styles.datePickerTitle}>Select Birthday</Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(false)}
+                style={styles.datePickerDoneButton}
+              >
+                <Text style={styles.datePickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={dateOfBirth || new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setDateOfBirth(selectedDate);
+                }
+              }}
+              maximumDate={new Date()}
+              minimumDate={new Date(1900, 0, 1)}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -478,6 +644,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.2)",
   },
+  readOnlyField: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  readOnlyText: {
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    fontWeight: "500",
+  },
+  ageText: {
+    fontSize: 14,
+    color: Constants.greyCOLOR,
+    marginTop: 4,
+  },
   bioContainer: {
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 8,
@@ -526,5 +710,56 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 40,
+  },
+  datePickerButton: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    fontWeight: "500",
+  },
+  datePickerModal: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  datePickerContainer: {
+    backgroundColor: Constants.blackCOLOR,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+  },
+  datePickerDoneButton: {
+    backgroundColor: Constants.purpleCOLOR,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  datePickerDoneText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

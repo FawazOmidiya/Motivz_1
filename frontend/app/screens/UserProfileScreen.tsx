@@ -13,7 +13,11 @@ import {
 } from "react-native";
 import { Text, Button, TextInput } from "react-native-paper";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { fetchUserFavourites, fetchSingleClub } from "../utils/supabaseService";
+import {
+  fetchUserFavourites,
+  fetchSingleClub,
+  areFriends,
+} from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import FavouriteClub from "@/components/ClubFavourite";
 import BackButton from "@/components/BackButton";
@@ -49,6 +53,20 @@ export default function UserProfileScreen() {
   } | null>(null);
   const [mediaModalVisible, setMediaModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState("favourites");
+  const [isFriends, setIsFriends] = useState(false);
+
+  // Check friendship status
+  const checkFriendshipStatus = useCallback(async () => {
+    if (!session?.user || !user) return;
+
+    try {
+      const friendsStatus = await areFriends(session.user.id, user.id);
+      setIsFriends(friendsStatus);
+    } catch (error) {
+      console.error("Error checking friendship status:", error);
+      setIsFriends(false);
+    }
+  }, [session?.user, user]);
 
   // Fetch favourites when the screen mounts or when the user changes.
   const loadFavourites = useCallback(async () => {
@@ -70,6 +88,7 @@ export default function UserProfileScreen() {
 
   useEffect(() => {
     loadFavourites();
+    checkFriendshipStatus();
     if (user.active_club_id) {
       fetchSingleClub(user.active_club_id)
         .then((club) => setActiveClub(club))
@@ -78,7 +97,7 @@ export default function UserProfileScreen() {
     if (user?.id) {
       fetchUserPosts(user.id).then(setPosts);
     }
-  }, [loadFavourites, user.active_club_id, user]);
+  }, [loadFavourites, checkFriendshipStatus, user.active_club_id, user]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -133,15 +152,15 @@ export default function UserProfileScreen() {
                 navigation.navigate("FriendsList", { userId: user.id })
               }
             >
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{user?.friends_count || 0}</Text>
               <Text style={styles.statLabel}>Friends</Text>
             </TouchableOpacity>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{favourites.length}</Text>
+              <Text style={styles.statNumber}>{user?.clubs_count || 0}</Text>
               <Text style={styles.statLabel}>Clubs</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{user?.events_count || 0}</Text>
               <Text style={styles.statLabel}>Events</Text>
             </View>
           </View>
@@ -153,7 +172,7 @@ export default function UserProfileScreen() {
           </Text>
 
           {/* Active Club Display */}
-          {activeClub && (
+          {activeClub && isFriends && (
             <TouchableOpacity
               style={styles.activeClubInfo}
               onPress={() =>
@@ -181,26 +200,32 @@ export default function UserProfileScreen() {
       </View>
 
       {/* Favourite Clubs Section */}
+      <Text style={styles.sectionTitle}>Favourite Clubs</Text>
       {favourites.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Favourite Clubs</Text>
-          <View style={styles.clubsGrid}>
+        <View style={styles.favouritesSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScrollContent}
+          >
             {favourites.map((club) => (
               <TouchableOpacity
                 key={club?.id}
-                style={styles.clubCard}
+                style={styles.horizontalClubCard}
                 onPress={() => navigation.navigate("ClubDetail", { club })}
               >
                 <Image
                   source={{ uri: club?.Image }}
-                  style={styles.clubCardImage}
+                  style={styles.horizontalClubImage}
                 />
-                <Text style={styles.clubCardName} numberOfLines={2}>
-                  {club?.Name}
-                </Text>
+                <View style={styles.horizontalClubInfo}>
+                  <Text style={styles.horizontalClubName} numberOfLines={1}>
+                    {club?.Name}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
       )}
     </View>
@@ -436,31 +461,49 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  // Clubs Grid
-  clubsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+  // Favourites Section (matching ProfileScreen)
+  favouritesSection: {
+    marginBottom: 32,
   },
-  clubCard: {
-    width: "48%",
-    marginBottom: 16,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
+  favouritesSectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Constants.blackCOLOR,
+    marginBottom: 4,
+  },
+  horizontalScrollContent: {
+    paddingHorizontal: 20,
+  },
+  horizontalClubCard: {
+    width: 140,
+    marginRight: 12,
+    borderRadius: 16,
+    overflow: "hidden",
+    position: "relative",
+  },
+  horizontalClubImage: {
+    width: "100%",
+    height: 100,
+    position: "absolute",
+    resizeMode: "cover",
+    top: 0,
+    left: 0,
+  },
+  horizontalClubInfo: {
     padding: 12,
-    alignItems: "center",
-  },
-  clubCardImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    borderRadius: 12,
+    marginTop: 50,
+    marginHorizontal: 8,
     marginBottom: 8,
+    position: "relative",
+    zIndex: 1,
   },
-  clubCardName: {
-    fontSize: 14,
-    fontWeight: "500",
+  horizontalClubName: {
+    fontSize: 16,
+    fontWeight: "600",
     color: Constants.whiteCOLOR,
-    textAlign: "center",
+    marginBottom: 4,
   },
   headerGradient: {
     position: "absolute",
@@ -602,9 +645,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 12,
   },
-  activeClubInfo: {
-    flex: 1,
-  },
+
   activeClubTitle: {
     color: Constants.whiteCOLOR,
     opacity: 0.7,
