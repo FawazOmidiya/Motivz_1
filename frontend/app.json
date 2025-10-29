@@ -2,28 +2,32 @@
   "expo": {
     "name": "Motivz",
     "slug": "frontend",
-    "version": "1.5.2",
+    "version": "1.6.0",
     "orientation": "portrait",
-    "icon": "./assets/AppIcons (1)/appstore.png",
+    "icon": "./assets/images/appstore.png",
     "scheme": "motivz",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "2",
-      "icon": "./assets/AppIcons (1)/appstore.png",
+      "buildNumber": "4",
+      "icon": "./assets/images/appstore.png",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
         "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "entitlements": {
         "aps-environment": "production"
       },
-      "associatedDomains": ["applinks:42P3N5W766.motivz-frontend.expo.app"]
+      "associatedDomains": [
+        "applinks:42P3N5W766.motivz-frontend.expo.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
