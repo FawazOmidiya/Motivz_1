@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import MasterAuth from "@/components/MasterAuth";
 import {
   Card,
   CardContent,
@@ -94,6 +95,7 @@ interface GuestlistRequest {
 export default function MasterDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [clubs, setClubs] = useState<Club[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -179,8 +181,19 @@ export default function MasterDashboard() {
   };
 
   useEffect(() => {
-    fetchData();
+    // Check if already authenticated
+    const isAuth = sessionStorage.getItem("master_authenticated") === "true";
+    setIsAuthenticated(isAuth);
+
+    if (isAuth) {
+      fetchData();
+    }
   }, []);
+
+  const handleAuthenticated = () => {
+    setIsAuthenticated(true);
+    fetchData();
+  };
 
   const fetchClubs = async () => {
     try {
@@ -507,6 +520,10 @@ export default function MasterDashboard() {
     }
   };
 
+  if (!isAuthenticated) {
+    return <MasterAuth onAuthenticated={handleAuthenticated} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
@@ -731,7 +748,7 @@ export default function MasterDashboard() {
                 Event Management
               </h2>
               <Button
-                onClick={() => router.push("/dashboard/master/events/create")}
+                onClick={() => router.push("/master/events/create")}
                 size="sm"
                 className="w-full sm:w-auto"
               >
@@ -796,9 +813,7 @@ export default function MasterDashboard() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  router.push(
-                                    `/dashboard/master/events/${event.id}/edit`
-                                  )
+                                  router.push(`/master/events/${event.id}/edit`)
                                 }
                                 className="text-xs"
                               >
@@ -810,7 +825,7 @@ export default function MasterDashboard() {
                                 size="sm"
                                 onClick={() =>
                                   router.push(
-                                    `/dashboard/master/events/create?duplicate=${event.id}`
+                                    `/master/events/create?duplicate=${event.id}`
                                   )
                                 }
                                 className="text-xs"
@@ -887,9 +902,7 @@ export default function MasterDashboard() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  router.push(
-                                    `/dashboard/master/events/${event.id}/edit`
-                                  )
+                                  router.push(`/master/events/${event.id}/edit`)
                                 }
                                 className="text-xs"
                               >
@@ -901,7 +914,7 @@ export default function MasterDashboard() {
                                 size="sm"
                                 onClick={() =>
                                   router.push(
-                                    `/dashboard/master/events/create?duplicate=${event.id}`
+                                    `/master/events/create?duplicate=${event.id}`
                                   )
                                 }
                                 className="text-xs"
@@ -1096,9 +1109,7 @@ export default function MasterDashboard() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  router.push(
-                                    `/dashboard/master/club/${club.id}`
-                                  )
+                                  router.push(`/master/club/${club.id}`)
                                 }
                                 className="text-xs"
                               >
@@ -1109,9 +1120,7 @@ export default function MasterDashboard() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  router.push(
-                                    `/dashboard/master/clubs/${club.id}/edit`
-                                  )
+                                  router.push(`/master/clubs/${club.id}/edit`)
                                 }
                                 className="text-xs"
                               >

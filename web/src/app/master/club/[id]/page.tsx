@@ -144,7 +144,7 @@ export default function ClubManagementPage() {
       if (error) throw error;
 
       alert("Club updated successfully!");
-      router.push("/dashboard/master");
+      router.push("/master");
     } catch (error) {
       console.error("Error updating club:", error);
       alert("Error updating club");
@@ -211,7 +211,7 @@ export default function ClubManagementPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
-            onClick={() => router.push("/dashboard/master")}
+            onClick={() => router.push("/master")}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />

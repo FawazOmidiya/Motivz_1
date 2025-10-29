@@ -183,7 +183,7 @@ export default function EditEventPage() {
       if (error) throw error;
 
       alert("Event updated successfully!");
-      router.push("/dashboard/master");
+      router.push("/master");
     } catch (error) {
       console.error("Error updating event:", error);
       alert("Error updating event");
@@ -243,7 +243,7 @@ export default function EditEventPage() {
           <p className="text-gray-600 mb-6">
             The event you&apos;re looking for doesn&apos;t exist.
           </p>
-          <Link href="/dashboard/master">
+          <Link href="/master">
             <Button className="bg-purple-600 hover:bg-purple-700">
               Back to Master Dashboard
             </Button>
@@ -261,7 +261,7 @@ export default function EditEventPage() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <Link
-                href="/dashboard/master"
+                href="/master"
                 className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />

@@ -22,8 +22,8 @@ export default function RouteProtection({ children }: RouteProtectionProps) {
   const isMasterPage =
     pathname === "/master" ||
     pathname.startsWith("/master/") ||
-    pathname === "/dashboard/master" ||
-    pathname.startsWith("/dashboard/master/");
+    pathname === "/master" ||
+    pathname.startsWith("/master/");
 
   // Check master authentication on mount
   useEffect(() => {

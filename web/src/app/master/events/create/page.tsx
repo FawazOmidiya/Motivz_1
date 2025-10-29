@@ -181,7 +181,7 @@ function CreateEventPageContent() {
       if (error) throw error;
 
       alert("Event created successfully!");
-      router.push("/dashboard/master");
+      router.push("/master");
     } catch (error) {
       console.error("Error creating event:", error);
       alert("Failed to create event");
@@ -218,7 +218,7 @@ function CreateEventPageContent() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <Link
-                href="/dashboard/master"
+                href="/master"
                 className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
