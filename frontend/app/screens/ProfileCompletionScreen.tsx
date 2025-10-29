@@ -10,8 +10,12 @@ import {
   ScrollView,
   Image,
   StatusBar,
+  SafeAreaView,
+  TextInput,
+  Text,
 } from "react-native";
-import { Button, TextInput, Text } from "react-native-paper";
+import { Button } from "react-native-paper";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
@@ -24,6 +28,15 @@ import { decode } from "base64-arraybuffer";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  MUSIC_GENRES,
+  CROWD_PREFERENCES,
+  NIGHTLIFE_GOALS,
+  DRESS_CODE_OPTIONS,
+  BUDGET_OPTIONS,
+  DRINKING_OPTIONS,
+  SMOKING_OPTIONS,
+} from "@/constants/NightlifeConstants";
 
 type ProfileCompletionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -72,9 +85,53 @@ export default function ProfileCompletionScreen() {
     googleUserData?.lastName || appleUserData?.lastName || ""
   );
   const [username, setUsername] = useState(signUpInfo?.username || "");
+  const [bio, setBio] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Nightlife preferences
+  const [favoriteMusic, setFavoriteMusic] = useState<string[]>([]);
+  const [crowdPreferences, setCrowdPreferences] = useState<string[]>([]);
+  const [nightlifeGoals, setNightlifeGoals] = useState<string[]>([]);
+  const [dressCode, setDressCode] = useState<string[]>([]);
+  const [budget, setBudget] = useState<string>("");
+  const [drinkingPreference, setDrinkingPreference] = useState<string>("");
+  const [smokingPreference, setSmokingPreference] = useState<string>("");
+
+  // Music genres
+  const musicGenres = [...MUSIC_GENRES];
+  const crowdOptions = [...CROWD_PREFERENCES];
+  const goalOptions = [...NIGHTLIFE_GOALS];
+  const dressCodeOptions = [...DRESS_CODE_OPTIONS];
+  const budgetOptions = [...BUDGET_OPTIONS];
+  const drinkingOptions = [...DRINKING_OPTIONS];
+  const smokingOptions = [...SMOKING_OPTIONS];
+
+  // Calculate age from date of birth
+  const calculateAge = (dob: Date): number => {
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const toggleArrayItem = (
+    array: string[],
+    setArray: (arr: string[]) => void,
+    item: string
+  ) => {
+    if (array.includes(item)) {
+      setArray(array.filter((i) => i !== item));
+    } else {
+      setArray([...array, item]);
+    }
+  };
 
   async function pickAndUploadImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -144,6 +201,36 @@ export default function ProfileCompletionScreen() {
       return;
     }
 
+    if (!dateOfBirth) {
+      Alert.alert("Error", "Please select your date of birth");
+      return;
+    }
+
+    // Check if user is at least 18 years old
+    const age = calculateAge(dateOfBirth);
+    if (age < 18) {
+      Alert.alert("Error", "You must be at least 18 years old to use this app");
+      return;
+    }
+
+    // Check if at least one nightlife preference is selected
+    const hasNightlifePreferences =
+      favoriteMusic.length > 0 ||
+      crowdPreferences.length > 0 ||
+      nightlifeGoals.length > 0 ||
+      dressCode.length > 0 ||
+      budget ||
+      drinkingPreference ||
+      smokingPreference;
+
+    if (!hasNightlifePreferences) {
+      Alert.alert(
+        "Error",
+        "Please select at least one nightlife preference to help us personalize your experience"
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       let userId: string;
@@ -186,12 +273,23 @@ export default function ProfileCompletionScreen() {
       );
 
       // Create or update the user profile
+      const age = calculateAge(dateOfBirth);
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: userId,
         username: username,
         first_name: firstName,
         last_name: lastName,
+        bio: bio,
+        date_of_birth: dateOfBirth,
+        age: age,
         avatar_url: avatarUrl,
+        favorite_music: favoriteMusic,
+        crowd_preferences: crowdPreferences,
+        nightlife_goals: nightlifeGoals,
+        dress_code: dressCode,
+        budget: budget,
+        drinking_preference: drinkingPreference,
+        smoking_preference: smokingPreference,
         is_complete: true,
         updated_at: new Date().toISOString(),
       });
@@ -211,341 +309,554 @@ export default function ProfileCompletionScreen() {
     }
   };
 
+  const renderMultiSelect = (
+    title: string,
+    options: string[],
+    selected: string[],
+    onToggle: (item: string) => void,
+    maxSelections?: number
+  ) => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.optionsGrid}>
+        {options.map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.optionChip,
+              selected.includes(option) && styles.optionChipSelected,
+            ]}
+            onPress={() => {
+              if (
+                maxSelections &&
+                selected.length >= maxSelections &&
+                !selected.includes(option)
+              ) {
+                Alert.alert(
+                  "Limit reached",
+                  `You can only select up to ${maxSelections} options`
+                );
+                return;
+              }
+              onToggle(option);
+            }}
+          >
+            <Text
+              style={[
+                styles.optionChipText,
+                selected.includes(option) && styles.optionChipTextSelected,
+              ]}
+            >
+              {option}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderSingleSelect = (
+    title: string,
+    options: string[],
+    selected: string,
+    onSelect: (item: string) => void
+  ) => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.optionsGrid}>
+        {options.map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.optionChip,
+              selected === option && styles.optionChipSelected,
+            ]}
+            onPress={() => onSelect(option)}
+          >
+            <Text
+              style={[
+                styles.optionChipText,
+                selected === option && styles.optionChipTextSelected,
+              ]}
+            >
+              {option}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={Constants.backgroundCOLOR}
+        backgroundColor={Constants.blackCOLOR}
       />
 
-      <LinearGradient
-        colors={["rgba(0,0,0,0.8)", "transparent"]}
-        style={styles.headerGradient}
-      />
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Complete Your Profile</Text>
+      </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.content}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header Section */}
-          <View style={styles.headerSection}>
-            <Text variant="displayLarge" style={styles.title}>
-              Complete Your Profile
-            </Text>
-            <Text variant="titleMedium" style={styles.subtitle}>
-              {googleUserData
-                ? "Welcome! Let's set up your profile"
-                : "Tell us a bit about yourself"}
-            </Text>
-          </View>
-
-          {/* Avatar Section */}
-          <View style={styles.avatarSection}>
-            <TouchableOpacity
-              style={styles.avatarContainer}
-              onPress={pickAndUploadImage}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <View style={styles.avatar}>
-                  <ActivityIndicator
-                    size="large"
-                    color={Constants.whiteCOLOR}
-                  />
-                </View>
-              ) : avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={48} color="#fff" />
-                </View>
-              )}
-
-              <View style={styles.editOverlay}>
-                <Ionicons name="camera" size={20} color="#fff" />
-              </View>
-            </TouchableOpacity>
-
-            <Text variant="bodyMedium" style={styles.avatarLabel}>
-              Tap to add a photo
-            </Text>
-          </View>
-
-          {/* Form Section */}
-          <View style={styles.formSection}>
-            <Text variant="headlineSmall" style={styles.formTitle}>
-              Personal Information
-            </Text>
-
-            <View style={styles.inputGroup}>
-              <TextInput
-                placeholder="First Name"
-                value={firstName}
-                onChangeText={setFirstName}
-                style={styles.input}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                textColor="#fff"
-                mode="outlined"
-                outlineColor="rgba(255,255,255,0.2)"
-                activeOutlineColor={Constants.purpleCOLOR}
-                left={
-                  <TextInput.Icon
-                    icon="account"
-                    color="rgba(255,255,255,0.7)"
-                  />
-                }
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Profile Picture Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Profile Picture</Text>
+          <View style={styles.profilePictureContainer}>
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={styles.profilePicture}
               />
-
-              <TextInput
-                placeholder="Last Name"
-                value={lastName}
-                onChangeText={setLastName}
-                style={styles.input}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                textColor="#fff"
-                mode="outlined"
-                outlineColor="rgba(255,255,255,0.2)"
-                activeOutlineColor={Constants.purpleCOLOR}
-                left={
-                  <TextInput.Icon
-                    icon="account"
-                    color="rgba(255,255,255,0.7)"
-                  />
-                }
-              />
-
-              <TextInput
-                placeholder="Username"
-                value={username}
-                onChangeText={(text) => {
-                  // Check if the text contains only valid characters
-                  const validPattern = /^[a-z0-9\-_.]*$/;
-                  const lowercaseText = text.toLowerCase();
-
-                  if (validPattern.test(lowercaseText)) {
-                    setUsername(lowercaseText);
-                  } else {
-                    Alert.alert(
-                      "Invalid Username",
-                      "Username can only contain lowercase letters, numbers, hyphens (-), underscores (_), and periods (.)"
-                    );
-                  }
-                }}
-                style={styles.input}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                textColor="#fff"
-                mode="outlined"
-                outlineColor="rgba(255,255,255,0.2)"
-                activeOutlineColor={Constants.purpleCOLOR}
-                autoComplete="off"
-                textContentType="username"
-                autoCapitalize="none"
-                left={
-                  <TextInput.Icon icon="at" color="rgba(255,255,255,0.7)" />
-                }
-              />
-            </View>
-
-            {googleUserData && (
-              <View style={styles.googleNote}>
-                <Text variant="bodySmall" style={styles.googleNoteText}>
-                  Your name has been pre-filled from your Google account
+            ) : (
+              <View style={styles.profilePicturePlaceholder}>
+                <Text style={styles.profilePictureInitial}>
+                  {firstName?.charAt(0).toUpperCase()}
                 </Text>
               </View>
             )}
-
-            {loading ? (
-              <ActivityIndicator
-                size="large"
-                color={Constants.purpleCOLOR}
-                style={styles.loader}
-              />
-            ) : (
-              <Button
-                mode="contained"
-                onPress={handleSubmit}
-                style={styles.submitButton}
-                labelStyle={styles.buttonText}
-                contentStyle={styles.buttonContent}
-              >
-                {googleUserData ? "Complete Profile" : "Create Account"}
-              </Button>
-            )}
+            <TouchableOpacity
+              style={styles.changePhotoButton}
+              onPress={pickAndUploadImage}
+              disabled={uploading}
+            >
+              <Ionicons name="camera" size={16} color={Constants.whiteCOLOR} />
+              <Text style={styles.changePhotoText}>
+                {uploading ? "Uploading..." : "Change Photo"}
+              </Text>
+            </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        </View>
+
+        {/* Basic Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Basic Information *</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>First Name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="Enter your first name"
+              placeholderTextColor={Constants.greyCOLOR}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Last Name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Enter your last name"
+              placeholderTextColor={Constants.greyCOLOR}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Username</Text>
+            <TextInput
+              style={styles.textInput}
+              value={username}
+              onChangeText={(text) => {
+                const validPattern = /^[a-z0-9\-_.]*$/;
+                const lowercaseText = text.toLowerCase();
+                if (validPattern.test(lowercaseText)) {
+                  setUsername(lowercaseText);
+                } else {
+                  Alert.alert(
+                    "Invalid Username",
+                    "Username can only contain lowercase letters, numbers, hyphens (-), underscores (_), and periods (.)"
+                  );
+                }
+              }}
+              placeholder="Enter your username"
+              placeholderTextColor={Constants.greyCOLOR}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Birthday *</Text>
+            <TouchableOpacity
+              style={styles.dateInput}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={styles.dateInputText}>
+                {dateOfBirth
+                  ? dateOfBirth.toLocaleDateString()
+                  : "Select your date of birth"}
+              </Text>
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={Constants.greyCOLOR}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Bio */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Bio (Optional)</Text>
+          <View style={styles.bioContainer}>
+            <TextInput
+              style={styles.bioInput}
+              value={bio}
+              onChangeText={setBio}
+              placeholder="Tell us about yourself and what you're looking for..."
+              placeholderTextColor={Constants.greyCOLOR}
+              multiline
+              maxLength={150}
+            />
+            <Text style={styles.characterCount}>{bio.length}/150</Text>
+          </View>
+        </View>
+
+        {/* Nightlife Preferences */}
+        <Text style={styles.categoryTitle}>Nightlife Preferences *</Text>
+
+        {/* Favorite Music */}
+        {renderMultiSelect(
+          "Favorite Music Genres",
+          musicGenres,
+          favoriteMusic,
+          (item) => toggleArrayItem(favoriteMusic, setFavoriteMusic, item),
+          5
+        )}
+
+        {/* Crowd Preferences */}
+        {renderMultiSelect(
+          "Crowd Preferences",
+          crowdOptions,
+          crowdPreferences,
+          (item) =>
+            toggleArrayItem(crowdPreferences, setCrowdPreferences, item),
+          4
+        )}
+
+        {/* Nightlife Goals */}
+        {renderMultiSelect(
+          "What are you looking for?",
+          goalOptions,
+          nightlifeGoals,
+          (item) => toggleArrayItem(nightlifeGoals, setNightlifeGoals, item),
+          3
+        )}
+
+        {/* Dress Code */}
+        {renderMultiSelect(
+          "Dress Code Preferences",
+          dressCodeOptions,
+          dressCode,
+          (item) => toggleArrayItem(dressCode, setDressCode, item),
+          3
+        )}
+
+        {/* Budget */}
+        {renderSingleSelect(
+          "Budget Preference",
+          budgetOptions,
+          budget,
+          setBudget
+        )}
+
+        {/* Drinking Preference */}
+        {renderSingleSelect(
+          "Drinking Preference",
+          drinkingOptions,
+          drinkingPreference,
+          setDrinkingPreference
+        )}
+
+        {/* Smoking Preference */}
+        {renderSingleSelect(
+          "Smoking Preference",
+          smokingOptions,
+          smokingPreference,
+          setSmokingPreference
+        )}
+
+        {/* Submit Button */}
+        <View style={styles.submitSection}>
+          {loading ? (
+            <ActivityIndicator
+              size="large"
+              color={Constants.purpleCOLOR}
+              style={styles.loader}
+            />
+          ) : (
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              <Text style={styles.submitButtonText}>
+                {googleUserData ? "Complete Profile" : "Create Account"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Bottom spacing */}
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <View style={styles.datePickerModal}>
+          <View style={styles.datePickerContainer}>
+            <View style={styles.datePickerHeader}>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(false)}
+                style={styles.datePickerCancelButton}
+              >
+                <Text style={styles.datePickerCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.datePickerTitle}>Select Birthday</Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(false)}
+                style={styles.datePickerDoneButton}
+              >
+                <Text style={styles.datePickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={dateOfBirth || new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setDateOfBirth(selectedDate);
+                }
+              }}
+              maximumDate={new Date()}
+              minimumDate={new Date(1900, 0, 1)}
+            />
+          </View>
+        </View>
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Constants.backgroundCOLOR,
+    backgroundColor: Constants.blackCOLOR,
   },
-  headerGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 300,
-    zIndex: 1,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
   },
   content: {
     flex: 1,
-    zIndex: 2,
+    paddingHorizontal: 16,
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+  section: {
+    marginVertical: 16,
   },
-  headerSection: {
-    alignItems: "center",
-    marginBottom: 40,
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Constants.whiteCOLOR,
+    marginBottom: 12,
   },
-  title: {
-    color: "#fff",
-    fontWeight: "bold",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    color: "rgba(255,255,255,0.8)",
-    textAlign: "center",
-  },
-  avatarSection: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  avatarContainer: {
-    position: "relative",
+  categoryTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Constants.whiteCOLOR,
+    marginTop: 24,
     marginBottom: 16,
   },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: Constants.purpleCOLOR,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  avatarPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
+  profilePictureContainer: {
     alignItems: "center",
-    borderWidth: 4,
-    borderColor: Constants.purpleCOLOR,
-    borderStyle: "dashed",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
-  editOverlay: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
+  profilePicture: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 12,
+  },
+  profilePicturePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: Constants.purpleCOLOR,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: Constants.backgroundCOLOR,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    justifyContent: "center",
+    marginBottom: 12,
   },
-  avatarLabel: {
-    color: "rgba(255,255,255,0.7)",
-    textAlign: "center",
+  profilePictureInitial: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: Constants.whiteCOLOR,
   },
-  formSection: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 24,
-    padding: 32,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+  changePhotoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
   },
-  formTitle: {
-    color: "#fff",
-    fontWeight: "600",
-    marginBottom: 32,
-    textAlign: "center",
+  changePhotoText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 14,
+    fontWeight: "500",
   },
   inputGroup: {
-    marginBottom: 32,
-  },
-  input: {
     marginBottom: 16,
-    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: Constants.whiteCOLOR,
+    marginBottom: 8,
+  },
+  textInput: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  dateInput: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dateInputText: {
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+  },
+  bioContainer: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  bioInput: {
+    padding: 12,
+    fontSize: 16,
+    color: Constants.whiteCOLOR,
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  characterCount: {
+    fontSize: 12,
+    color: Constants.greyCOLOR,
+    textAlign: "right",
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  optionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  optionChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  optionChipSelected: {
+    backgroundColor: Constants.purpleCOLOR,
+    borderColor: Constants.purpleCOLOR,
+  },
+  optionChipText: {
+    fontSize: 14,
+    color: Constants.whiteCOLOR,
+    fontWeight: "500",
+  },
+  optionChipTextSelected: {
+    color: Constants.whiteCOLOR,
+    fontWeight: "600",
+  },
+  submitSection: {
+    marginTop: 32,
+    marginBottom: 20,
+  },
+  submitButton: {
+    backgroundColor: Constants.purpleCOLOR,
+    borderRadius: 8,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  submitButtonText: {
+    color: Constants.whiteCOLOR,
+    fontSize: 16,
+    fontWeight: "600",
   },
   loader: {
     marginVertical: 20,
   },
-  submitButton: {
-    backgroundColor: Constants.purpleCOLOR,
-    borderRadius: 16,
-    shadowColor: Constants.purpleCOLOR,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+  bottomSpacing: {
+    height: 40,
   },
-  buttonContent: {
+  datePickerModal: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+    zIndex: 1000,
+  },
+  datePickerContainer: {
+    backgroundColor: Constants.blackCOLOR,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20, // Account for home indicator
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  datePickerCancelButton: {
     paddingVertical: 8,
   },
-  buttonText: {
+  datePickerCancelText: {
+    color: Constants.greyCOLOR,
+    fontSize: 16,
+  },
+  datePickerTitle: {
+    color: Constants.whiteCOLOR,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  datePickerDoneButton: {
+    paddingVertical: 8,
+  },
+  datePickerDoneText: {
+    color: Constants.purpleCOLOR,
     fontSize: 16,
     fontWeight: "600",
-    color: "#fff",
-  },
-  googleNote: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: "rgba(76, 175, 80, 0.1)",
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#4CAF50",
-  },
-  googleNoteText: {
-    color: "#4CAF50",
-    textAlign: "center",
-    fontSize: 12,
   },
 });

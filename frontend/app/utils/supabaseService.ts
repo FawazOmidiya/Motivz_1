@@ -88,6 +88,143 @@ export const fetchSingleClub = async (clubId: string): Promise<types.Club> => {
     throw error;
   }
 };
+export const fetchFullEvent = async (eventId: string): Promise<types.Event> => {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .eq("id", eventId)
+      .single();
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Event not found");
+    }
+
+    return data as types.Event;
+  } catch (error) {
+    console.error("Error fetching event:", error);
+    throw error;
+  }
+};
+
+export async function fetchEventsWithTrending(
+  limit: number = 50,
+  offset: number = 0,
+  filters?: { genres?: string[]; date?: string }
+): Promise<{ events: types.Event[]; hasMore: boolean }> {
+  try {
+    const now = new Date().toISOString();
+    let query = supabase.from("events").select("*").gt("end_date", now);
+
+    // Apply filters
+    if (filters?.genres && filters.genres.length > 0) {
+      query = query.contains("music_genres", filters.genres);
+    }
+
+    if (filters?.date) {
+      const filterDate = new Date(filters.date);
+      const startOfDay = new Date(
+        filterDate.getFullYear(),
+        filterDate.getMonth(),
+        filterDate.getDate()
+      );
+      const endOfDay = new Date(
+        filterDate.getFullYear(),
+        filterDate.getMonth(),
+        filterDate.getDate() + 1
+      );
+
+      query = query
+        .gte("start_date", startOfDay.toISOString())
+        .lt("start_date", endOfDay.toISOString());
+    }
+
+    // Order by trending first, then by start date
+    const { data: events, error } = await query
+      .order("trending", { ascending: false })
+      .order("start_date", { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    return {
+      events: events || [],
+      hasMore: (events?.length || 0) === limit,
+    };
+  } catch (error) {
+    console.error("Error fetching events with trending:", error);
+    return {
+      events: [],
+      hasMore: false,
+    };
+  }
+}
+
+export async function fetchEventsByIds(
+  eventIds: string[]
+): Promise<types.Event[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "get-events-by-ids",
+      {
+        body: { event_ids: eventIds },
+      }
+    );
+
+    if (error) throw error;
+
+    return data.events || [];
+  } catch (error) {
+    console.error("Error fetching events by IDs:", error);
+    // Fallback to regular query
+    const { data, error: fallbackError } = await supabase
+      .from("events")
+      .select("*")
+      .in("id", eventIds);
+
+    if (fallbackError) throw fallbackError;
+
+    return data || [];
+  }
+}
+
+export const fetchSingleEvent = async (eventId: string): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select(
+        `
+        id,
+        title,
+        start_date,
+        club_id,
+        club:Clubs!club_id (
+          id,
+          Name,
+          Image
+        )
+      `
+      )
+      .eq("id", eventId)
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error("Event not found");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching event:", error);
+    throw error;
+  }
+};
 
 export const fetchRecentClubReviews = async (clubId: string) => {
   try {
@@ -394,7 +531,7 @@ export async function sendFriendRequest(
   ]);
 
   // If friend request was sent successfully, send notification to the receiver
-  if (!error) {
+  if (!error && data) {
     try {
       // Get the requester's name for the notification
       const { data: requesterProfile } = await supabase
@@ -407,24 +544,17 @@ export async function sendFriendRequest(
         ? `${requesterProfile.first_name} ${requesterProfile.last_name}`
         : "Someone";
 
-      // Send notification to the receiver (using dashboard method)
-      const { data: notificationResult, error: notificationError } =
-        await supabase.functions.invoke("send-push-notification", {
-          body: {
-            title: "New Friend Request",
-            body: `${requesterName} sent you a friend request!`,
-            userId: targetUserId,
-            sendToAll: false,
-          },
-        });
-      if (notificationError) {
-        console.error(
-          "Failed to send friend request notification:",
-          notificationError
-        );
-      } else {
-        console.log("Friend request notification sent successfully");
-      }
+      // Send notification to the receiver
+      await sendNotificationToUser(
+        targetUserId,
+        "New Friend Request",
+        `${requesterName} sent you a friend request!`,
+        {
+          type: "friend_request",
+          requester_id: currentUserId,
+          action: "view_requests",
+        }
+      );
     } catch (notificationError) {
       console.error(
         "Error sending friend request notification:",
@@ -432,8 +562,6 @@ export async function sendFriendRequest(
       );
       // Don't fail the friend request if notification fails
     }
-  } else {
-    console.error("❌ Friend request failed:", error);
   }
 
   return { data, error };
@@ -496,7 +624,7 @@ export async function acceptFriendRequest(
     .match({ requester_id: targetUserId, receiver_id: currentUserId });
 
   // If friend request was accepted successfully, send notification to the requester
-  if (!error) {
+  if (!error && data) {
     try {
       // Get the accepter's name for the notification
       const { data: accepterProfile } = await supabase
@@ -509,22 +637,17 @@ export async function acceptFriendRequest(
         ? `${accepterProfile.first_name} ${accepterProfile.last_name}`
         : "Someone";
 
-      // Send notification to the requester (using dashboard method)
-      const { data: notificationResult, error: notificationError } =
-        await supabase.functions.invoke("send-push-notification", {
-          body: {
-            title: "Friend Request Accepted",
-            body: `${accepterName} accepted your friend request!`,
-            userId: targetUserId,
-            sendToAll: false,
-          },
-        });
-      if (notificationError) {
-        console.error(
-          "Failed to send friend request accepted notification:",
-          notificationError
-        );
-      }
+      // Send notification to the requester
+      await sendNotificationToUser(
+        targetUserId,
+        "Friend Request Accepted",
+        `${accepterName} accepted your friend request!`,
+        {
+          type: "friend_request_accepted",
+          accepter_id: currentUserId,
+          action: "view_profile",
+        }
+      );
     } catch (notificationError) {
       console.error(
         "Error sending friend request accepted notification:",
@@ -532,8 +655,6 @@ export async function acceptFriendRequest(
       );
       // Don't fail the friend request acceptance if notification fails
     }
-  } else {
-    console.error("❌ Friend request acceptance failed:", error);
   }
 
   return { data, error };
@@ -593,6 +714,36 @@ export async function fetchFriendshipStatus(
   if (friendship.status === "pending") return "pending";
 
   return "none";
+}
+
+// Check if two users are friends
+export async function areFriends(
+  userId1: string,
+  userId2: string
+): Promise<boolean> {
+  try {
+    if (!userId1 || !userId2) return false;
+
+    // Check if there's a friendship record in either direction with status "friends"
+    const { data, error } = await supabase
+      .from("friendships")
+      .select("status")
+      .or(
+        `and(requester_id.eq.${userId1},receiver_id.eq.${userId2}),and(requester_id.eq.${userId2},receiver_id.eq.${userId1})`
+      )
+      .eq("status", "friends")
+      .limit(1);
+
+    if (error) {
+      console.error("Error checking friendship status:", error);
+      return false;
+    }
+
+    return data && data.length > 0;
+  } catch (error) {
+    console.error("Error checking friendship status:", error);
+    return false;
+  }
 }
 
 /**
@@ -861,7 +1012,24 @@ export async function addAppReviewSimple(
  */
 export async function updateUserProfile(
   userId: string,
-  updates: { avatar_url?: string; username?: string; website?: string }
+  updates: {
+    avatar_url?: string;
+    username?: string;
+    website?: string;
+    bio?: string;
+    first_name?: string;
+    last_name?: string;
+    date_of_birth?: string;
+    age?: number;
+    favorite_music?: string[];
+    crowd_preferences?: string[];
+    nightlife_goals?: string[];
+    dress_code?: string[];
+    budget?: string;
+    drinking_preference?: string;
+    smoking_preference?: string;
+    updated_at?: string;
+  }
 ) {
   const { data, error } = await supabase
     .from("profiles")
@@ -1044,6 +1212,113 @@ export async function fetchPendingFriendRequestsCount(
   }
 }
 
+export async function saveEvent(userId: string, event: any): Promise<boolean> {
+  try {
+    const { data: profile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("saved_events")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const currentSavedEvents = Array.isArray(profile?.saved_events)
+      ? profile.saved_events
+      : [];
+    const eventData = {
+      [event.id]: {
+        title: event.title,
+        poster_url: event.poster_url,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        music_genres: event.music_genres,
+        club_id: event.club_id,
+      },
+    };
+
+    // Check if event is already saved
+    const isAlreadySaved = currentSavedEvents.some(
+      (savedEvent) => Object.keys(savedEvent)[0] === event.id
+    );
+
+    if (isAlreadySaved) {
+      return true; // Already saved
+    }
+
+    const updatedSavedEvents = [...currentSavedEvents, eventData];
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ saved_events: updatedSavedEvents })
+      .eq("id", userId);
+
+    if (updateError) throw updateError;
+
+    // Increment save_count on the event
+    const { error: eventUpdateError } = await supabase.rpc(
+      "increment_save_count",
+      {
+        event_id: event.id,
+      }
+    );
+
+    if (eventUpdateError) {
+      console.error("Error incrementing save count:", eventUpdateError);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error saving event:", error);
+    return false;
+  }
+}
+
+export async function unsaveEvent(
+  userId: string,
+  eventId: string
+): Promise<boolean> {
+  try {
+    const { data: profile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("saved_events")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const currentSavedEvents = Array.isArray(profile?.saved_events)
+      ? profile.saved_events
+      : [];
+    const updatedSavedEvents = currentSavedEvents.filter(
+      (savedEvent) => Object.keys(savedEvent)[0] !== eventId
+    );
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ saved_events: updatedSavedEvents })
+      .eq("id", userId);
+
+    if (updateError) throw updateError;
+
+    // Decrement save_count on the event
+    const { error: eventUpdateError } = await supabase.rpc(
+      "decrement_save_count",
+      {
+        event_id: eventId,
+      }
+    );
+
+    if (eventUpdateError) {
+      console.error("Error decrementing save count:", eventUpdateError);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error unsaving event:", error);
+    return false;
+  }
+}
+
 /**
  * Store user's push token in the database
  */
@@ -1054,7 +1329,7 @@ export async function storeUserPushToken(
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .update({ expo_push_token: pushToken })
+      .update({ push_token: pushToken })
       .eq("id", userId);
 
     return { data, error };
@@ -1065,13 +1340,46 @@ export async function storeUserPushToken(
 }
 
 /**
+ * Silently register for notifications (for settings toggle)
+ */
+export async function registerNotificationsSilently(
+  userId: string
+): Promise<boolean> {
+  try {
+    const { registerForPushNotificationsSilently } = await import(
+      "./notificationService"
+    );
+    const pushToken = await registerForPushNotificationsSilently();
+
+    if (pushToken) {
+      console.log(
+        "🔔 Silent registration successful, storing token:",
+        pushToken
+      );
+      const { error } = await storeUserPushToken(userId, pushToken);
+      if (error) {
+        console.error("Error storing push token:", error);
+        return false;
+      }
+      return true;
+    } else {
+      console.log("🔔 Silent registration failed - permission not granted");
+      return false;
+    }
+  } catch (error) {
+    console.error("Error in silent notification registration:", error);
+    return false;
+  }
+}
+
+/**
  * Get user's push token from the database
  */
 export async function getUserPushToken(userId: string): Promise<string | null> {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("expo_push_token")
+      .select("push_token")
       .eq("id", userId)
       .single();
 
@@ -1080,7 +1388,7 @@ export async function getUserPushToken(userId: string): Promise<string | null> {
       return null;
     }
 
-    return data?.expo_push_token || null;
+    return data?.push_token || null;
   } catch (error) {
     console.error("Error fetching push token:", error);
     return null;
@@ -1107,7 +1415,6 @@ export async function sendNotificationToUser(
           body: body,
           userId: userId,
           sendToAll: false,
-          data: data, // Include the data parameter
         },
       }
     );
@@ -1986,3 +2293,110 @@ export const isUserAttendingEvent = async (
     return false;
   }
 };
+
+// Fetch events that a user is attending
+export const fetchUserAttendingEvents = async (
+  userId: string
+): Promise<types.Event[]> => {
+  try {
+    const { data: events, error } = await supabase
+      .from("events")
+      .select(
+        `
+        *,
+        Clubs!inner(
+          id,
+          Name,
+          Address,
+          latitude,
+          longitude,
+          Image
+        )
+      `
+      )
+      .contains("attendees", [userId])
+      .order("start_date", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching user attending events:", error);
+      return [];
+    }
+
+    return events || [];
+  } catch (error) {
+    console.error("Error fetching user attending events:", error);
+    return [];
+  }
+};
+
+// Function to update user's last active timestamp
+export async function updateLastActive(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ last_active: new Date().toISOString() })
+      .eq("id", userId);
+
+    if (error) {
+      console.error("Error updating last active:", error);
+      return false;
+    }
+
+    console.log("✅ Last active updated for user:", userId);
+    return true;
+  } catch (error) {
+    console.error("Error updating last active:", error);
+    return false;
+  }
+}
+
+// Function to update friends count
+export async function updateFriendsCount(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc("update_friends_count", {
+      user_id: userId,
+    });
+    if (error) {
+      console.error("Error updating friends count:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error updating friends count:", error);
+    return false;
+  }
+}
+
+// Function to update clubs count
+export async function updateClubsCount(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc("update_clubs_count", {
+      user_id: userId,
+    });
+    if (error) {
+      console.error("Error updating clubs count:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error updating clubs count:", error);
+    return false;
+  }
+}
+
+// Function to update events count
+export async function updateEventsCount(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc("update_events_count", {
+      user_id: userId,
+    });
+    if (error) {
+      console.error("Error updating events count:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error updating events count:", error);
+    return false;
+  }
+}

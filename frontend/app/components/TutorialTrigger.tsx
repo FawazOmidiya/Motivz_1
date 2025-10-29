@@ -9,19 +9,11 @@ interface TutorialTriggerProps {
 export default function TutorialTrigger({ children }: TutorialTriggerProps) {
   const { startTutorial, isTutorialActive } = useTutorial();
 
-  console.log(
-    "🔍 TutorialTrigger: Rendering, isTutorialActive:",
-    isTutorialActive
-  );
-
   useEffect(() => {
     const checkAndStartTutorial = async () => {
       try {
-        console.log("🔍 TutorialTrigger: checkAndStartTutorial called");
-
         // Don't start tutorial if it's already active
         if (isTutorialActive) {
-          console.log("🔍 TutorialTrigger: Tutorial already active, skipping");
           return;
         }
 
@@ -29,19 +21,13 @@ export default function TutorialTrigger({ children }: TutorialTriggerProps) {
         const profileJustCompleted = await AsyncStorage.getItem(
           "profile_just_completed"
         );
-        console.log(
-          "🔍 TutorialTrigger: profileJustCompleted =",
-          profileJustCompleted
-        );
 
         if (profileJustCompleted === "true") {
-          console.log("🚀 Starting tutorial for new user");
           // Clear the flag
           await AsyncStorage.removeItem("profile_just_completed");
 
           // Start tutorial immediately for new users
           setTimeout(() => {
-            console.log("📚 Starting tutorial now");
             startTutorial();
           }, 1000);
         } else {
@@ -49,14 +35,9 @@ export default function TutorialTrigger({ children }: TutorialTriggerProps) {
           const hasCompletedTutorial = await AsyncStorage.getItem(
             "tutorial_completed"
           );
-          console.log(
-            "🔍 TutorialTrigger: hasCompletedTutorial =",
-            hasCompletedTutorial
-          );
 
           // If tutorial hasn't been completed, start it automatically
           if (!hasCompletedTutorial) {
-            console.log("🚀 Starting tutorial for existing user");
             // Small delay to let the app load
             setTimeout(() => {
               startTutorial();

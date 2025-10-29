@@ -4,7 +4,7 @@
     "slug": "frontend",
     "version": "1.5.2",
     "orientation": "portrait",
-    "icon": "./assets/images/iTunesArtwork@1x.png",
+    "icon": "./assets/AppIcons (1)/appstore.png",
     "scheme": "motivz",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
@@ -12,23 +12,22 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
       "buildNumber": "2",
-      "icon": "./assets/images/iTunesArtwork@1x.png",
+      "icon": "./assets/AppIcons (1)/appstore.png",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
         "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background.",
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["remote-notification"]
       },
       "entitlements": {
         "aps-environment": "production"
-      }
+      },
+      "associatedDomains": ["applinks:42P3N5W766.motivz-frontend.expo.app"]
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/AppIcons (1)/playstore.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.fomidiya.frontend"
@@ -36,7 +35,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/AppIcons (1)/Assets.xcassets/AppIcon.appiconset/32.png"
     },
     "plugins": [
       "expo-apple-authentication",
@@ -45,7 +44,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/AppIcons (1)/Assets.xcassets/AppIcon.appiconset/1024.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"

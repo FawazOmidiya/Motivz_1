@@ -93,12 +93,42 @@ export const TutorialProvider: React.FC<TutorialProviderProps> = ({
 
       // Request notification permission after tutorial completion
       console.log("🔔 Requesting notification permission after tutorial");
+      const { storeUserPushToken } = await import("../utils/supabaseService");
+      const { supabase } = await import("../utils/supabaseService");
+
       registerForPushNotificationsAsync()
-        .then((token) => {
+        .then(async (token) => {
           if (token) {
             console.log("🔔 Push notifications enabled:", token);
+            // Store the token in the database
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+            if (user) {
+              const { error } = await storeUserPushToken(user.id, token);
+              if (error) {
+                console.error("Error storing push token:", error);
+              } else {
+                console.log("✅ Push token stored successfully");
+              }
+            }
           } else {
             console.log("🔔 Push notifications not available");
+            // Store "Notification Permission not granted" in the database
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+            if (user) {
+              const { error } = await supabase
+                .from("profiles")
+                .update({
+                  push_token: "Notification Permission not granted",
+                })
+                .eq("id", user.id);
+              if (error) {
+                console.error("Error updating notification status:", error);
+              }
+            }
           }
         })
         .catch((error) => {
