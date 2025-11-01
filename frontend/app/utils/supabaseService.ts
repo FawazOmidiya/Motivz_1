@@ -272,17 +272,20 @@ export const searchClubsByName = async (ClubName: string) => {
   }
 };
 
-export const searchEventsByName = async (eventName: string) => {
+export const searchEventsByName = async (eventName: string, date?: Date) => {
   /**
    * Searches for events in the "events" table with a title similar to the provided input.
    *
    * @param {string} eventName - The term to search for.
+   * @param {Date} date - The date to filter events by.
    * @returns {Promise<Array>} Array of events matching the search criteria, or an empty array on error.
    */
   try {
+    const currentDate = new Date();
     const { data, error } = await supabase
       .from("events")
       .select("*")
+      .lte("end_date", date?.toISOString() || currentDate.toISOString())
       .ilike("title", `%${eventName}%`);
 
     if (error) {

@@ -11,23 +11,19 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "icon": "./assets/images/appstore.png",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
         "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background.",
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["remote-notification"]
       },
       "entitlements": {
         "aps-environment": "production"
       },
-      "associatedDomains": [
-        "applinks:42P3N5W766.motivz-frontend.expo.app"
-      ]
+      "associatedDomains": ["applinks:42P3N5W766.motivz-frontend.expo.app"]
     },
     "android": {
       "adaptiveIcon": {
@@ -39,7 +35,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/AppIcons (1)/Assets.xcassets/AppIcon.appiconset/32.png"
+      "favicon": "./assets/images/appstore.png"
     },
     "plugins": [
       "expo-apple-authentication",

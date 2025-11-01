@@ -142,19 +142,23 @@ export default function Account() {
         profile.saved_events.length > 0
       ) {
         // Convert saved events array to Event objects
-        const events = profile.saved_events.map((savedEvent) => {
-          const eventId = Object.keys(savedEvent)[0];
-          const eventData = savedEvent[eventId] as any;
-          return {
-            id: eventId,
-            title: eventData.title || "",
-            poster_url: eventData.poster_url || "",
-            start_date: eventData.start_date || "",
-            end_date: eventData.end_date || "",
-            music_genres: eventData.music_genres || [],
-            club_id: eventData.club_id || "",
-          };
-        }) as types.Event[];
+        const events = profile.saved_events
+          .filter((savedEvent) => {
+            return new Date(savedEvent.end_date) > new Date();
+          })
+          .map((savedEvent) => {
+            const eventId = Object.keys(savedEvent)[0];
+            const eventData = savedEvent[eventId] as any;
+            return {
+              id: eventId,
+              title: eventData.title || "",
+              poster_url: eventData.poster_url || "",
+              start_date: eventData.start_date || "",
+              end_date: eventData.end_date || "",
+              music_genres: eventData.music_genres || [],
+              club_id: eventData.club_id || "",
+            };
+          }) as types.Event[];
         setSavedEvents(events);
       } else {
         setSavedEvents([]);
