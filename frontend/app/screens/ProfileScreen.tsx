@@ -28,6 +28,7 @@ import {
   fetchSingleEvent,
   fetchPendingFriendRequestsCount,
   fetchUserAttendingEvents,
+  fetchUserSavedEvents,
   storeUserPushToken,
   supabase,
 } from "../utils/supabaseService";
@@ -136,32 +137,164 @@ export default function Account() {
     try {
       if (!session?.user || !profile) return;
 
-      if (
-        profile.saved_events &&
-        Array.isArray(profile.saved_events) &&
-        profile.saved_events.length > 0
-      ) {
+      console.log("getSavedEvents: Raw saved_events:", profile.saved_events);
+      console.log("getSavedEvents: Type:", typeof profile.saved_events);
+      console.log(
+        "getSavedEvents: IsArray:",
+        Array.isArray(profile.saved_events)
+      );
+
+      let savedEventsArray: any[] = [];
+      let savedEventsData = profile.saved_events;
+
+      // If saved_events is undefined/null, fetch fresh saved events data with filtered events
+      if (!profile.saved_events) {
+        console.log(
+          "getSavedEvents: saved_events is null/undefined, fetching fresh saved events"
+        );
+        try {
+          const fetchedSavedEvents = await fetchUserSavedEvents(
+            session.user.id
+          );
+          savedEventsData = fetchedSavedEvents;
+          console.log(
+            "getSavedEvents: Fetched fresh saved events:",
+            savedEventsData
+          );
+        } catch (fetchError) {
+          console.error(
+            "getSavedEvents: Error fetching fresh saved events:",
+            fetchError
+          );
+          savedEventsData = null;
+        }
+      }
+
+      // Handle different data types: array, object, or null/undefined
+      if (!savedEventsData) {
+        // null or undefined
+        console.log("getSavedEvents: saved_events is null/undefined");
+        savedEventsArray = [];
+      } else if (Array.isArray(savedEventsData)) {
+        // Already an array
+        console.log(
+          "getSavedEvents: saved_events is an array with",
+          savedEventsData.length,
+          "items"
+        );
+        savedEventsArray = savedEventsData;
+      } else if (typeof savedEventsData === "object") {
+        // It's an object - convert to array format [{eventId: {...}}]
+        // If it's an empty object {}, try fetching from DB first
+        const keys = Object.keys(savedEventsData);
+        if (keys.length === 0) {
+          console.log(
+            "getSavedEvents: saved_events is empty object, fetching from DB"
+          );
+          try {
+            const { data, error } = await supabase
+              .from("profiles")
+              .select("saved_events")
+              .eq("id", session.user.id)
+              .single();
+
+            if (!error && data?.saved_events) {
+              console.log(
+                "getSavedEvents: Fetched from DB:",
+                data.saved_events,
+                "Type:",
+                typeof data.saved_events,
+                "IsArray:",
+                Array.isArray(data.saved_events)
+              );
+
+              // Use fetchUserSavedEvents to get filtered events
+              const fetchedSavedEvents = await fetchUserSavedEvents(
+                session.user.id
+              );
+
+              if (fetchedSavedEvents) {
+                savedEventsData = fetchedSavedEvents;
+                console.log(
+                  "getSavedEvents: Fetched filtered saved_events from fetchUserSavedEvents:",
+                  savedEventsData
+                );
+              } else {
+                savedEventsData = data.saved_events;
+              }
+
+              // Update profile with fetched data
+              profile.saved_events = savedEventsData;
+
+              // Process the fetched data
+              if (Array.isArray(savedEventsData)) {
+                savedEventsArray = savedEventsData;
+              } else if (
+                savedEventsData &&
+                typeof savedEventsData === "object" &&
+                Object.keys(savedEventsData).length > 0
+              ) {
+                // Convert object to array
+                savedEventsArray = Object.entries(savedEventsData).map(
+                  ([eventId, eventData]) => ({ [eventId]: eventData })
+                );
+              } else {
+                savedEventsArray = [];
+              }
+            } else {
+              console.log("getSavedEvents: No data from DB or error:", error);
+              savedEventsArray = [];
+            }
+          } catch (fetchError) {
+            console.error(
+              "getSavedEvents: Error fetching from DB:",
+              fetchError
+            );
+            savedEventsArray = [];
+          }
+        } else {
+          // Convert object to array format
+          // Expected format: {eventId1: {title, poster_url, ...}, eventId2: {...}}
+          // Convert to: [{eventId1: {...}}, {eventId2: {...}}]
+          savedEventsArray = Object.entries(savedEventsData).map(
+            ([eventId, eventData]) => {
+              // Each entry should be {eventId: eventData}
+              return { [eventId]: eventData };
+            }
+          );
+        }
+      }
+
+      if (savedEventsArray.length > 0) {
         // Convert saved events array to Event objects
-        const events = profile.saved_events
+        const events = savedEventsArray
           .filter((savedEvent) => {
-            return new Date(savedEvent.end_date) > new Date();
+            // Filter out invalid entries
+            if (!savedEvent || typeof savedEvent !== "object") {
+              return false;
+            }
+            const eventId = Object.keys(savedEvent)[0];
+            return !!eventId;
           })
           .map((savedEvent) => {
             const eventId = Object.keys(savedEvent)[0];
             const eventData = savedEvent[eventId] as any;
             return {
               id: eventId,
-              title: eventData.title || "",
-              poster_url: eventData.poster_url || "",
-              start_date: eventData.start_date || "",
-              end_date: eventData.end_date || "",
-              music_genres: eventData.music_genres || [],
-              club_id: eventData.club_id || "",
+              title: eventData?.title || "",
+              poster_url: eventData?.poster_url || "",
+              start_date: eventData?.start_date || "",
+              end_date: eventData?.end_date || "",
+              music_genres: eventData?.music_genres || [],
+              club_id: eventData?.club_id || "",
             };
           }) as types.Event[];
+
         setSavedEvents(events);
+        console.log("saved events", events);
       } else {
         setSavedEvents([]);
+        console.log("no saved events");
       }
     } catch (error) {
       console.error("Error fetching saved events:", error);
@@ -1724,10 +1857,12 @@ const styles = StyleSheet.create({
     backgroundColor: Constants.greyCOLOR,
     borderRadius: 16,
     overflow: "hidden",
+    alignItems: "stretch",
   },
   verticalEventImage: {
     width: 100,
-    height: 100,
+    alignSelf: "stretch",
+    resizeMode: "cover",
   },
   verticalEventContent: {
     flex: 1,

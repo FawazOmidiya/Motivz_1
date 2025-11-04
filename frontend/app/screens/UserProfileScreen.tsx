@@ -30,7 +30,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { fetchUserPosts } from "../utils/postService";
-import { Video } from "expo-av";
+import { Video, ResizeMode } from "expo-av";
 
 type UserProfileScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
@@ -279,7 +279,7 @@ export default function UserProfileScreen() {
                 <Video
                   source={{ uri: item.media_url }}
                   style={styles.gridImage}
-                  resizeMode="cover"
+                  resizeMode={ResizeMode.COVER}
                   isMuted
                   shouldPlay={false}
                 />
@@ -337,7 +337,7 @@ export default function UserProfileScreen() {
             <Video
               source={{ uri: selectedMedia.url }}
               style={{ width: "90%", aspectRatio: 9 / 16, borderRadius: 16 }}
-              resizeMode="contain"
+              resizeMode={ResizeMode.CONTAIN}
               shouldPlay
               useNativeControls
             />
@@ -583,14 +583,6 @@ const styles = StyleSheet.create({
     color: Constants.whiteCOLOR,
     fontSize: 18,
     opacity: 0.8,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 16,
-    color: Constants.whiteCOLOR,
-    paddingHorizontal: 20,
-    marginTop: 24,
   },
   favouritesList: {
     paddingBottom: 20,

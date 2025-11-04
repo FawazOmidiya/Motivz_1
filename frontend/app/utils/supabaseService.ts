@@ -478,6 +478,7 @@ export const searchUsersByName = async (
 export const fetchUserProfile = async (userId: string): Promise<any> => {
   /**
    * Fetches the profile for the given user ID.
+   * Filters out ended saved events from saved_events.
    *
    * @param userId - The ID of the user whose profile to fetch.
    * @returns A promise that resolves to the user's profile data.
@@ -494,7 +495,139 @@ export const fetchUserProfile = async (userId: string): Promise<any> => {
     throw new Error(error.message);
   }
 
+  // Filter out ended saved events
+  if (data && data.saved_events) {
+    const now = new Date();
+    let savedEventsArray: any[] = [];
+
+    // Handle different data types: array, object, or null/undefined
+    if (Array.isArray(data.saved_events)) {
+      savedEventsArray = data.saved_events;
+    } else if (
+      typeof data.saved_events === "object" &&
+      data.saved_events !== null
+    ) {
+      // Convert object to array format [{eventId: {...}}]
+      const keys = Object.keys(data.saved_events);
+      if (keys.length > 0) {
+        savedEventsArray = Object.entries(data.saved_events).map(
+          ([eventId, eventData]) => ({ [eventId]: eventData })
+        );
+      }
+    }
+
+    // Filter out events that have ended
+    const futureEvents = savedEventsArray.filter((savedEvent) => {
+      if (!savedEvent || typeof savedEvent !== "object") {
+        return false;
+      }
+
+      const eventId = Object.keys(savedEvent)[0];
+      if (!eventId) {
+        return false;
+      }
+
+      const eventData = savedEvent[eventId] as any;
+      const endDate = eventData?.end_date;
+
+      if (endDate) {
+        try {
+          const eventEndDate = new Date(endDate);
+          // Only include events that haven't ended yet
+          return eventEndDate > now;
+        } catch (error) {
+          // If we can't parse the date, include it (better to show than hide)
+          console.warn(`Error parsing end_date for event ${eventId}:`, error);
+          return true;
+        }
+      }
+
+      // If no end_date, include it
+      return true;
+    });
+
+    // Update the data with filtered saved_events
+    data.saved_events = futureEvents.length > 0 ? futureEvents : null;
+  }
+
   return data;
+};
+
+/**
+ * Fetches only the saved events for a user, filtered to exclude ended events.
+ *
+ * @param userId - The ID of the user whose saved events to fetch.
+ * @returns A promise that resolves to an array of saved events (filtered to only future events) or null.
+ * @throws An error if the query fails.
+ */
+export const fetchUserSavedEvents = async (
+  userId: string
+): Promise<any[] | null> => {
+  const { data, error, status } = await supabase
+    .from("profiles")
+    .select("saved_events")
+    .eq("id", userId)
+    .single();
+
+  if (error && status !== 406) {
+    throw new Error(error.message);
+  }
+
+  if (!data || !data.saved_events) {
+    return null;
+  }
+
+  // Filter out ended saved events
+  const now = new Date();
+  let savedEventsArray: any[] = [];
+
+  // Handle different data types: array, object, or null/undefined
+  if (Array.isArray(data.saved_events)) {
+    savedEventsArray = data.saved_events;
+  } else if (
+    typeof data.saved_events === "object" &&
+    data.saved_events !== null
+  ) {
+    // Convert object to array format [{eventId: {...}}]
+    const keys = Object.keys(data.saved_events);
+    if (keys.length > 0) {
+      savedEventsArray = Object.entries(data.saved_events).map(
+        ([eventId, eventData]) => ({ [eventId]: eventData })
+      );
+    }
+  }
+
+  // Filter out events that have ended
+  const futureEvents = savedEventsArray.filter((savedEvent) => {
+    if (!savedEvent || typeof savedEvent !== "object") {
+      return false;
+    }
+
+    const eventId = Object.keys(savedEvent)[0];
+    if (!eventId) {
+      return false;
+    }
+
+    const eventData = savedEvent[eventId] as any;
+    const endDate = eventData?.end_date;
+
+    if (endDate) {
+      try {
+        const eventEndDate = new Date(endDate);
+        // Only include events that haven't ended yet
+        return eventEndDate > now;
+      } catch (error) {
+        // If we can't parse the date, include it (better to show than hide)
+        console.warn(`Error parsing end_date for event ${eventId}:`, error);
+        return true;
+      }
+    }
+
+    // If no end_date, include it
+    return true;
+  });
+
+  return futureEvents.length > 0 ? futureEvents : null;
 };
 
 // Check if user profile exists and is complete

@@ -9,10 +9,10 @@ import {
   Image,
   Alert,
   StatusBar,
-  SafeAreaView,
   Platform,
   Modal,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -530,6 +530,7 @@ export default function EditProfileScreen({
                 if (selectedDate) {
                   setDateOfBirth(selectedDate);
                 }
+                setShowDatePicker(false);
               }}
               maximumDate={new Date()}
               minimumDate={new Date(1900, 0, 1)}

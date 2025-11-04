@@ -241,23 +241,26 @@ export default function SignUpScreen() {
                   </Text>
                   <View style={styles.divider} />
                 </View>
+                {Platform.OS === "ios" && (
+                  <>
+                    {/* Google Sign In Button */}
+                    <GoogleSignInButton
+                      onSuccess={(data) => {
+                        console.log("Google sign-in successful:", data);
+                        // Handle successful sign-in - navigate to main app
+                      }}
+                      onError={(error) => {
+                        console.error("Google sign-in error:", error);
+                        // Handle error if needed
+                      }}
+                    />
 
-                {/* Google Sign In Button */}
-                <GoogleSignInButton
-                  onSuccess={(data) => {
-                    console.log("Google sign-in successful:", data);
-                    // Handle successful sign-in - navigate to main app
-                  }}
-                  onError={(error) => {
-                    console.error("Google sign-in error:", error);
-                    // Handle error if needed
-                  }}
-                />
-
-                {/* Apple Sign In Button */}
-                <View style={styles.nativeAuthContainer}>
-                  <NativeAuth />
-                </View>
+                    {/* Apple Sign In Button */}
+                    <View style={styles.nativeAuthContainer}>
+                      <NativeAuth />
+                    </View>
+                  </>
+                )}
 
                 <View style={styles.signInContainer}>
                   <Text style={styles.signInText}>

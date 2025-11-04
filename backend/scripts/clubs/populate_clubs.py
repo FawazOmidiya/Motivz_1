@@ -301,7 +301,7 @@ def populate_club_google_reviews(club_id: str, reviews: list) -> dict:
 
 
 def main():
-    searchInput = "The Mod Club"
+    searchInput = "Greta Bar yyz"
 
     clubs = search_clubs(searchInput)
     print(f"Total clubs found: {len(clubs)}")

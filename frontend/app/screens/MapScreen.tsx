@@ -13,6 +13,7 @@ import {
   FlatList,
   Pressable,
   Linking,
+  Platform,
 } from "react-native";
 import MapView, {
   Marker,
@@ -247,6 +248,7 @@ export default function MapScreen() {
             <MapView
               ref={mapRef}
               style={styles.map}
+              provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
               region={
                 region ?? {
                   latitude: 43.6548,

@@ -4,33 +4,38 @@
     "slug": "frontend",
     "version": "1.6.0",
     "orientation": "portrait",
-    "icon": "./assets/images/appstore.png",
+    "icon": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
     "scheme": "motivz",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "5",
-      "icon": "./assets/images/appstore.png",
+      "buildNumber": "6",
+      "icon": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
         "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "entitlements": {
         "aps-environment": "production"
       },
-      "associatedDomains": ["applinks:42P3N5W766.motivz-frontend.expo.app"]
+      "associatedDomains": [
+        "applinks:42P3N5W766.motivz-frontend.expo.app"
+      ]
     },
     "android": {
+      "icon": "./assets/AppIcons/playstore.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/AppIcons (1)/playstore.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/AppIcons/playstore.png"
       },
-      "package": "com.fomidiya.frontend"
+      "package": "com.fomidiya.frontend",
+      "versionCode": 5
     },
     "web": {
       "bundler": "metro",
@@ -44,10 +49,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/AppIcons (1)/Assets.xcassets/AppIcon.appiconset/1024.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "image": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
+          "resizeMode": "cover"
         }
       ],
       "expo-secure-store",

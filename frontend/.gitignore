@@ -3,11 +3,15 @@
 # dependencies
 node_modules/
 
+# Lock files (we use yarn)
+package-lock.json
+
 # Expo
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+ServiceAccountMotivz.json
 
 # Native
 *.orig.*

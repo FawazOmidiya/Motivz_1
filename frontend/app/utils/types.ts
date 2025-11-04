@@ -85,6 +85,7 @@ export type RootStackParamList = {
   ClubDetail: { club: Club };
   EventDetail: { eventId: string; event?: Event; club?: Club };
   ProfileSettings: undefined;
+  EditProfile: undefined;
   UserProfile: { profile: UserProfile };
   FriendsList: { userId: string };
 };

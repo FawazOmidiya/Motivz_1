@@ -10,10 +10,10 @@ import {
   ScrollView,
   Image,
   StatusBar,
-  SafeAreaView,
   TextInput,
   Text,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -388,7 +388,7 @@ export default function ProfileCompletionScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <StatusBar
         barStyle="light-content"
         backgroundColor={Constants.blackCOLOR}
@@ -626,6 +626,7 @@ export default function ProfileCompletionScreen() {
                 if (selectedDate) {
                   setDateOfBirth(selectedDate);
                 }
+                setShowDatePicker(false);
               }}
               maximumDate={new Date()}
               minimumDate={new Date(1900, 0, 1)}

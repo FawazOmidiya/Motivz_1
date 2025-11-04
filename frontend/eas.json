@@ -11,6 +11,9 @@
         "resourceClass": "m-medium",
         "image": "latest"
       },
+      "android": {
+        "buildType": "apk"
+      },
       "channel": "development",
       "env": {
         "EXPO_PUSH_NOTIFICATIONS": "1"
@@ -36,6 +39,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./ServiceAccountMotivz.json",
+        "track": "internal"
+      }
+    }
   }
 }

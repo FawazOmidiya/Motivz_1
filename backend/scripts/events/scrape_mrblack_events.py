@@ -49,7 +49,7 @@ class MrBlackEventScraper:
         """
         try:
             # First, let's try to get all clubs and filter in Python
-            result = supabase.table('Clubs').select('id, Name, mr_black_id, music_schedule, mr_black_referrer_id').execute()
+            result = supabase.table('Clubs').not('mr_black_id', 'is', None).select('id, Name, mr_black_id, music_schedule, mr_black_referrer_id').execute()
             clubs = result.data or []
             
             # Filter clubs that have mr_black_id
@@ -74,8 +74,10 @@ class MrBlackEventScraper:
             }
             
             # Use the correct API endpoint with parameters
+            # Use today's date for dynamic fetching
+            today = datetime.now().strftime('%Y-%m-%d')
             params = {
-                'date': '2025-10-21',  # You can make this dynamic
+                'date': today,
                 'venueShortName': mr_black_id
             }
             

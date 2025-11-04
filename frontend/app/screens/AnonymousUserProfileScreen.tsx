@@ -10,8 +10,8 @@ import {
   TouchableOpacity,
   Modal,
   StatusBar,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { fetchUserFavourites } from "../utils/supabaseService";

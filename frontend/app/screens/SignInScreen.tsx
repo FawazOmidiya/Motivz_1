@@ -76,13 +76,11 @@ export default function SignInScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo Section */}
           <View style={styles.logoSection}>
             <Text style={styles.title}>Motivz</Text>
             <Text style={styles.subtitle}>Your Nightlife Companion</Text>
           </View>
 
-          {/* Form Section */}
           <View style={styles.formSection}>
             <View style={styles.inputGroup}>
               <View style={styles.inputContainer}>
@@ -163,22 +161,23 @@ export default function SignInScreen() {
                   <View style={styles.divider} />
                 </View>
 
-                {/* Google Sign In Button */}
-                <GoogleSignInButton
-                  onSuccess={(data) => {
-                    // console.log("Google sign-in successful:", data);
-                    // Handle successful sign-in - navigate to main app
-                  }}
-                  onError={(error) => {
-                    // console.error("Google sign-in error:", error);
-                    // Handle error if needed
-                  }}
-                />
-
-                {/* Native Sign In Button */}
-                <View style={styles.nativeAuthContainer}>
-                  <NativeAuth />
-                </View>
+                {Platform.OS === "ios" && (
+                  <>
+                    <GoogleSignInButton
+                      onSuccess={(data) => {
+                        // console.log("Google sign-in successful:", data);
+                        // Handle successful sign-in - navigate to main app
+                      }}
+                      onError={(error) => {
+                        // console.error("Google sign-in error:", error);
+                        // Handle error if needed
+                      }}
+                    />
+                    <View style={styles.nativeAuthContainer}>
+                      <NativeAuth />
+                    </View>
+                  </>
+                )}
 
                 <View style={styles.signUpContainer}>
                   <Text style={styles.signUpText}>Don't have an account? </Text>
@@ -218,6 +217,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: 300,
     zIndex: 1,
+    pointerEvents: "none", // Allow touches to pass through gradient
   },
   content: {
     flex: 1,
