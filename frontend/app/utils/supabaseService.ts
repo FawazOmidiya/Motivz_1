@@ -659,16 +659,19 @@ export async function sendFriendRequest(
   currentUserId: string,
   targetUserId: string
 ) {
-  const { data, error } = await supabase.from("friendships").insert([
-    {
-      requester_id: currentUserId,
-      receiver_id: targetUserId,
-      status: "pending",
-    },
-  ]);
+  const { data, error } = await supabase
+    .from("friendships")
+    .insert([
+      {
+        requester_id: currentUserId,
+        receiver_id: targetUserId,
+        status: "pending",
+      },
+    ])
+    .select(); // Explicitly request data to be returned
 
   // If friend request was sent successfully, send notification to the receiver
-  if (!error && data) {
+  if (!error && data && Array.isArray(data) && data.length > 0) {
     try {
       // Get the requester's name for the notification
       const { data: requesterProfile } = await supabase
@@ -681,7 +684,7 @@ export async function sendFriendRequest(
         ? `${requesterProfile.first_name} ${requesterProfile.last_name}`
         : "Someone";
 
-      // Send notification to the receiver
+      // Send notification to the receiver (only once)
       await sendNotificationToUser(
         targetUserId,
         "New Friend Request",
@@ -758,10 +761,11 @@ export async function acceptFriendRequest(
   const { data, error } = await supabase
     .from("friendships")
     .update({ status: "friends" })
-    .match({ requester_id: targetUserId, receiver_id: currentUserId });
+    .match({ requester_id: targetUserId, receiver_id: currentUserId })
+    .select(); // Explicitly request data to be returned
 
   // If friend request was accepted successfully, send notification to the requester
-  if (!error && data) {
+  if (!error && data && Array.isArray(data) && data.length > 0) {
     try {
       // Get the accepter's name for the notification
       const { data: accepterProfile } = await supabase
@@ -774,7 +778,7 @@ export async function acceptFriendRequest(
         ? `${accepterProfile.first_name} ${accepterProfile.last_name}`
         : "Someone";
 
-      // Send notification to the requester
+      // Send notification to the requester (only once)
       await sendNotificationToUser(
         targetUserId,
         "Friend Request Accepted",
@@ -1544,6 +1548,11 @@ export async function sendNotificationToUser(
   try {
     const pushToken = await getUserPushToken(userId);
 
+    if (!pushToken) {
+      console.warn("No push token found for user:", userId);
+      return false;
+    }
+
     const { data: result, error } = await supabase.functions.invoke(
       "send-push-notification",
       {
@@ -1566,7 +1575,6 @@ export async function sendNotificationToUser(
       return false;
     }
 
-    console.log(`Notification sent successfully to user ${userId}`);
     return true;
   } catch (error) {
     console.error("Error sending notification:", error);

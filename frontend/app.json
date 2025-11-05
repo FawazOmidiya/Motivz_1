@@ -2,7 +2,7 @@
   "expo": {
     "name": "Motivz",
     "slug": "frontend",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "orientation": "portrait",
     "icon": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
     "scheme": "motivz",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "6",
+      "buildNumber": "2",
       "icon": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
       "usesAppleSignIn": true,
       "infoPlist": {
