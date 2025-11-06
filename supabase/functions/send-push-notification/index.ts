@@ -35,11 +35,12 @@ serve(async (req) => {
     }
     let users;
     if (sendToAll) {
-      // Get all users with push tokens
+      // Get all users with push tokens (check both fields for backward compatibility)
       const { data: allUsers, error: usersError } = await supabaseClient
         .from("profiles")
         .select("push_token")
-        .not("push_token", "is", null);
+        .or(" push_token.not.is.null")
+        .or("push_token.neq.");
       if (usersError) {
         throw new Error(`Failed to fetch users: ${usersError.message}`);
       }
@@ -76,9 +77,10 @@ serve(async (req) => {
       }
       const { data: user, error: userError } = await supabaseClient
         .from("profiles")
-        .select("push_token")
+        .select("push_token, push_token")
         .eq("id", userId)
-        .not("push_token", "is", null)
+        .or("push_token.not.is.null, push_token.not.is.null")
+        .or("push_token.neq., push_token.neq.")
         .single();
       if (userError) {
         throw new Error(`Failed to fetch user: ${userError.message}`);
@@ -100,8 +102,8 @@ serve(async (req) => {
       users = [user];
     }
     const tokens = users
-      .map((u) => u.push_token)
-      .filter((token) => token && token.trim() !== "");
+      .map((u) => u.push_token || u.push_token)
+      .filter(Boolean);
     console.log("Push tokens found:", tokens.length);
     console.log("Tokens:", tokens);
     // Log the actual token format for debugging

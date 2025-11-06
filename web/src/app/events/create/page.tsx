@@ -30,6 +30,7 @@ import { CalendarIcon, ArrowLeft, Music, AlertTriangle } from "lucide-react";
 import { format, isAfter, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
+import { MUSIC_GENRES } from "@/Constants";
 // RecurringConfig interface
 interface RecurringConfig {
   active: boolean;
@@ -85,27 +86,6 @@ export default function CreateEventPage() {
     end_date: undefined,
     max_occurrences: 12,
   });
-
-  const MUSIC_GENRES = [
-    "HipHop",
-    "Pop",
-    "Soul",
-    "Rap",
-    "House",
-    "Latin",
-    "EDM",
-    "Jazz",
-    "Country",
-    "Blues",
-    "DanceHall",
-    "Afrobeats",
-    "Top 40",
-    "Amapiano",
-    "90's",
-    "2000's",
-    "2010's",
-    "R&B",
-  ];
 
   const checkEventHours = () => {
     if (!startDate || !endDate || !clubHours?.periods) {
