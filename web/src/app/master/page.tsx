@@ -581,7 +581,7 @@ export default function MasterDashboard() {
 
     try {
       let totalSent = 0;
-      let errors: string[] = [];
+      const errors: string[] = [];
 
       if (notificationType === "targeted") {
         // Send notification to each targeted user individually
