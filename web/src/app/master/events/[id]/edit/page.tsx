@@ -21,7 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { CreateEventData, Event } from "@/types/event";
 import DatePickerScreen from "@/components/DatePickerScreen";
 import { Badge } from "@/components/ui/badge";
-import { MUSIC_GENRES } from "@/lib/constants";
+import { MUSIC_GENRES } from "@/Constants";
 
 interface Club {
   id: string;
