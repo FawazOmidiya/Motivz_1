@@ -16,6 +16,7 @@ export interface Event {
   inserted_at: string;
   updated_at: string;
   recurring_config?: RecurringConfig;
+  trending?: boolean;
 }
 
 export interface Club {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -52,11 +52,16 @@ import {
   CheckCircle,
   Plus,
   Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Flame,
   // AlertCircle,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { Event } from "@/types/event";
+import { MUSIC_GENRES, CROWD_PREFERENCES, NIGHTLIFE_GOALS } from "@/Constants";
 // import { cn } from "@/lib/utils";
 
 interface Club {
@@ -105,6 +110,13 @@ export default function MasterDashboard() {
     GuestlistRequest[]
   >([]);
 
+  // Sorting state
+  const [sortBy, setSortBy] = useState<"date" | "club">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  // Search state
+  const [clubSearchQuery, setClubSearchQuery] = useState("");
+
   // Notification state
   // const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState("");
@@ -113,9 +125,9 @@ export default function MasterDashboard() {
   const [notificationResult, setNotificationResult] = useState<string | null>(
     null
   );
-  const [notificationType, setNotificationType] = useState<"all" | "specific">(
-    "all"
-  );
+  const [notificationType, setNotificationType] = useState<
+    "all" | "specific" | "targeted"
+  >("all");
   const [specificUserId, setSpecificUserId] = useState("");
   const [userSearchResults, setUserSearchResults] = useState<
     {
@@ -127,6 +139,17 @@ export default function MasterDashboard() {
     }[]
   >([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
+
+  // Targeted notification preferences
+  const [selectedMusicGenres, setSelectedMusicGenres] = useState<string[]>([]);
+  const [selectedCrowdPreferences, setSelectedCrowdPreferences] = useState<
+    string[]
+  >([]);
+  const [selectedNightlifeGoals, setSelectedNightlifeGoals] = useState<
+    string[]
+  >([]);
+  const [targetedUserIds, setTargetedUserIds] = useState<string[]>([]);
+  const [loadingTargetedUsers, setLoadingTargetedUsers] = useState(false);
   // const [selectedClub, setSelectedClub] = useState<string>("");
   // const [selectedEvent, setSelectedEvent] = useState<string>("");
 
@@ -247,6 +270,88 @@ export default function MasterDashboard() {
     }
   };
 
+  // Filter and sort events based on current settings
+  const getFilteredAndSortedEvents = (eventsList: Event[]) => {
+    // First, filter by club name if search query exists
+    let filtered = [...eventsList];
+
+    if (clubSearchQuery.trim()) {
+      filtered = filtered.filter((event) => {
+        const clubName =
+          (event as Event & { Clubs?: { Name: string } }).Clubs?.Name || "";
+        return clubName.toLowerCase().includes(clubSearchQuery.toLowerCase());
+      });
+    }
+
+    // Then sort the filtered results
+    filtered.sort((a, b) => {
+      let comparison = 0;
+
+      if (sortBy === "date") {
+        const dateA = new Date(a.start_date).getTime();
+        const dateB = new Date(b.start_date).getTime();
+        comparison = dateA - dateB;
+      } else if (sortBy === "club") {
+        const clubA =
+          (a as Event & { Clubs?: { Name: string } }).Clubs?.Name || "";
+        const clubB =
+          (b as Event & { Clubs?: { Name: string } }).Clubs?.Name || "";
+        comparison = clubA.localeCompare(clubB);
+      }
+
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return filtered;
+  };
+
+  // Handle sort column click
+  const handleSort = (column: "date" | "club") => {
+    if (sortBy === column) {
+      // Toggle sort order if clicking the same column
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      // Set new sort column and default to ascending
+      setSortBy(column);
+      setSortOrder("asc");
+    }
+  };
+
+  // Toggle trending status for an event
+  const toggleTrending = async (eventId: string, currentTrending: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ trending: !currentTrending })
+        .eq("id", eventId);
+
+      if (error) {
+        console.error("Error updating trending status:", error);
+        alert("Failed to update trending status");
+        return;
+      }
+
+      // Update local state
+      setCurrentEvents((prev) =>
+        prev.map((event) =>
+          event.id === eventId
+            ? { ...event, trending: !currentTrending }
+            : event
+        )
+      );
+      setEvents((prev) =>
+        prev.map((event) =>
+          event.id === eventId
+            ? { ...event, trending: !currentTrending }
+            : event
+        )
+      );
+    } catch (error) {
+      console.error("Error toggling trending:", error);
+      alert("Failed to update trending status");
+    }
+  };
+
   const fetchGuestlistRequests = async () => {
     try {
       const { data, error } = await supabase
@@ -338,6 +443,99 @@ export default function MasterDashboard() {
     }
   };
 
+  // Fetch and filter users based on selected preferences
+  const fetchTargetedUsers = useCallback(async () => {
+    if (
+      selectedMusicGenres.length === 0 &&
+      selectedCrowdPreferences.length === 0 &&
+      selectedNightlifeGoals.length === 0
+    ) {
+      setTargetedUserIds([]);
+      return;
+    }
+
+    setLoadingTargetedUsers(true);
+    try {
+      // Fetch all users with push tokens (notifications enabled) and their preferences
+      const { data: allUsers, error } = await supabase
+        .from("profiles")
+        .select(
+          "id, favorite_music, crowd_preferences, nightlife_goals, push_token"
+        )
+        .not("push_token", "is", null)
+        .neq("push_token", "Notification Permission not granted");
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!allUsers || allUsers.length === 0) {
+        setTargetedUserIds([]);
+        return;
+      }
+
+      // Filter users based on selected preferences
+      const filteredUsers = allUsers.filter((user) => {
+        // Check if user matches at least one preference
+        let matches = false;
+
+        // Check music genres
+        if (
+          selectedMusicGenres.length > 0 &&
+          user.favorite_music &&
+          Array.isArray(user.favorite_music)
+        ) {
+          const hasMatchingGenre = selectedMusicGenres.some((genre) =>
+            user.favorite_music.includes(genre)
+          );
+          if (hasMatchingGenre) matches = true;
+        }
+
+        // Check crowd preferences
+        if (
+          selectedCrowdPreferences.length > 0 &&
+          user.crowd_preferences &&
+          Array.isArray(user.crowd_preferences)
+        ) {
+          const hasMatchingCrowd = selectedCrowdPreferences.some((pref) =>
+            user.crowd_preferences.includes(pref)
+          );
+          if (hasMatchingCrowd) matches = true;
+        }
+
+        // Check nightlife goals
+        if (
+          selectedNightlifeGoals.length > 0 &&
+          user.nightlife_goals &&
+          Array.isArray(user.nightlife_goals)
+        ) {
+          const hasMatchingGoal = selectedNightlifeGoals.some((goal) =>
+            user.nightlife_goals.includes(goal)
+          );
+          if (hasMatchingGoal) matches = true;
+        }
+
+        return matches;
+      });
+
+      setTargetedUserIds(filteredUsers.map((user) => user.id));
+    } catch (error) {
+      console.error("Error fetching targeted users:", error);
+      setTargetedUserIds([]);
+    } finally {
+      setLoadingTargetedUsers(false);
+    }
+  }, [selectedMusicGenres, selectedCrowdPreferences, selectedNightlifeGoals]);
+
+  // Update targeted users when preferences change
+  useEffect(() => {
+    if (notificationType === "targeted") {
+      fetchTargetedUsers();
+    } else {
+      setTargetedUserIds([]);
+    }
+  }, [notificationType, fetchTargetedUsers]);
+
   const sendPushNotification = async () => {
     if (sendingNotification) {
       console.log("Notification already being sent, ignoring duplicate call");
@@ -354,6 +552,26 @@ export default function MasterDashboard() {
       return;
     }
 
+    if (notificationType === "targeted") {
+      if (
+        selectedMusicGenres.length === 0 &&
+        selectedCrowdPreferences.length === 0 &&
+        selectedNightlifeGoals.length === 0
+      ) {
+        setNotificationResult(
+          "Please select at least one preference for targeted notifications"
+        );
+        return;
+      }
+
+      if (targetedUserIds.length === 0) {
+        setNotificationResult(
+          "No users found matching the selected preferences"
+        );
+        return;
+      }
+    }
+
     console.log("Sending notification:", {
       title: notificationTitle,
       body: notificationBody,
@@ -362,35 +580,92 @@ export default function MasterDashboard() {
     setNotificationResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "send-push-notification",
-        {
-          body: {
-            title: notificationTitle,
-            body: notificationBody,
-            userId: notificationType === "specific" ? specificUserId : null,
-            sendToAll: notificationType === "all",
-          },
+      let totalSent = 0;
+      let errors: string[] = [];
+
+      if (notificationType === "targeted") {
+        // Send notification to each targeted user individually
+        for (const userId of targetedUserIds) {
+          try {
+            const { data, error } = await supabase.functions.invoke(
+              "send-push-notification",
+              {
+                body: {
+                  title: notificationTitle,
+                  body: notificationBody,
+                  userId: userId,
+                  sendToAll: false,
+                },
+              }
+            );
+
+            if (error) {
+              errors.push(`User ${userId}: ${error.message}`);
+            } else if (data?.error) {
+              errors.push(`User ${userId}: ${data.error}`);
+            } else {
+              totalSent += data?.totalSent || 1;
+            }
+          } catch (err) {
+            errors.push(
+              `User ${userId}: ${
+                err instanceof Error ? err.message : "Unknown error"
+              }`
+            );
+          }
         }
-      );
 
-      if (error) {
-        throw new Error(error.message || "Failed to send notification");
+        if (errors.length > 0) {
+          setNotificationResult(
+            `⚠️ Sent to ${totalSent} users, but ${
+              errors.length
+            } failed: ${errors.slice(0, 3).join(", ")}${
+              errors.length > 3 ? "..." : ""
+            }`
+          );
+        } else {
+          setNotificationResult(
+            `✅ Successfully sent notification to ${totalSent} targeted user${
+              totalSent !== 1 ? "s" : ""
+            }`
+          );
+        }
+      } else {
+        // Original behavior for "all" or "specific"
+        const { data, error } = await supabase.functions.invoke(
+          "send-push-notification",
+          {
+            body: {
+              title: notificationTitle,
+              body: notificationBody,
+              userId: notificationType === "specific" ? specificUserId : null,
+              sendToAll: notificationType === "all",
+            },
+          }
+        );
+
+        if (error) {
+          throw new Error(error.message || "Failed to send notification");
+        }
+
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+
+        setNotificationResult(
+          `✅ ${data?.message || "Notification sent successfully"}`
+        );
       }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      setNotificationResult(
-        `✅ ${data?.message || "Notification sent successfully"}`
-      );
 
       // Clear form
       setNotificationTitle("");
       setNotificationBody("");
       setSpecificUserId("");
       setUserSearchResults([]);
+      setSelectedMusicGenres([]);
+      setSelectedCrowdPreferences([]);
+      setSelectedNightlifeGoals([]);
+      setTargetedUserIds([]);
     } catch (error) {
       console.error("Error sending notification:", error);
       setNotificationResult(
@@ -756,12 +1031,43 @@ export default function MasterDashboard() {
               </Button>
             </div>
 
+            {/* Search by Club Name */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="club-search">Search by Club Name</Label>
+                    <Input
+                      id="club-search"
+                      placeholder="Type club name to filter events..."
+                      value={clubSearchQuery}
+                      onChange={(e) => setClubSearchQuery(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  {clubSearchQuery && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setClubSearchQuery("")}
+                      className="mt-6 sm:mt-0"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Current/Upcoming Events */}
             <Card>
               <CardHeader>
                 <CardTitle>Current & Upcoming Events</CardTitle>
                 <CardDescription>
-                  Active events across all clubs
+                  {clubSearchQuery
+                    ? `Showing ${
+                        getFilteredAndSortedEvents(currentEvents).length
+                      } of ${currentEvents.length} events`
+                    : `Active events across all clubs (${currentEvents.length} total)`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -772,73 +1078,148 @@ export default function MasterDashboard() {
                         <TableHead className="min-w-[150px]">
                           Event Title
                         </TableHead>
-                        <TableHead className="min-w-[120px]">Club</TableHead>
-                        <TableHead className="min-w-[100px]">Date</TableHead>
+                        <TableHead
+                          className="min-w-[120px] cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("club")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Club
+                            {sortBy === "club" ? (
+                              sortOrder === "asc" ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                            )}
+                          </div>
+                        </TableHead>
+                        <TableHead
+                          className="min-w-[100px] cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("date")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Date
+                            {sortBy === "date" ? (
+                              sortOrder === "asc" ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                            )}
+                          </div>
+                        </TableHead>
                         <TableHead className="min-w-[80px]">Type</TableHead>
                         <TableHead className="min-w-[120px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {currentEvents.map((event) => (
-                        <TableRow key={event.id}>
-                          <TableCell className="font-medium">
-                            {event.title}
-                          </TableCell>
-                          <TableCell>
-                            {
-                              (event as Event & { Clubs?: { Name: string } })
-                                .Clubs?.Name
-                            }
-                          </TableCell>
-                          <TableCell>
-                            {format(parseISO(event.start_date), "MMM dd, yyyy")}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-1">
-                              <Badge variant="outline">
-                                {event.guestlist_available
-                                  ? "Guestlist"
-                                  : "Tickets"}
-                              </Badge>
-                              {event.recurring_config && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Recurring
-                                </Badge>
+                      {getFilteredAndSortedEvents(currentEvents).map(
+                        (event) => (
+                          <TableRow key={event.id}>
+                            <TableCell className="font-medium">
+                              {event.title}
+                            </TableCell>
+                            <TableCell>
+                              {
+                                (event as Event & { Clubs?: { Name: string } })
+                                  .Clubs?.Name
+                              }
+                            </TableCell>
+                            <TableCell>
+                              {format(
+                                parseISO(event.start_date),
+                                "MMM dd, yyyy"
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  router.push(`/master/events/${event.id}/edit`)
-                                }
-                                className="text-xs"
-                              >
-                                <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                                <span className="hidden sm:inline">Edit</span>
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  router.push(
-                                    `/master/events/create?duplicate=${event.id}`
-                                  )
-                                }
-                                className="text-xs"
-                              >
-                                <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                                <span className="hidden sm:inline">
-                                  Duplicate
-                                </span>
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="outline">
+                                  {event.guestlist_available
+                                    ? "Guestlist"
+                                    : "Tickets"}
+                                </Badge>
+                                {event.recurring_config && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    Recurring
+                                  </Badge>
+                                )}
+                                {event.trending && (
+                                  <Badge
+                                    variant="default"
+                                    className="text-xs bg-orange-500"
+                                  >
+                                    <Flame className="h-3 w-3 mr-1" />
+                                    Trending
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    router.push(
+                                      `/master/events/${event.id}/edit`
+                                    )
+                                  }
+                                  className="text-xs"
+                                >
+                                  <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                  <span className="hidden sm:inline">Edit</span>
+                                </Button>
+                                <Button
+                                  variant={
+                                    event.trending ? "default" : "outline"
+                                  }
+                                  size="sm"
+                                  onClick={() =>
+                                    toggleTrending(
+                                      event.id,
+                                      event.trending || false
+                                    )
+                                  }
+                                  className={`text-xs ${
+                                    event.trending
+                                      ? "bg-orange-500 hover:bg-orange-600"
+                                      : ""
+                                  }`}
+                                >
+                                  <Flame className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                  <span className="hidden sm:inline">
+                                    {event.trending
+                                      ? "Trending"
+                                      : "Mark Trending"}
+                                  </span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    router.push(
+                                      `/master/events/create?duplicate=${event.id}`
+                                    )
+                                  }
+                                  className="text-xs"
+                                >
+                                  <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                  <span className="hidden sm:inline">
+                                    Duplicate
+                                  </span>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -850,7 +1231,11 @@ export default function MasterDashboard() {
               <CardHeader>
                 <CardTitle>Past Events</CardTitle>
                 <CardDescription>
-                  Completed events for reference
+                  {clubSearchQuery
+                    ? `Showing ${
+                        getFilteredAndSortedEvents(pastEvents).length
+                      } of ${pastEvents.length} events`
+                    : `Completed events for reference (${pastEvents.length} total)`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -861,14 +1246,46 @@ export default function MasterDashboard() {
                         <TableHead className="min-w-[150px]">
                           Event Title
                         </TableHead>
-                        <TableHead className="min-w-[120px]">Club</TableHead>
-                        <TableHead className="min-w-[100px]">Date</TableHead>
+                        <TableHead
+                          className="min-w-[120px] cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("club")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Club
+                            {sortBy === "club" ? (
+                              sortOrder === "asc" ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                            )}
+                          </div>
+                        </TableHead>
+                        <TableHead
+                          className="min-w-[100px] cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleSort("date")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Date
+                            {sortBy === "date" ? (
+                              sortOrder === "asc" ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                            )}
+                          </div>
+                        </TableHead>
                         <TableHead className="min-w-[80px]">Type</TableHead>
                         <TableHead className="min-w-[120px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pastEvents.map((event) => (
+                      {getFilteredAndSortedEvents(pastEvents).map((event) => (
                         <TableRow key={event.id} className="opacity-60">
                           <TableCell className="font-medium">
                             {event.title}
@@ -894,6 +1311,15 @@ export default function MasterDashboard() {
                                   Recurring
                                 </Badge>
                               )}
+                              {event.trending && (
+                                <Badge
+                                  variant="default"
+                                  className="text-xs bg-orange-500"
+                                >
+                                  <Flame className="h-3 w-3 mr-1" />
+                                  Trending
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -908,6 +1334,28 @@ export default function MasterDashboard() {
                               >
                                 <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                                 <span className="hidden sm:inline">Edit</span>
+                              </Button>
+                              <Button
+                                variant={event.trending ? "default" : "outline"}
+                                size="sm"
+                                onClick={() =>
+                                  toggleTrending(
+                                    event.id,
+                                    event.trending || false
+                                  )
+                                }
+                                className={`text-xs ${
+                                  event.trending
+                                    ? "bg-orange-500 hover:bg-orange-600"
+                                    : ""
+                                }`}
+                              >
+                                <Flame className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span className="hidden sm:inline">
+                                  {event.trending
+                                    ? "Trending"
+                                    : "Mark Trending"}
+                                </span>
                               </Button>
                               <Button
                                 variant="outline"
@@ -1387,7 +1835,7 @@ export default function MasterDashboard() {
                 {/* Notification Type Selection */}
                 <div className="space-y-2">
                   <Label>Recipients</Label>
-                  <div className="flex gap-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     <label className="flex items-center space-x-2">
                       <input
                         type="radio"
@@ -1396,7 +1844,7 @@ export default function MasterDashboard() {
                         checked={notificationType === "all"}
                         onChange={(e) =>
                           setNotificationType(
-                            e.target.value as "all" | "specific"
+                            e.target.value as "all" | "specific" | "targeted"
                           )
                         }
                         className="rounded"
@@ -1411,12 +1859,27 @@ export default function MasterDashboard() {
                         checked={notificationType === "specific"}
                         onChange={(e) =>
                           setNotificationType(
-                            e.target.value as "all" | "specific"
+                            e.target.value as "all" | "specific" | "targeted"
                           )
                         }
                         className="rounded"
                       />
                       <span>Specific User</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="notificationType"
+                        value="targeted"
+                        checked={notificationType === "targeted"}
+                        onChange={(e) =>
+                          setNotificationType(
+                            e.target.value as "all" | "specific" | "targeted"
+                          )
+                        }
+                        className="rounded"
+                      />
+                      <span>Targeted by Preferences</span>
                     </label>
                   </div>
                 </div>
@@ -1483,6 +1946,148 @@ export default function MasterDashboard() {
                   </div>
                 )}
 
+                {/* Targeted Preferences Selection */}
+                {notificationType === "targeted" && (
+                  <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                    <div>
+                      <Label>Music Genres</Label>
+                      <p className="text-sm text-gray-500 mb-2">
+                        Select genres to target users who have these in their
+                        preferences
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {MUSIC_GENRES.map((genre) => (
+                          <label
+                            key={genre}
+                            className="flex items-center space-x-1 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedMusicGenres.includes(genre)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedMusicGenres([
+                                    ...selectedMusicGenres,
+                                    genre,
+                                  ]);
+                                } else {
+                                  setSelectedMusicGenres(
+                                    selectedMusicGenres.filter(
+                                      (g) => g !== genre
+                                    )
+                                  );
+                                }
+                              }}
+                              className="rounded"
+                            />
+                            <span className="text-sm">{genre}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Crowd Preferences</Label>
+                      <p className="text-sm text-gray-500 mb-2">
+                        Select crowd preferences to target matching users
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {CROWD_PREFERENCES.map((pref) => (
+                          <label
+                            key={pref}
+                            className="flex items-center space-x-1 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedCrowdPreferences.includes(pref)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedCrowdPreferences([
+                                    ...selectedCrowdPreferences,
+                                    pref,
+                                  ]);
+                                } else {
+                                  setSelectedCrowdPreferences(
+                                    selectedCrowdPreferences.filter(
+                                      (p) => p !== pref
+                                    )
+                                  );
+                                }
+                              }}
+                              className="rounded"
+                            />
+                            <span className="text-sm">{pref}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Nightlife Goals</Label>
+                      <p className="text-sm text-gray-500 mb-2">
+                        Select goals to target users with matching preferences
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {NIGHTLIFE_GOALS.map((goal) => (
+                          <label
+                            key={goal}
+                            className="flex items-center space-x-1 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedNightlifeGoals.includes(goal)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedNightlifeGoals([
+                                    ...selectedNightlifeGoals,
+                                    goal,
+                                  ]);
+                                } else {
+                                  setSelectedNightlifeGoals(
+                                    selectedNightlifeGoals.filter(
+                                      (g) => g !== goal
+                                    )
+                                  );
+                                }
+                              }}
+                              className="rounded"
+                            />
+                            <span className="text-sm">{goal}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {loadingTargetedUsers && (
+                      <div className="p-2 bg-gray-50 border border-gray-200 rounded-md">
+                        <p className="text-sm text-gray-600">
+                          🔍 Finding matching users...
+                        </p>
+                      </div>
+                    )}
+                    {!loadingTargetedUsers && targetedUserIds.length > 0 && (
+                      <div className="p-2 bg-green-50 border border-green-200 rounded-md">
+                        <p className="text-sm text-green-800">
+                          ✅ Found {targetedUserIds.length} user
+                          {targetedUserIds.length !== 1 ? "s" : ""} matching
+                          your preferences
+                        </p>
+                      </div>
+                    )}
+                    {!loadingTargetedUsers &&
+                      targetedUserIds.length === 0 &&
+                      (selectedMusicGenres.length > 0 ||
+                        selectedCrowdPreferences.length > 0 ||
+                        selectedNightlifeGoals.length > 0) && (
+                        <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                          <p className="text-sm text-yellow-800">
+                            ⚠️ No users found matching the selected preferences
+                          </p>
+                        </div>
+                      )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="notification-title">Title</Label>
                   <Input
@@ -1512,7 +2117,9 @@ export default function MasterDashboard() {
                       sendingNotification ||
                       !notificationTitle.trim() ||
                       !notificationBody.trim() ||
-                      (notificationType === "specific" && !specificUserId)
+                      (notificationType === "specific" && !specificUserId) ||
+                      (notificationType === "targeted" &&
+                        (targetedUserIds.length === 0 || loadingTargetedUsers))
                     }
                     className="w-full sm:w-auto"
                   >
@@ -1525,6 +2132,9 @@ export default function MasterDashboard() {
                       setNotificationBody("");
                       setSpecificUserId("");
                       setUserSearchResults([]);
+                      setSelectedMusicGenres([]);
+                      setSelectedCrowdPreferences([]);
+                      setSelectedNightlifeGoals([]);
                       setNotificationResult(null);
                     }}
                     className="w-full sm:w-auto"
