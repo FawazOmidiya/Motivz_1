@@ -226,7 +226,7 @@ export default function FriendsList() {
       ) : (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Friend Requests Section */}
-          {pendingRequests.length > 0 && (
+          {pendingRequests.length > 0 && session?.user?.id === userId && (
             <View style={styles.section}>
               {renderSectionHeader("Friend Requests", pendingRequests.length)}
               <FlatList
