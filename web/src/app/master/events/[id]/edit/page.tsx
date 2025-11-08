@@ -3,12 +3,20 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, X, Calendar } from "lucide-react";
+import { ArrowLeft, Save, X, Calendar, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -38,6 +46,8 @@ export default function EditEventPage() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [eventFormData, setEventFormData] = useState<CreateEventData>({
@@ -222,6 +232,29 @@ export default function EditEventPage() {
     }
   };
 
+  const handleDeleteEvent = async () => {
+    if (!event) return;
+
+    try {
+      setDeleting(true);
+      const { error } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", eventId);
+
+      if (error) throw error;
+
+      alert("Event deleted successfully!");
+      router.push("/master");
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      alert("Error deleting event");
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (initialLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -273,6 +306,14 @@ export default function EditEventPage() {
               </h1>
             </div>
             <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
               <Button variant="outline" onClick={resetForm}>
                 <X className="h-4 w-4 mr-2" />
                 Reset
@@ -525,6 +566,37 @@ export default function EditEventPage() {
           title="Select End Date"
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Event</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{event?.title}&quot;? This
+              action cannot be undone and will permanently remove the event from
+              the system.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteEvent}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? "Deleting..." : "Delete Event"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
