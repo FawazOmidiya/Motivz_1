@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Image from "next/image";
 import { extractEventIdFromSlug } from "@/lib/eventSlug";
+import { getAbsoluteImageUrl } from "@/lib/imageUrl";
 
 // Replace with your actual domain
 const MOTIVZ_DOMAIN = "themotivz.com";
@@ -24,9 +25,13 @@ interface Event {
 
 async function getEventBySlug(slug: string): Promise<Event | null> {
   try {
-    // Slug format: {id}-{title-slug}
+    // Slug format: {id}-{title-slug} (where id can be a UUID)
     // Extract ID from slug if possible
     const eventId = extractEventIdFromSlug(slug);
+
+    console.log(
+      `Looking up event with slug: ${slug}, extracted ID: ${eventId}`
+    );
 
     // Try multiple strategies in order:
     // 1. Exact slug match (preferred)
@@ -39,6 +44,7 @@ async function getEventBySlug(slug: string): Promise<Event | null> {
       .single();
 
     if (!slugError && slugData) {
+      console.log(`Found event by exact slug match: ${slugData.id}`);
       return slugData;
     }
 
@@ -53,7 +59,10 @@ async function getEventBySlug(slug: string): Promise<Event | null> {
         .single();
 
       if (!idError && idData) {
+        console.log(`Found event by ID match: ${idData.id}`);
         return idData;
+      } else {
+        console.log(`No event found with ID: ${eventId}, error:`, idError);
       }
     }
 
@@ -67,9 +76,11 @@ async function getEventBySlug(slug: string): Promise<Event | null> {
       .single();
 
     if (!fallbackError && fallbackData) {
+      console.log(`Found event by slug-as-ID fallback: ${fallbackData.id}`);
       return fallbackData;
     }
 
+    console.log(`No event found for slug: ${slug}`);
     return null;
   } catch (error) {
     console.error("Error fetching event:", error);
@@ -92,13 +103,19 @@ export async function generateMetadata({
   }
 
   const canonicalUrl = `https://${MOTIVZ_DOMAIN}/e/${slug}`;
+
   // Use image_url or poster_url, ensure it's absolute
   const imageUrl = event.image_url || event.poster_url || "";
-  const absoluteImageUrl = imageUrl
-    ? imageUrl.startsWith("http")
-      ? imageUrl
-      : `https://${MOTIVZ_DOMAIN}${imageUrl}`
-    : "";
+  const absoluteImageUrl = getAbsoluteImageUrl(imageUrl, MOTIVZ_DOMAIN);
+
+  // Debug logging (remove in production if needed)
+  if (!absoluteImageUrl) {
+    console.warn(
+      `No image URL found for event ${event.id}. image_url: ${event.image_url}, poster_url: ${event.poster_url}`
+    );
+  } else {
+    console.log(`OG Image URL for event ${event.id}: ${absoluteImageUrl}`);
+  }
 
   return {
     title: event.title,
@@ -146,6 +163,7 @@ export default async function EventPage({
 
   const imageUrl = event.image_url || event.poster_url;
   const deepLinkUrl = `motivz://e/${slug}`;
+  const absoluteImageUrl = getAbsoluteImageUrl(imageUrl, MOTIVZ_DOMAIN);
 
   return (
     <div
@@ -171,10 +189,10 @@ export default async function EventPage({
           textAlign: "center",
         }}
       >
-        {imageUrl && (
+        {absoluteImageUrl && (
           <div style={{ marginBottom: "24px" }}>
             <Image
-              src={imageUrl}
+              src={absoluteImageUrl}
               alt={event.title}
               width={600}
               height={400}
