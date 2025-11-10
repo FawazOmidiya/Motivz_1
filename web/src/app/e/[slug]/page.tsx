@@ -1,0 +1,249 @@
+import { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import Image from "next/image";
+import { extractEventIdFromSlug } from "@/lib/eventSlug";
+
+// Replace with your actual domain
+const MOTIVZ_DOMAIN = "themotivz.com";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+interface Event {
+  id: string;
+  slug: string;
+  title: string;
+  caption?: string;
+  image_url?: string;
+  poster_url?: string;
+  starts_at?: string;
+  start_date?: string;
+}
+
+async function getEventBySlug(slug: string): Promise<Event | null> {
+  try {
+    // Slug format: {id}-{title-slug}
+    // Extract ID from slug if possible
+    const eventId = extractEventIdFromSlug(slug);
+
+    // Try multiple strategies in order:
+    // 1. Exact slug match (preferred)
+    const { data: slugData, error: slugError } = await supabase
+      .from("events")
+      .select(
+        "id, slug, title, caption, image_url, poster_url, starts_at, start_date"
+      )
+      .eq("slug", slug)
+      .single();
+
+    if (!slugError && slugData) {
+      return slugData;
+    }
+
+    // 2. ID match (if we extracted an ID from slug)
+    if (eventId) {
+      const { data: idData, error: idError } = await supabase
+        .from("events")
+        .select(
+          "id, slug, title, caption, image_url, poster_url, starts_at, start_date"
+        )
+        .eq("id", eventId)
+        .single();
+
+      if (!idError && idData) {
+        return idData;
+      }
+    }
+
+    // 3. Fallback: treat slug as ID (for backward compatibility)
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from("events")
+      .select(
+        "id, slug, title, caption, image_url, poster_url, starts_at, start_date"
+      )
+      .eq("id", slug)
+      .single();
+
+    if (!fallbackError && fallbackData) {
+      return fallbackData;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching event:", error);
+    return null;
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const event = await getEventBySlug(params.slug);
+
+  if (!event) {
+    return {
+      title: "Event Not Found",
+    };
+  }
+
+  const canonicalUrl = `https://${MOTIVZ_DOMAIN}/e/${params.slug}`;
+  // Use image_url or poster_url, ensure it's absolute
+  const imageUrl = event.image_url || event.poster_url || "";
+  const absoluteImageUrl = imageUrl
+    ? imageUrl.startsWith("http")
+      ? imageUrl
+      : `https://${MOTIVZ_DOMAIN}${imageUrl}`
+    : "";
+
+  return {
+    title: event.title,
+    description: event.caption || "See this event on Motivz",
+    openGraph: {
+      title: event.title,
+      description: event.caption || "See this event on Motivz",
+      url: canonicalUrl,
+      siteName: "Motivz",
+      images: absoluteImageUrl
+        ? [
+            {
+              url: absoluteImageUrl,
+              width: 1200,
+              height: 630,
+              alt: event.title,
+            },
+          ]
+        : [],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: event.title,
+      description: event.caption || "See this event on Motivz",
+      images: absoluteImageUrl ? [absoluteImageUrl] : [],
+    },
+    alternates: {
+      canonical: canonicalUrl,
+    },
+  };
+}
+
+export default async function EventPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const event = await getEventBySlug(params.slug);
+
+  if (!event) {
+    notFound();
+  }
+
+  const imageUrl = event.image_url || event.poster_url;
+  const deepLinkUrl = `motivz://e/${params.slug}`;
+
+  return (
+    <div
+      style={{
+        margin: 0,
+        padding: 0,
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        backgroundColor: "#000",
+        color: "#fff",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "600px",
+          width: "100%",
+          padding: "20px",
+          textAlign: "center",
+        }}
+      >
+        {imageUrl && (
+          <div style={{ marginBottom: "24px" }}>
+            <Image
+              src={imageUrl}
+              alt={event.title}
+              width={600}
+              height={400}
+              style={{
+                width: "100%",
+                height: "auto",
+                borderRadius: "12px",
+                objectFit: "cover",
+              }}
+              unoptimized
+            />
+          </div>
+        )}
+
+        <h1
+          style={{
+            fontSize: "32px",
+            fontWeight: "bold",
+            marginBottom: "16px",
+            color: "#fff",
+          }}
+        >
+          {event.title}
+        </h1>
+
+        {event.caption && (
+          <p
+            style={{
+              fontSize: "18px",
+              lineHeight: "1.6",
+              marginBottom: "32px",
+              color: "rgba(255, 255, 255, 0.8)",
+            }}
+          >
+            {event.caption}
+          </p>
+        )}
+
+        <a
+          href={deepLinkUrl}
+          style={{
+            display: "inline-block",
+            backgroundColor: "#8B5CF6",
+            color: "#fff",
+            padding: "16px 32px",
+            borderRadius: "12px",
+            textDecoration: "none",
+            fontSize: "18px",
+            fontWeight: "600",
+            transition: "background-color 0.2s",
+          }}
+        >
+          Open in Motivz
+        </a>
+
+        <p
+          style={{
+            marginTop: "24px",
+            fontSize: "14px",
+            color: "rgba(255, 255, 255, 0.5)",
+          }}
+        >
+          Don't have the app?{" "}
+          <a
+            href="https://apps.apple.com/app/motivz"
+            style={{ color: "#8B5CF6", textDecoration: "underline" }}
+          >
+            Download Motivz
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "42P3N5W766.com.fomidiya.frontend"
+        ],
+        "components": [
+          {
+            "/": "/e/*"
+          }
+        ]
+      }
+    ]
+  }
+}
