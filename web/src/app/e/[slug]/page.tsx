@@ -235,7 +235,7 @@ export default async function EventPage({
             color: "rgba(255, 255, 255, 0.5)",
           }}
         >
-          Don't have the app?{" "}
+          Don&apos;t have the app?{" "}
           <a
             href="https://apps.apple.com/app/motivz"
             style={{ color: "#8B5CF6", textDecoration: "underline" }}
