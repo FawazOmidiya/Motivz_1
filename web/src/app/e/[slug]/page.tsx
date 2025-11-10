@@ -80,9 +80,10 @@ async function getEventBySlug(slug: string): Promise<Event | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const event = await getEventBySlug(params.slug);
+  const { slug } = await params;
+  const event = await getEventBySlug(slug);
 
   if (!event) {
     return {
@@ -90,7 +91,7 @@ export async function generateMetadata({
     };
   }
 
-  const canonicalUrl = `https://${MOTIVZ_DOMAIN}/e/${params.slug}`;
+  const canonicalUrl = `https://${MOTIVZ_DOMAIN}/e/${slug}`;
   // Use image_url or poster_url, ensure it's absolute
   const imageUrl = event.image_url || event.poster_url || "";
   const absoluteImageUrl = imageUrl
@@ -134,16 +135,17 @@ export async function generateMetadata({
 export default async function EventPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const event = await getEventBySlug(params.slug);
+  const { slug } = await params;
+  const event = await getEventBySlug(slug);
 
   if (!event) {
     notFound();
   }
 
   const imageUrl = event.image_url || event.poster_url;
-  const deepLinkUrl = `motivz://e/${params.slug}`;
+  const deepLinkUrl = `motivz://e/${slug}`;
 
   return (
     <div
