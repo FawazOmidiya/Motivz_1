@@ -42,6 +42,7 @@ async function getEventBySlug(slug: string): Promise<Event | null> {
       return null;
     }
 
+
     // Slug format: {id}-{title-slug} (where id can be a UUID)
     // Extract ID from slug if possible
     const eventId = extractEventIdFromSlug(slug);
