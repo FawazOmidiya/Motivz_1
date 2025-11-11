@@ -7,10 +7,22 @@ import { getAbsoluteImageUrl } from "@/lib/imageUrl";
 
 // Replace with your actual domain
 const MOTIVZ_DOMAIN = "themotivz.com";
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error(
+    "[EventPage] Missing Supabase environment variables. SUPABASE_URL:",
+    !!SUPABASE_URL,
+    "SUPABASE_ANON_KEY:",
+    !!SUPABASE_ANON_KEY
+  );
+}
+
+const supabase =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 
 interface Event {
   id: string;
@@ -25,12 +37,18 @@ interface Event {
 
 async function getEventBySlug(slug: string): Promise<Event | null> {
   try {
+    if (!supabase) {
+      console.error("[getEventBySlug] Supabase client not initialized");
+      return null;
+    }
+
+
     // Slug format: {id}-{title-slug} (where id can be a UUID)
     // Extract ID from slug if possible
     const eventId = extractEventIdFromSlug(slug);
 
     console.log(
-      `Looking up event with slug: ${slug}, extracted ID: ${eventId}`
+      `[getEventBySlug] Looking up event with slug: ${slug}, extracted ID: ${eventId}`
     );
 
     // Try multiple strategies in order:
@@ -155,11 +173,18 @@ export default async function EventPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+
+  // Debug: Log the slug being requested
+  console.log(`[EventPage] Requested slug: ${slug}`);
+
   const event = await getEventBySlug(slug);
 
   if (!event) {
+    console.error(`[EventPage] Event not found for slug: ${slug}`);
     notFound();
   }
+
+  console.log(`[EventPage] Found event: ${event.id}, title: ${event.title}`);
 
   const imageUrl = event.image_url || event.poster_url;
   const deepLinkUrl = `motivz://e/${slug}`;
@@ -183,25 +208,28 @@ export default async function EventPage({
     >
       <div
         style={{
-          maxWidth: "600px",
+          maxWidth: "800px",
           width: "100%",
           padding: "20px",
           textAlign: "center",
         }}
       >
         {absoluteImageUrl && (
-          <div style={{ marginBottom: "24px" }}>
+          <div style={{ marginBottom: "32px" }}>
             <Image
               src={absoluteImageUrl}
               alt={event.title}
-              width={600}
-              height={400}
+              width={800}
+              height={600}
               style={{
                 width: "100%",
+                maxWidth: "800px",
                 height: "auto",
-                borderRadius: "12px",
+                borderRadius: "16px",
                 objectFit: "cover",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
               }}
+              priority
               unoptimized
             />
           </div>
