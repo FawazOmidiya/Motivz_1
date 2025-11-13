@@ -59,15 +59,39 @@ export const SessionProvider = ({
 
       // Then fetch the updated profile
       const profileData = await fetchUserProfile(userId);
-      setProfile(profileData);
+
+      // If profile doesn't exist, create a default profile object with is_complete: false
+      // This allows the redirect logic to work properly and distinguishes between
+      // "loading" (null) and "doesn't exist" (default object)
+      if (!profileData) {
+        setProfile({
+          id: userId,
+          is_complete: false,
+        } as types.UserProfile);
+      } else {
+        setProfile(profileData);
+      }
     } catch (error) {
       console.error("Error fetching profile or checking attendance:", error);
       // Fallback to just fetching profile if attendance check fails
       try {
         const profileData = await fetchUserProfile(userId);
-        setProfile(profileData);
+        if (!profileData) {
+          // Profile doesn't exist - set default
+          setProfile({
+            id: userId,
+            is_complete: false,
+          } as types.UserProfile);
+        } else {
+          setProfile(profileData);
+        }
       } catch (fallbackError) {
         console.error("Error fetching profile:", fallbackError);
+        // On error, set default profile so navigation works
+        setProfile({
+          id: userId,
+          is_complete: false,
+        } as types.UserProfile);
       }
     }
   };

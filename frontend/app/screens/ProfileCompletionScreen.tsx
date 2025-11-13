@@ -263,7 +263,18 @@ export default function ProfileCompletionScreen() {
     try {
       let userId: string;
 
-      if (googleUserData && googleTokens) {
+      // FIRST: Check if user is already authenticated (most common case for OAuth)
+      // This handles Apple/Google users who signed in and were redirected to profile completion
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (currentUser) {
+        // User is already authenticated - use their ID
+        // This is the normal flow for Apple/Google sign-in users
+        userId = currentUser.id;
+      } else if (googleUserData && googleTokens) {
+        // Fallback: Google sign-in with tokens (if passed as params)
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: "google",
           token: googleTokens.idToken,
@@ -273,15 +284,19 @@ export default function ProfileCompletionScreen() {
         if (!data.user) throw new Error("Failed to authenticate with Google");
 
         userId = data.user.id;
-      } else if (googleUserData || appleUserData) {
-        // For both Google and Apple users, get the current authenticated user
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) throw new Error("No authenticated user found");
-        userId = user.id;
+      } else if (appleUserData && appleTokens) {
+        // Fallback: Apple sign-in with tokens (if passed as params)
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "apple",
+          token: appleTokens.identityToken,
+        });
+
+        if (error) throw error;
+        if (!data.user) throw new Error("Failed to authenticate with Apple");
+
+        userId = data.user.id;
       } else {
-        // Regular sign-up flow (email/password)
+        // Last resort: Regular email/password sign-up
         const { data: authData, error: authError } = await supabase.auth.signUp(
           {
             email: signUpInfo.email,

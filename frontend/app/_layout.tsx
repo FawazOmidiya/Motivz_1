@@ -45,24 +45,12 @@ function AppContent() {
     }
   }, [session?.user?.id, router]);
 
-  // Redirect to profile completion if session exists but profile is incomplete
-  React.useEffect(() => {
-    if (session?.user && profile !== null) {
-      // Profile has been loaded (null means still loading, object means loaded)
-      if (profile.is_complete === false) {
-        // Profile exists but is incomplete - redirect to profile completion
-        router.replace("/auth/profile-completion");
-      }
-    }
-  }, [session?.user?.id, profile, router]);
-
-  // Determine which stack to show
-  // Show authenticated stack if session exists (regardless of profile completion)
-  // Profile completion routing will be handled within the authenticated stack
+  // Determine which stack to show based on session and profile completion status
   const hasActiveSession = !!session?.user;
-  const showAuthenticatedStack = hasActiveSession;
+  const profileIsComplete = profile?.is_complete === true;
+  const profileIsIncomplete = profile?.is_complete === false;
 
-  // Show loading while profile is being fetched (prevents authenticated stack from showing)
+  // Show loading while profile is being fetched (prevents any stack from showing)
   if (hasActiveSession && profile === null) {
     return (
       <SafeAreaProvider>
@@ -77,75 +65,88 @@ function AppContent() {
     );
   }
 
+  // Show profile completion stack if profile is incomplete
+  // This prevents the authenticated stack from rendering and avoids nested navigation
+  if (hasActiveSession && profileIsIncomplete) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={Constants.backgroundCOLOR}
+        />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen
+            name="auth/profile-completion"
+            options={{ headerShown: false }}
+          />
+        </Stack>
+      </SafeAreaView>
+    );
+  }
+
+  // Show authenticated stack only if profile is complete
+  if (hasActiveSession && profileIsComplete) {
+    return (
+      <TutorialProvider>
+        <TutorialWrapper>
+          <TutorialTrigger>
+            <SafeAreaView style={styles.safeArea}>
+              <StatusBar
+                barStyle="light-content"
+                backgroundColor={Constants.backgroundCOLOR}
+              />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="club/[id]"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="event/[id]"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="e/[slug]"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="user/[id]"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="guestlist/[id]"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen name="friends" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="profile/edit"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="profile/settings"
+                  options={{ headerShown: false }}
+                />
+              </Stack>
+            </SafeAreaView>
+          </TutorialTrigger>
+        </TutorialWrapper>
+      </TutorialProvider>
+    );
+  }
+
+  // Show unauthenticated stack
   return (
-    <>
-      {showAuthenticatedStack ? (
-        <TutorialProvider>
-          <TutorialWrapper>
-            <TutorialTrigger>
-              <SafeAreaView style={styles.safeArea}>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="club/[id]"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="event/[id]"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="e/[slug]"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="user/[id]"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="guestlist/[id]"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="friends"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="profile/edit"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="profile/settings"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="auth/profile-completion"
-                    options={{ headerShown: false }}
-                  />
-                </Stack>
-              </SafeAreaView>
-            </TutorialTrigger>
-          </TutorialWrapper>
-        </TutorialProvider>
-      ) : (
-        <SafeAreaView style={styles.safeArea}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="auth/sign-in"
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="auth/sign-up"
-              options={{ headerShown: false }}
-            />
-          </Stack>
-        </SafeAreaView>
-      )}
-    </>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={Constants.backgroundCOLOR}
+      />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/sign-in" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/sign-up" options={{ headerShown: false }} />
+      </Stack>
+    </SafeAreaView>
   );
 }
 
