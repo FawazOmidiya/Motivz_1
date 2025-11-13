@@ -32,6 +32,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Constants from "@/constants/Constants";
 import * as types from "@/app/utils/types";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 
 type LocationCoords = {
   latitude: number;
@@ -276,7 +277,7 @@ export default function MapScreen() {
                     <Text style={styles.markerText}>{club.Name}</Text>
                   </View>
                   <Callout
-                    onPress={() => navigation.navigate("ClubDetail", { club })}
+                    onPress={() => router.push(`/(tabs)/map/club/${club.id}`)}
                     style={styles.callout}
                   >
                     <View style={styles.calloutContainer}>

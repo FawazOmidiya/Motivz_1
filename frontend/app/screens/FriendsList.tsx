@@ -19,19 +19,9 @@ import {
 } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import BackButton from "@/components/BackButton";
-import { RootStackParamList } from "../navigation/Navigation";
-
-type FriendsListNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "FriendsList"
->;
-
-type FriendsListRouteProp = {
-  params: { userId: string };
-};
+import { useTabNavigation } from "../utils/navigationHelpers";
 
 export default function FriendsList() {
   const [friends, setFriends] = useState<types.UserProfile[]>([]);
@@ -41,9 +31,10 @@ export default function FriendsList() {
   const [loading, setLoading] = useState(true);
   const [clubs, setClubs] = useState<{ [key: string]: types.Club }>({});
   const session = useSession();
-  const navigation = useNavigation<FriendsListNavigationProp>();
-  const route = useRoute() as FriendsListRouteProp;
-  const userId = route.params?.userId || session?.user?.id;
+  const router = useRouter();
+  const params = useLocalSearchParams<{ userId?: string }>();
+  const { userPath, clubPath } = useTabNavigation();
+  const userId = params.userId || session?.user?.id;
 
   useEffect(() => {
     if (userId) {
@@ -124,7 +115,7 @@ export default function FriendsList() {
     <View style={styles.friendRequestItem}>
       <TouchableOpacity
         style={styles.friendRequestInfo}
-        onPress={() => navigation.navigate("UserProfile", { user: item })}
+        onPress={() => router.push(userPath(item.id))}
       >
         <View style={styles.avatarContainer}>
           {item.avatar_url ? (
@@ -163,7 +154,7 @@ export default function FriendsList() {
   const renderFriend = ({ item }: { item: types.UserProfile }) => (
     <TouchableOpacity
       style={styles.friendItem}
-      onPress={() => navigation.navigate("UserProfile", { user: item })}
+      onPress={() => router.push(userPath(item.id))}
     >
       <View style={styles.avatarContainer}>
         {item.avatar_url ? (
@@ -188,7 +179,7 @@ export default function FriendsList() {
             onPress={() => {
               const club = clubs[item.active_club_id!];
               if (club) {
-                navigation.navigate("ClubDetail", { club });
+                router.push(clubPath(club.id, club));
               }
             }}
           >

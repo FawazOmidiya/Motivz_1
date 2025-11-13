@@ -13,8 +13,8 @@ import {
   Dimensions,
   Linking,
 } from "react-native";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTabNavigation } from "../utils/navigationHelpers";
 import {
   fetchEventsByClub,
   queryUserFavouriteExists,
@@ -23,6 +23,7 @@ import {
   updateUserActiveClub,
   fetchFriendsAttending,
   fetchUserProfile,
+  fetchSingleClub,
 } from "../utils/supabaseService";
 import { useSession, useProfile } from "@/components/SessionContext";
 import * as types from "@/app/utils/types";
@@ -39,27 +40,18 @@ import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
 
-type ClubDetailNavigationProp = NativeStackNavigationProp<
-  {
-    HomeMain: undefined;
-    ClubDetail: { clubId: string };
-    EventDetail: { eventId: string };
-    UserProfile: { userId: string };
-  },
-  "ClubDetail"
->;
-
 export default function ClubDetailScreen() {
-  const route = useRoute();
-  const { club: clubData } = route.params as { club: types.Club };
+  const router = useRouter();
+  const params = useLocalSearchParams<{ id: string; club?: string }>();
+  const { eventPath, userPath } = useTabNavigation();
   const [club, setClub] = useState<Club | null>(null);
+  const [clubData, setClubData] = useState<types.Club | null>(null);
   const [events, setEvents] = useState<types.Event[]>([]);
   const [musicSchedule, setMusicSchedule] = useState<string[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [isFavourite, setIsFavourite] = useState(false);
   const session = useSession();
   const profile = useProfile();
-  const navigation = useNavigation<ClubDetailNavigationProp>();
   const [activeTab, setActiveTab] = useState<"google" | "app">("google");
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -76,12 +68,37 @@ export default function ClubDetailScreen() {
 
   useEffect(() => {
     const loadClub = async () => {
-      const c = new Club(clubData);
-      await c.initLiveRating();
-      setClub(c);
+      try {
+        let clubData: types.Club;
+
+        // Try to parse club from params (for backward compatibility)
+        if (params.club) {
+          try {
+            clubData = JSON.parse(params.club);
+          } catch {
+            // If parsing fails, fetch by ID
+            console.log("Fetching club by ID:", params.id || params.club);
+            clubData = await fetchSingleClub(params.id || params.club);
+          }
+        } else if (params.id) {
+          // Fetch club by ID
+          clubData = await fetchSingleClub(params.id);
+        } else {
+          console.error("No club ID provided");
+          return;
+        }
+
+        const c = new Club(clubData);
+        await c.initLiveRating();
+        setClub(c);
+        setClubData(clubData);
+        console.log("Club loaded:", clubData);
+      } catch (error) {
+        console.error("Error loading club:", error);
+      }
     };
     loadClub();
-  }, [clubData]);
+  }, [params.id, params.club]);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -278,7 +295,7 @@ export default function ClubDetailScreen() {
     try {
       const userProfile = await fetchUserProfile(friendId);
       if (userProfile) {
-        navigation.navigate("UserProfile", { userId: userProfile.id });
+        router.push(userPath(userProfile.id));
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -348,7 +365,7 @@ export default function ClubDetailScreen() {
                 <Text style={styles.bannerTagText}>{genre}</Text>
               </View>
             ))}
-            {clubData.Tags?.slice(0, 2).map((tag: any, index: number) => (
+            {clubData?.Tags?.slice(0, 2).map((tag: any, index: number) => (
               <View key={`tag-${index}`} style={styles.bannerTag}>
                 <Text style={styles.bannerTagText}>{tag}</Text>
               </View>
@@ -612,11 +629,7 @@ export default function ClubDetailScreen() {
                   </Text>
                   <TouchableOpacity
                     style={styles.featuredEventCard}
-                    onPress={() =>
-                      navigation.navigate("EventDetail", {
-                        eventId: featuredEvent.id,
-                      })
-                    }
+                    onPress={() => router.push(eventPath(featuredEvent.id))}
                     activeOpacity={0.7}
                   >
                     {featuredEvent.poster_url && (
@@ -714,11 +727,7 @@ export default function ClubDetailScreen() {
                     renderItem={({ item }) => (
                       <TouchableOpacity
                         style={styles.horizontalEventCard}
-                        onPress={() =>
-                          navigation.navigate("EventDetail", {
-                            eventId: item.id,
-                          })
-                        }
+                        onPress={() => router.push(eventPath(item.id))}
                         activeOpacity={0.7}
                       >
                         {item.poster_url && (

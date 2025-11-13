@@ -5,6 +5,10 @@ import Image from "next/image";
 import { extractEventIdFromSlug } from "@/lib/eventSlug";
 import { getAbsoluteImageUrl } from "@/lib/imageUrl";
 
+// Force dynamic rendering for this route (required for Next.js 15)
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // Replace with your actual domain
 const MOTIVZ_DOMAIN = "themotivz.com";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -42,7 +46,6 @@ async function getEventBySlug(slug: string): Promise<Event | null> {
       return null;
     }
 
-
     // Slug format: {id}-{title-slug} (where id can be a UUID)
     // Extract ID from slug if possible
     const eventId = extractEventIdFromSlug(slug);
@@ -62,8 +65,15 @@ async function getEventBySlug(slug: string): Promise<Event | null> {
       .single();
 
     if (!slugError && slugData) {
-      console.log(`Found event by exact slug match: ${slugData.id}`);
+      console.log(
+        `[getEventBySlug] Found event by exact slug match: ${slugData.id}`
+      );
       return slugData;
+    } else {
+      console.log(
+        `[getEventBySlug] Exact slug match failed. Error:`,
+        slugError?.message || "No data"
+      );
     }
 
     // 2. ID match (if we extracted an ID from slug)

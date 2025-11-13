@@ -1,10 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import * as Constants from "@/constants/Constants";
 
 export default function AnonymousProfileScreen() {
-  const navigation = useNavigation();
+  const router = useRouter();
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Personalize Your Motivz!</Text>
@@ -14,7 +14,7 @@ export default function AnonymousProfileScreen() {
       </Text>
       <TouchableOpacity
         style={styles.signUpButton}
-        onPress={() => navigation.navigate("SignUp")}
+        onPress={() => router.push("/auth/sign-up")}
       >
         <Text style={styles.signUpText}>Sign Up</Text>
       </TouchableOpacity>

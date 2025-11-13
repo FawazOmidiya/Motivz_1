@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -11,19 +11,13 @@ import {
   StatusBar,
 } from "react-native";
 import { Button, TextInput, Text } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter, Redirect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
 import { supabase } from "../utils/supabaseService";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../utils/types";
 import GoogleSignInButton from "../utils/googleAuth/GoogleSignInButton";
 import { Auth as NativeAuth } from "../utils/NativeAuth/Auth.native";
-
-type SignUpScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "SignUp"
->;
+import { useSession } from "@/components/SessionContext";
 
 export default function SignUpScreen() {
   const [username, setUsername] = useState("");
@@ -33,8 +27,13 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const session = useSession();
+  const router = useRouter();
 
-  const navigation = useNavigation<SignUpScreenNavigationProp>();
+  // Redirect to tabs if already authenticated
+  if (session) {
+    return <Redirect href="/(tabs)/home" />;
+  }
 
   async function checkUsernameExists(username: string) {
     const { data, error } = await supabase
@@ -71,11 +70,14 @@ export default function SignUpScreen() {
       }
 
       // Store the initial sign-up info and navigate to profile completion
-      navigation.navigate("ProfileCompletion", {
-        signUpInfo: {
-          username,
-          email,
-          password,
+      router.push({
+        pathname: "/auth/profile-completion",
+        params: {
+          signUpInfo: JSON.stringify({
+            username,
+            email,
+            password,
+          }),
         },
       });
     } catch (error) {
@@ -267,7 +269,7 @@ export default function SignUpScreen() {
                     Already have an account?{" "}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => navigation.navigate("SignIn")}
+                    onPress={() => router.push("/auth/sign-in")}
                   >
                     <Text style={styles.signInLink}>Sign In</Text>
                   </TouchableOpacity>

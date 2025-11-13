@@ -3,10 +3,6 @@ import { Alert } from "react-native";
 import { GoogleSigninButton } from "@react-native-google-signin/google-signin";
 import { supabase } from "../supabaseService";
 import { signInWithGoogleAndGetTokens } from "./googleSignInService";
-import { checkUserProfileComplete } from "../supabaseService";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../types";
 
 interface GoogleSignInButtonProps {
   onSuccess?: (data: any) => void;
@@ -18,8 +14,6 @@ export default function GoogleSignInButton({
   onError,
 }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false);
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const handleGoogleSignIn = async () => {
     console.log("Google sign-in button pressed");
@@ -29,7 +23,7 @@ export default function GoogleSignInButton({
       const { response, tokens } = await signInWithGoogleAndGetTokens();
 
       if (tokens.idToken) {
-        // First, sign in to Supabase to get the user ID
+        // Sign in to Supabase - always sign in, let _layout.tsx handle profile completion routing
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: "google",
           token: tokens.idToken,
@@ -38,36 +32,8 @@ export default function GoogleSignInButton({
         if (error) throw error;
         if (!data.user) throw new Error("Failed to authenticate with Google");
 
-        const userId = data.user.id;
-
-        // Check if user profile is complete
-        const profileCheck = await checkUserProfileComplete(userId);
-
-        if (profileCheck.isComplete) {
-          // Profile is complete, user is already signed in
-          onSuccess?.(data);
-        } else {
-          // Profile is incomplete, navigate to profile completion
-          const googleUser = response as any;
-          const firstName = googleUser?.data?.user?.givenName || "";
-          const lastName = googleUser?.data?.user?.familyName || "";
-          const email = googleUser?.data?.user?.email || "";
-
-          const navigationParams = {
-            signUpInfo: {
-              username: "",
-              email: email,
-              password: "",
-            },
-            googleUserData: {
-              firstName,
-              lastName,
-              email: email,
-            },
-            // No need to pass tokens since user is already signed in
-          };
-          navigation.navigate("ProfileCompletion", navigationParams);
-        }
+        // User is signed in - _layout.tsx will handle routing based on profile completion
+        onSuccess?.(data);
       } else {
         throw new Error("No ID token received from Google Sign-In");
       }

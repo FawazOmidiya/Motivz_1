@@ -65,6 +65,8 @@
     <string>The app accesses your camera to let you share them with your friends.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationAlwaysUsageDescription</key>
     <string>We use your location to show you nearby places even when the app is in the background.</string>
     <key>NSLocationWhenInUseUsageDescription</key>

@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   supabase,
@@ -18,19 +18,12 @@ import {
 } from "../utils/supabaseService";
 import { Club } from "../utils/Club";
 import * as Constants from "@/constants/Constants";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation";
-
-type AnonymousHomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "AnonymousHome"
->;
 
 export default function AnonymousHomeScreen() {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const navigation = useNavigation<AnonymousHomeScreenNavigationProp>();
+  const router = useRouter();
 
   useEffect(() => {
     fetchClubs();
@@ -69,7 +62,7 @@ export default function AnonymousHomeScreen() {
       "Would you like to create an account to access all features?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Sign Up", onPress: () => navigation.navigate("SignUp") },
+        { text: "Sign Up", onPress: () => router.push("/auth/sign-up") },
       ]
     );
   };

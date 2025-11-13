@@ -86,7 +86,6 @@ export const SessionProvider = ({
     // Monitor app state changes (like Instagram does)
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState === "active" && session?.user) {
-        console.log("📱 App became active, checking notification status");
         checkNotificationStatus(session.user.id);
 
         // Update last active timestamp

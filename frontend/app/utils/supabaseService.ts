@@ -636,18 +636,29 @@ export const checkUserProfileComplete = async (
   userId: string
 ): Promise<{ exists: boolean; isComplete: boolean; profile?: any }> => {
   try {
-    const profile = await fetchUserProfile(userId);
+    // Optimized: Only fetch is_complete field instead of entire profile
+    // This is much faster and prevents timeouts
+    const { data, error, status } = await supabase
+      .from("profiles")
+      .select("is_complete")
+      .eq("id", userId)
+      .single();
 
-    if (!profile) {
+    if (error && status !== 406) {
+      // Profile doesn't exist or query failed
+      return { exists: false, isComplete: false };
+    }
+
+    if (!data) {
       return { exists: false, isComplete: false };
     }
 
     // Use the is_complete field from the database
-    const isComplete = !!profile.is_complete;
+    const isComplete = !!data.is_complete;
 
-    return { exists: true, isComplete, profile };
+    return { exists: true, isComplete };
   } catch (error) {
-    // Profile doesn't exist
+    // Profile doesn't exist or error occurred
     return { exists: false, isComplete: false };
   }
 };

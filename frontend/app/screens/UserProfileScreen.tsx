@@ -10,13 +10,15 @@ import {
   TouchableOpacity,
   Modal,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { Text, Button, TextInput } from "react-native-paper";
-import { useRoute, useNavigation } from "@react-navigation/native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   fetchUserFavourites,
   fetchSingleClub,
   areFriends,
+  fetchUserProfile,
 } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import FavouriteClub from "@/components/ClubFavourite";
@@ -24,23 +26,20 @@ import BackButton from "@/components/BackButton";
 import FriendButton from "@/components/FriendButton"; // Import your FriendButton component
 import { useSession } from "@/components/SessionContext";
 import * as Constants from "@/constants/Constants";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../utils/types";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { fetchUserPosts } from "../utils/postService";
 import { Video, ResizeMode } from "expo-av";
-
-type UserProfileScreenNavigationProp =
-  NativeStackNavigationProp<RootStackParamList>;
+import { useTabNavigation } from "../utils/navigationHelpers";
 
 export default function UserProfileScreen() {
-  // Assume the user profile is passed via route params:
-  const route = useRoute();
-  const { user } = route.params as { user: types.UserProfile };
+  const params = useLocalSearchParams<{ id: string }>();
+  const userId = params.id;
+  const router = useRouter();
+  const { clubPath, friendsPath } = useTabNavigation();
   const session = useSession();
-  const navigation = useNavigation<UserProfileScreenNavigationProp>();
+  const [user, setUser] = useState<types.UserProfile | null>(null);
   const [favourites, setFavourites] = useState<types.Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,6 +53,26 @@ export default function UserProfileScreen() {
   const [mediaModalVisible, setMediaModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState("favourites");
   const [isFriends, setIsFriends] = useState(false);
+
+  // Fetch user profile
+  useEffect(() => {
+    if (!userId) return;
+
+    const loadUserProfile = async () => {
+      try {
+        setLoading(true);
+        const userData = await fetchUserProfile(userId);
+        setUser(userData);
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        Alert.alert("Error", "Failed to load user profile.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserProfile();
+  }, [userId]);
 
   // Check friendship status
   const checkFriendshipStatus = useCallback(async () => {
@@ -70,6 +89,8 @@ export default function UserProfileScreen() {
 
   // Fetch favourites when the screen mounts or when the user changes.
   const loadFavourites = useCallback(async () => {
+    if (!user) return;
+
     try {
       setLoading(true);
       const data = await fetchUserFavourites(user.id);
@@ -84,9 +105,11 @@ export default function UserProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, [user?.id]);
 
   useEffect(() => {
+    if (!user) return;
+
     loadFavourites();
     checkFriendshipStatus();
     if (user.active_club_id) {
@@ -97,7 +120,7 @@ export default function UserProfileScreen() {
     if (user?.id) {
       fetchUserPosts(user.id).then(setPosts);
     }
-  }, [loadFavourites, checkFriendshipStatus, user.active_club_id, user]);
+  }, [loadFavourites, checkFriendshipStatus, user]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -108,7 +131,7 @@ export default function UserProfileScreen() {
   const renderFavouriteClub = ({ item }: { item: types.Club }) => (
     <TouchableOpacity
       style={styles.favouriteClubItem}
-      onPress={() => navigation.navigate("ClubDetail", { club: item })}
+      onPress={() => router.push(clubPath(item.id, item))}
     >
       <Image source={{ uri: item.Image }} style={styles.favouriteClubImage} />
       <Text style={styles.favouriteClubName} numberOfLines={1}>
@@ -124,112 +147,131 @@ export default function UserProfileScreen() {
     </View>
   );
 
-  const ListHeaderComponent = () => (
-    <View style={styles.profileContainer}>
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        <View style={styles.profileTopRow}>
-          <View style={styles.profileAvatarContainer}>
-            <TouchableOpacity
-              style={styles.profileAvatar}
-              onPress={() => setIsImageModalVisible(true)}
-            >
-              <Image
-                source={
-                  user.avatar_url
-                    ? { uri: user.avatar_url }
-                    : require("@/assets/images/default-avatar.png")
-                }
-                style={styles.avatarImage}
-              />
-            </TouchableOpacity>
-          </View>
+  const ListHeaderComponent = () => {
+    if (!user) return null;
 
-          <View style={styles.profileStats}>
-            <TouchableOpacity
-              style={styles.statItem}
-              onPress={() =>
-                navigation.navigate("FriendsList", { userId: user.id })
-              }
-            >
-              <Text style={styles.statNumber}>{user?.friends_count || 0}</Text>
-              <Text style={styles.statLabel}>Friends</Text>
-            </TouchableOpacity>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{user?.clubs_count || 0}</Text>
-              <Text style={styles.statLabel}>Clubs</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{user?.events_count || 0}</Text>
-              <Text style={styles.statLabel}>Events</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>
-            {user.first_name} {user.last_name}
-          </Text>
-
-          {/* Active Club Display */}
-          {activeClub && isFriends && (
-            <TouchableOpacity
-              style={styles.activeClubInfo}
-              onPress={() =>
-                navigation.navigate("ClubDetail", { club: activeClub })
-              }
-            >
-              <Ionicons
-                name="location-outline"
-                size={14}
-                color={Constants.purpleCOLOR}
-              />
-              <Text style={styles.activeClubText}>{activeClub.Name}</Text>
-            </TouchableOpacity>
-          )}
-
-          <Text style={styles.profileBio}>{user.bio}</Text>
-        </View>
-
-        <View style={styles.profileActions}>
-          {/* Only show friend button if current user is not viewing their own profile */}
-          {session?.user.id && session.user.id !== user.id && (
-            <FriendButton targetUserId={user.id} />
-          )}
-        </View>
-      </View>
-
-      {/* Favourite Clubs Section */}
-      <Text style={styles.sectionTitle}>Favourite Clubs</Text>
-      {favourites.length > 0 && (
-        <View style={styles.favouritesSection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
-          >
-            {favourites.map((club) => (
+    return (
+      <View style={styles.profileContainer}>
+        {/* Profile Header */}
+        <View style={styles.profileHeader}>
+          <View style={styles.profileTopRow}>
+            <View style={styles.profileAvatarContainer}>
               <TouchableOpacity
-                key={club?.id}
-                style={styles.horizontalClubCard}
-                onPress={() => navigation.navigate("ClubDetail", { club })}
+                style={styles.profileAvatar}
+                onPress={() => setIsImageModalVisible(true)}
               >
                 <Image
-                  source={{ uri: club?.Image }}
-                  style={styles.horizontalClubImage}
+                  source={
+                    user.avatar_url
+                      ? { uri: user.avatar_url }
+                      : require("@/assets/images/default-avatar.png")
+                  }
+                  style={styles.avatarImage}
                 />
-                <View style={styles.horizontalClubInfo}>
-                  <Text style={styles.horizontalClubName} numberOfLines={1}>
-                    {club?.Name}
-                  </Text>
-                </View>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            </View>
+
+            <View style={styles.profileStats}>
+              <TouchableOpacity
+                style={styles.statItem}
+                onPress={() =>
+                  router.push({
+                    ...friendsPath(),
+                    params: { userId: user.id },
+                  })
+                }
+              >
+                <Text style={styles.statNumber}>
+                  {user?.friends_count || 0}
+                </Text>
+                <Text style={styles.statLabel}>Friends</Text>
+              </TouchableOpacity>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{user?.clubs_count || 0}</Text>
+                <Text style={styles.statLabel}>Clubs</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{user?.events_count || 0}</Text>
+                <Text style={styles.statLabel}>Events</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>
+              {user.first_name} {user.last_name}
+            </Text>
+
+            {/* Active Club Display */}
+            {activeClub && isFriends && (
+              <TouchableOpacity
+                style={styles.activeClubInfo}
+                onPress={() => router.push(clubPath(activeClub.id, activeClub))}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={Constants.purpleCOLOR}
+                />
+                <Text style={styles.activeClubText}>{activeClub.Name}</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.profileBio}>{user.bio}</Text>
+          </View>
+
+          <View style={styles.profileActions}>
+            {/* Only show friend button if current user is not viewing their own profile */}
+            {session?.user.id && session.user.id !== user.id && (
+              <FriendButton targetUserId={user.id} />
+            )}
+          </View>
         </View>
-      )}
-    </View>
-  );
+
+        {/* Favourite Clubs Section */}
+        <Text style={styles.sectionTitle}>Favourite Clubs</Text>
+        {favourites.length > 0 && (
+          <View style={styles.favouritesSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScrollContent}
+            >
+              {favourites.map((club) => (
+                <TouchableOpacity
+                  key={club?.id}
+                  style={styles.horizontalClubCard}
+                  onPress={() => router.push(clubPath(club.id, club))}
+                >
+                  <Image
+                    source={{ uri: club?.Image }}
+                    style={styles.horizontalClubImage}
+                  />
+                  <View style={styles.horizontalClubInfo}>
+                    <Text style={styles.horizontalClubName} numberOfLines={1}>
+                      {club?.Name}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  if (loading || !user) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -245,7 +287,7 @@ export default function UserProfileScreen() {
           onPress={() => setIsImageModalVisible(false)}
         >
           <View style={styles.modalContent}>
-            {user.avatar_url ? (
+            {user?.avatar_url ? (
               <Image
                 source={{ uri: user.avatar_url }}
                 style={styles.modalImage}
@@ -361,6 +403,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Constants.backgroundCOLOR,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   // Profile Container

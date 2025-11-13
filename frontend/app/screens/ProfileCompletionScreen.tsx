@@ -16,14 +16,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { supabase, storage } from "../utils/supabaseService";
 import * as ImagePicker from "expo-image-picker";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../utils/types";
 import { decode } from "base64-arraybuffer";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
@@ -38,13 +36,9 @@ import {
   SMOKING_OPTIONS,
 } from "@/constants/NightlifeConstants";
 
-type ProfileCompletionScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "ProfileCompletion"
->;
-
+// Route params type for reference
 type RouteParams = {
-  signUpInfo: {
+  signUpInfo?: {
     username: string;
     email: string;
     password: string;
@@ -66,17 +60,51 @@ type RouteParams = {
 };
 
 export default function ProfileCompletionScreen() {
-  const navigation = useNavigation<ProfileCompletionScreenNavigationProp>();
-  const route = useRoute();
-  const params = route.params as RouteParams;
-  const signUpInfo = params?.signUpInfo || {
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    signUpInfo?: string;
+    googleUserData?: string;
+    googleTokens?: string;
+    appleUserData?: string;
+    appleTokens?: string;
+  }>();
+
+  // Parse signUpInfo if it's a JSON string
+  let signUpInfo: { username: string; email: string; password: string } = {
     username: "",
     email: "",
     password: "",
   };
-  const googleUserData = params?.googleUserData;
-  const googleTokens = params?.googleTokens;
-  const appleUserData = params?.appleUserData;
+  try {
+    if (params.signUpInfo) {
+      signUpInfo = JSON.parse(params.signUpInfo);
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+
+  // Parse other params if they're JSON strings
+  let googleUserData: RouteParams["googleUserData"] | undefined;
+  let googleTokens: RouteParams["googleTokens"] | undefined;
+  let appleUserData: RouteParams["appleUserData"] | undefined;
+  let appleTokens: { identityToken: string } | undefined;
+
+  try {
+    if (params.googleUserData) {
+      googleUserData = JSON.parse(params.googleUserData);
+    }
+    if (params.googleTokens) {
+      googleTokens = JSON.parse(params.googleTokens);
+    }
+    if (params.appleUserData) {
+      appleUserData = JSON.parse(params.appleUserData);
+    }
+    if (params.appleTokens) {
+      appleTokens = JSON.parse(params.appleTokens);
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
 
   const [firstName, setFirstName] = useState(
     googleUserData?.firstName || appleUserData?.firstName || ""
@@ -626,7 +654,6 @@ export default function ProfileCompletionScreen() {
                 if (selectedDate) {
                   setDateOfBirth(selectedDate);
                 }
-                setShowDatePicker(false);
               }}
               maximumDate={new Date()}
               minimumDate={new Date(1900, 0, 1)}

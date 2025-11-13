@@ -19,7 +19,7 @@ export class Club {
   private _trendingScore: number = 0;
   private _recentReviewsCount: number = 0;
   private _avgRating: number = 0;
-
+  private _tags: string[] = [];
   constructor(data: types.Club) {
     this._id = data.id;
     this._name = data.Name;
@@ -34,6 +34,8 @@ export class Club {
     this._instagram_handle = data.instagram_handle || null;
     this._latitude = data.latitude;
     this._longitude = data.longitude;
+    // Handle Tags with case sensitivity (PostgreSQL quoted identifiers)
+    this._tags = data.Tags || (data as any).tags || [];
     // live_rating will be set asynchronously
   }
 
@@ -73,6 +75,9 @@ export class Club {
   }
   get longitude(): number {
     return this._longitude;
+  }
+  get tags(): string[] {
+    return this._tags;
   }
   // Trending getters
   get isTrending(): boolean | null {
@@ -203,6 +208,7 @@ export class Club {
       Address: this._address,
       live_rating: this._live_rating,
       instagram_handle: this._instagram_handle,
+      Tags: this._tags,
     };
   }
 

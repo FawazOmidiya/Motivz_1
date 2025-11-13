@@ -5,10 +5,19 @@
       {
         "appID": "42P3N5W766.com.fomidiya.frontend",
         "paths": [
-          "/event/*",
+          "/home",
+          "/explore",
+          "/map",
+          "/profile",
           "/club/*",
+          "/event/*",
           "/user/*",
-          "/story/*"
+          "/guestlist/*",
+          "/friends",
+          "/profile/edit",
+          "/profile/settings",
+          "/auth/sign-in",
+          "/auth/sign-up"
         ]
       }
     ]
