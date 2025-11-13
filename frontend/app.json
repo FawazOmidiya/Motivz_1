@@ -2,7 +2,7 @@
   "expo": {
     "name": "Motivz",
     "slug": "frontend",
-    "version": "1.6.1",
+    "version": "1.6.3",
     "orientation": "portrait",
     "icon": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
     "scheme": "motivz",
@@ -11,14 +11,21 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "2",
+      "buildNumber": "6",
       "icon": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
+      "splash": {
+        "image": "./assets/images/splash-screen.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#000000"
+      },
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location to show nearby clubs.",
         "NSLocationAlwaysUsageDescription": "We use your location to show you nearby places even when the app is in the background.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "entitlements": {
         "aps-environment": "production"
@@ -50,7 +57,11 @@
         {
           "image": "./assets/images/splash-screen.png",
           "resizeMode": "cover",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#000000",
+          "enableFullScreenImage_legacy": true,
+          "ios": {
+            "enableFullScreenImage_legacy": true
+          }
         }
       ],
       "expo-secure-store",

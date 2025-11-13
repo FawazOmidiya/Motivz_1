@@ -1,16 +1,82 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { Session } from "@supabase/supabase-js";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 import * as types from "./types";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY as string;
 
+// Create a safe storage adapter that only works in client environments
+// This prevents errors during build/SSR when window/AsyncStorage is not available
+const createSafeStorage = () => {
+  // Check if we're in a build/SSR environment (Node.js)
+  // During build, we're in Node.js where window is undefined and Platform might not be available
+  const isNodeEnvironment =
+    typeof process !== "undefined" &&
+    process.versions != null &&
+    process.versions.node != null &&
+    typeof window === "undefined";
+
+  if (isNodeEnvironment) {
+    // Return a no-op storage for build/SSR environments
+    // This prevents "window is not defined" errors during static export
+    return {
+      getItem: async () => null,
+      setItem: async () => {},
+      removeItem: async () => {},
+    };
+  }
+
+  // We're in a React Native client environment - dynamically import AsyncStorage
+  // This prevents AsyncStorage from being evaluated during build
+  let AsyncStorage: any;
+  try {
+    // Use require to conditionally load AsyncStorage only in client environment
+    AsyncStorage = require("@react-native-async-storage/async-storage").default;
+  } catch (error) {
+    // If AsyncStorage can't be loaded, return no-op storage
+    return {
+      getItem: async () => null,
+      setItem: async () => {},
+      removeItem: async () => {},
+    };
+  }
+
+  // Wrap AsyncStorage to catch any runtime errors
+  return {
+    getItem: async (key: string) => {
+      try {
+        return await AsyncStorage.getItem(key);
+      } catch (error) {
+        // If AsyncStorage fails (e.g., during build), return null
+        console.warn("AsyncStorage.getItem failed, returning null:", error);
+        return null;
+      }
+    },
+    setItem: async (key: string, value: string) => {
+      try {
+        await AsyncStorage.setItem(key, value);
+      } catch (error) {
+        // Silently fail during build
+        console.warn("AsyncStorage.setItem failed:", error);
+      }
+    },
+    removeItem: async (key: string) => {
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch (error) {
+        // Silently fail during build
+        console.warn("AsyncStorage.removeItem failed:", error);
+      }
+    },
+  };
+};
+
 // ✅ Initialize Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    storage: AsyncStorage,
+    storage: createSafeStorage(),
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
@@ -33,7 +99,17 @@ export async function signOut() {
     }
 
     // Clear any stored session data
-    await AsyncStorage.removeItem("supabase.auth.token");
+    try {
+      const AsyncStorage =
+        require("@react-native-async-storage/async-storage").default;
+      await AsyncStorage.removeItem("supabase.auth.token");
+    } catch (storageError) {
+      // Silently fail if AsyncStorage is not available (e.g., during build)
+      console.warn(
+        "Could not clear AsyncStorage during sign out:",
+        storageError
+      );
+    }
 
     return true;
   } catch (error) {
