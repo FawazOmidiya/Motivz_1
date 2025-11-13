@@ -3,6 +3,7 @@ import { Platform, Alert } from "react-native";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -188,6 +189,15 @@ export function useNotifications() {
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
         console.log("Notification response:", response);
+        // Handle deep link navigation if URL is present in notification data
+        const deepLink = response.notification.request.content.data?.url;
+        if (deepLink && typeof deepLink === "string") {
+          console.log("Opening deep link from notification:", deepLink);
+          // Use Linking to handle both custom schemes and universal links
+          Linking.openURL(deepLink).catch((err) => {
+            console.error("Failed to open deep link:", err);
+          });
+        }
       });
 
     return () => {
@@ -276,6 +286,15 @@ export function useAppNotifications() {
     const responseListener =
       Notifications.addNotificationResponseReceivedListener((response) => {
         console.log("Notification response:", response);
+        // Handle deep link navigation if URL is present in notification data
+        const deepLink = response.notification.request.content.data?.url;
+        if (deepLink && typeof deepLink === "string") {
+          console.log("Opening deep link from notification:", deepLink);
+          // Use Linking to handle both custom schemes and universal links
+          Linking.openURL(deepLink).catch((err) => {
+            console.error("Failed to open deep link:", err);
+          });
+        }
       });
 
     return () => {

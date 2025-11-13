@@ -22,6 +22,9 @@ export const SessionProvider = ({
 }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<types.UserProfile | null>(null);
+  const pendingUpdateRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Function to check and update notification status (like Instagram)
   const checkNotificationStatus = async (userId: string) => {
@@ -51,8 +54,14 @@ export const SessionProvider = ({
     }
   };
 
-  // Function to fetch profile and check expired attendance
-  const fetchProfileAndCheckAttendance = async (userId: string) => {
+  // Function to fetch profile and check expired attendance with retry logic
+  const fetchProfileAndCheckAttendance = async (
+    userId: string,
+    retryCount = 0
+  ): Promise<void> => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff in ms
+
     try {
       // First check and clear any expired attendance
       await checkAndClearExpiredAttendance(userId);
@@ -71,13 +80,38 @@ export const SessionProvider = ({
       } else {
         setProfile(profileData);
       }
-    } catch (error) {
-      console.error("Error fetching profile or checking attendance:", error);
-      // Fallback to just fetching profile if attendance check fails
+    } catch (error: any) {
+      console.error(
+        `Error fetching profile (attempt ${retryCount + 1}/${
+          MAX_RETRIES + 1
+        }):`,
+        error
+      );
+
+      // Check if it's a network error (retry) vs other error (don't retry)
+      const isNetworkError =
+        error?.message?.includes("network") ||
+        error?.message?.includes("timeout") ||
+        error?.message?.includes("fetch") ||
+        error?.code === "ECONNREFUSED" ||
+        error?.code === "ETIMEDOUT";
+
+      if (isNetworkError && retryCount < MAX_RETRIES) {
+        // Retry with exponential backoff
+        const delay = RETRY_DELAYS[retryCount] || 4000;
+        console.log(`Retrying profile fetch in ${delay}ms...`);
+
+        setTimeout(() => {
+          fetchProfileAndCheckAttendance(userId, retryCount + 1);
+        }, delay);
+        return;
+      }
+
+      // Max retries reached or non-network error
+      // Fallback: try just fetching profile without attendance check
       try {
         const profileData = await fetchUserProfile(userId);
         if (!profileData) {
-          // Profile doesn't exist - set default
           setProfile({
             id: userId,
             is_complete: false,
@@ -86,8 +120,9 @@ export const SessionProvider = ({
           setProfile(profileData);
         }
       } catch (fallbackError) {
-        console.error("Error fetching profile:", fallbackError);
-        // On error, set default profile so navigation works
+        console.error("Error fetching profile after retries:", fallbackError);
+        // Last resort: set default profile so navigation works
+        // User will see profile completion screen, which is better than being stuck
         setProfile({
           id: userId,
           is_complete: false,
@@ -109,12 +144,25 @@ export const SessionProvider = ({
 
     // Monitor app state changes (like Instagram does)
     const handleAppStateChange = (nextAppState: string) => {
-      if (nextAppState === "active" && session?.user) {
-        checkNotificationStatus(session.user.id);
+      if (nextAppState === "active") {
+        // Re-check session when app becomes active to handle backgrounded sign-ins
+        supabase.auth
+          .getSession()
+          .then(({ data: { session: currentSession } }) => {
+            if (currentSession?.user) {
+              // Re-fetch profile to ensure it's up to date
+              fetchProfileAndCheckAttendance(currentSession.user.id);
+              checkNotificationStatus(currentSession.user.id);
+              updateLastActive(currentSession.user.id);
+            }
+          });
 
-        // Update last active timestamp
-        console.log("📱 Updating last active timestamp");
-        updateLastActive(session.user.id);
+        if (session?.user) {
+          checkNotificationStatus(session.user.id);
+          // Update last active timestamp
+          console.log("📱 Updating last active timestamp");
+          updateLastActive(session.user.id);
+        }
       }
     };
 
@@ -137,26 +185,48 @@ export const SessionProvider = ({
       }
     );
 
-    // Subscribe to profile changes
-    const profileSubscription = supabase
-      .channel("profile_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "profiles",
-          filter: `id=eq.${session?.user?.id}`,
-        },
-        (payload) => {
-          setProfile(payload.new as types.UserProfile);
-        }
-      )
-      .subscribe();
+    // Subscribe to profile changes - recreate subscription when userId changes
+    // Use unique channel name per user to prevent cross-user data leaks
+    let profileSubscription: ReturnType<typeof supabase.channel> | null = null;
+
+    if (session?.user?.id) {
+      profileSubscription = supabase
+        .channel(`profile_changes_${session.user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "profiles",
+            filter: `id=eq.${session.user.id}`, // Use current userId
+          },
+          (payload) => {
+            // Only update if payload matches current user
+            if (payload.new.id === session?.user?.id) {
+              // Clear any pending update
+              if (pendingUpdateRef.current) {
+                clearTimeout(pendingUpdateRef.current);
+              }
+
+              // Debounce the update to prevent rapid state changes during navigation
+              pendingUpdateRef.current = setTimeout(() => {
+                setProfile(payload.new as types.UserProfile);
+                pendingUpdateRef.current = null;
+              }, 100); // 100ms debounce
+            }
+          }
+        )
+        .subscribe();
+    }
 
     return () => {
       authListener.subscription.unsubscribe();
-      profileSubscription.unsubscribe();
+      if (profileSubscription) {
+        profileSubscription.unsubscribe();
+      }
+      if (pendingUpdateRef.current) {
+        clearTimeout(pendingUpdateRef.current);
+      }
       subscription.remove();
     };
   }, [session?.user?.id]);

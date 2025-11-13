@@ -48,8 +48,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
-          "resizeMode": "cover"
+          "image": "./assets/images/splash-screen.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#000000"
         }
       ],
       "expo-secure-store",

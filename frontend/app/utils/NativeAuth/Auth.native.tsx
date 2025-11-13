@@ -4,6 +4,7 @@ import { supabase } from "../supabaseService";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types";
+import React, { useState, useRef } from "react";
 
 interface NativeAuthProps {
   onSuccess?: (data: any) => void;
@@ -13,6 +14,8 @@ interface NativeAuthProps {
 export function Auth({ onSuccess, onError }: NativeAuthProps) {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const isProcessingRef = useRef(false);
 
   if (Platform.OS === "ios")
     return (
@@ -30,6 +33,17 @@ export function Auth({ onSuccess, onError }: NativeAuthProps) {
           alignItems: "center",
         }}
         onPress={async () => {
+          // Prevent multiple simultaneous sign-ins
+          if (isProcessingRef.current || isProcessing) {
+            console.log(
+              "Apple sign-in already in progress, ignoring duplicate request"
+            );
+            return;
+          }
+
+          isProcessingRef.current = true;
+          setIsProcessing(true);
+
           try {
             console.log("=== Apple Sign In Started ===");
             console.log("Timestamp:", new Date().toISOString());
@@ -72,6 +86,12 @@ export function Auth({ onSuccess, onError }: NativeAuthProps) {
               Alert.alert("Error", e.message || "Apple Sign In failed");
               onError?.(e);
             }
+          } finally {
+            setIsProcessing(false);
+            // Reset after a short delay to prevent rapid re-clicks
+            setTimeout(() => {
+              isProcessingRef.current = false;
+            }, 1000);
           }
         }}
       />

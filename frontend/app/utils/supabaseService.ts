@@ -1549,11 +1549,17 @@ export async function getUserPushToken(userId: string): Promise<string | null> {
 
 /**
  * Send notification to a user by their ID using Supabase Edge Function
+ * @param userId - The user ID to send the notification to
+ * @param title - Notification title
+ * @param body - Notification body text
+ * @param deepLink - Optional deep link URL (e.g., "motivz://club/123" or "https://themotivz.com/event/456")
+ * @param data - Optional additional data (deprecated, use deepLink instead)
  */
 export async function sendNotificationToUser(
   userId: string,
   title: string,
   body: string,
+  deepLink?: string,
   data?: any
 ): Promise<boolean> {
   try {
@@ -1572,6 +1578,7 @@ export async function sendNotificationToUser(
           body: body,
           userId: userId,
           sendToAll: false,
+          deepLink: deepLink || undefined,
         },
       }
     );

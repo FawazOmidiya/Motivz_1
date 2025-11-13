@@ -30,6 +30,26 @@ function AppContent() {
   const profile = useProfile();
   const router = useRouter();
   const prevSessionRef = React.useRef<boolean>(false);
+  const splashHiddenRef = React.useRef<boolean>(false);
+
+  // Determine which stack to show based on session and profile completion status
+  const hasActiveSession = !!session?.user;
+  const profileIsComplete = profile?.is_complete === true;
+  const profileIsIncomplete = profile?.is_complete === false;
+
+  // Hide splash screen when we're ready to show content (only once)
+  React.useEffect(() => {
+    // Hide splash when:
+    // 1. No session (show unauthenticated stack), OR
+    // 2. Has session AND profile is loaded (not null - show authenticated or profile completion)
+    const shouldHideSplash =
+      !hasActiveSession || (hasActiveSession && profile !== null);
+
+    if (shouldHideSplash && !splashHiddenRef.current) {
+      splashHiddenRef.current = true;
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [hasActiveSession, profile]);
 
   // Handle sign out redirect
   React.useEffect(() => {
@@ -45,24 +65,9 @@ function AppContent() {
     }
   }, [session?.user?.id, router]);
 
-  // Determine which stack to show based on session and profile completion status
-  const hasActiveSession = !!session?.user;
-  const profileIsComplete = profile?.is_complete === true;
-  const profileIsIncomplete = profile?.is_complete === false;
-
-  // Show loading while profile is being fetched (prevents any stack from showing)
+  // Show loading while profile is being fetched - keep splash screen visible
   if (hasActiveSession && profile === null) {
-    return (
-      <SafeAreaProvider>
-        <View style={styles.loadingContainer}>
-          <StatusBar
-            barStyle="light-content"
-            backgroundColor={Constants.backgroundCOLOR}
-          />
-          <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
-        </View>
-      </SafeAreaProvider>
-    );
+    return null; // Keep splash screen visible
   }
 
   // Show profile completion stack if profile is incomplete
@@ -159,25 +164,15 @@ export default function RootLayout() {
 
     // Get initial session to determine if we should show loading
     // SessionProvider will handle all subsequent session management
+    // Don't hide splash screen here - let AppContent handle it when ready
     supabase.auth.getSession().then(() => {
       setIsLoading(false);
-      SplashScreen.hideAsync().catch(() => {});
     });
   }, []);
 
-  // Show loading screen while checking initial session
+  // Show loading screen while checking initial session - keep splash screen visible
   if (isLoading) {
-    return (
-      <SafeAreaProvider>
-        <View style={styles.loadingContainer}>
-          <StatusBar
-            barStyle="light-content"
-            backgroundColor={Constants.backgroundCOLOR}
-          />
-          <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
-        </View>
-      </SafeAreaProvider>
-    );
+    return null; // Keep splash screen visible
   }
 
   return (

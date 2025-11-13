@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Alert } from "react-native";
 import { GoogleSigninButton } from "@react-native-google-signin/google-signin";
 import { supabase } from "../supabaseService";
@@ -14,9 +14,17 @@ export default function GoogleSignInButton({
   onError,
 }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false);
+  const isProcessingRef = React.useRef(false); // Prevent concurrent calls
 
   const handleGoogleSignIn = async () => {
+    // Prevent multiple simultaneous sign-ins
+    if (isProcessingRef.current || loading) {
+      console.log("Sign-in already in progress, ignoring duplicate request");
+      return;
+    }
+
     console.log("Google sign-in button pressed");
+    isProcessingRef.current = true;
     setLoading(true);
     try {
       // Use the service to handle Google Sign-In
@@ -43,6 +51,10 @@ export default function GoogleSignInButton({
       onError?.(error);
     } finally {
       setLoading(false);
+      // Reset after a short delay to prevent rapid re-clicks
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 1000);
     }
   };
 
@@ -51,7 +63,7 @@ export default function GoogleSignInButton({
       size={GoogleSigninButton.Size.Wide}
       color={GoogleSigninButton.Color.Light}
       onPress={handleGoogleSignIn}
-      disabled={loading}
+      disabled={loading || isProcessingRef.current}
       style={{
         marginBottom: 24,
         alignSelf: "center",
@@ -59,6 +71,7 @@ export default function GoogleSignInButton({
         width: "100%",
         justifyContent: "center",
         alignItems: "center",
+        opacity: loading || isProcessingRef.current ? 0.6 : 1,
       }}
     />
   );
