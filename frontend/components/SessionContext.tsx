@@ -30,14 +30,12 @@ export const SessionProvider = ({
 
       if (pushToken) {
         // User has granted permission, ensure we have the token stored
-        console.log("🔔 Device notifications enabled, updating token");
         const { error } = await storeUserPushToken(userId, pushToken);
         if (error) {
           console.error("Error storing push token:", error);
         }
       } else {
         // User has denied permission, clear the token
-        console.log("🔔 Device notifications disabled, clearing token");
         const { error } = await supabase
           .from("profiles")
           .update({ push_token: "Notification Permission not granted" })
@@ -61,7 +59,10 @@ export const SessionProvider = ({
       const profileData = await fetchUserProfile(userId);
       setProfile(profileData);
     } catch (error) {
-      console.error("Error fetching profile or checking attendance:", error);
+      console.error(
+        "❌ SessionContext: Error fetching profile or checking attendance:",
+        error
+      );
       // Fallback to just fetching profile if attendance check fails
       try {
         const profileData = await fetchUserProfile(userId);
@@ -86,7 +87,6 @@ export const SessionProvider = ({
     // Monitor app state changes (like Instagram does)
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState === "active" && session?.user) {
-        console.log("📱 App became active, checking notification status");
         checkNotificationStatus(session.user.id);
 
         // Update last active timestamp

@@ -268,9 +268,6 @@ export default function ProfileCompletionScreen() {
 
       // Mark that user just completed profile - this will trigger tutorial
       await AsyncStorage.setItem("profile_just_completed", "true");
-      console.log(
-        "✅ ProfileCompletionScreen: Set profile_just_completed flag"
-      );
 
       // Create or update the user profile
       const age = calculateAge(dateOfBirth);
@@ -294,15 +291,19 @@ export default function ProfileCompletionScreen() {
         updated_at: new Date().toISOString(),
       });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        throw profileError;
+      }
 
-      // Trigger a session refresh to update the profile status
-      const { data: refreshedSession } = await supabase.auth.refreshSession();
-
+      // Don't call refreshSession() - it causes a race condition with queries
+      // The realtime subscription will handle the update automatically
+      // Show success alert - the _layout.tsx will automatically detect the profile update
+      // via the realtime subscription and navigate to the main app
       Alert.alert("Success", "Profile completed successfully!");
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error completing profile:", error);
+        Alert.alert("Error", error.message || "Failed to complete profile");
       }
     } finally {
       setLoading(false);
@@ -626,7 +627,6 @@ export default function ProfileCompletionScreen() {
                 if (selectedDate) {
                   setDateOfBirth(selectedDate);
                 }
-                setShowDatePicker(false);
               }}
               maximumDate={new Date()}
               minimumDate={new Date(1900, 0, 1)}

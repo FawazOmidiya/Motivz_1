@@ -156,12 +156,26 @@ export default function RootLayout() {
     null
   );
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const recentProfileUpdateRef = React.useRef<{
+    userId: string;
+    timestamp: number;
+  } | null>(null);
 
   const checkProfileStatus = async (userId: string) => {
+    // Skip query if we just received a realtime update for this user (within last 2 seconds)
+    if (
+      recentProfileUpdateRef.current &&
+      recentProfileUpdateRef.current.userId === userId &&
+      Date.now() - recentProfileUpdateRef.current.timestamp < 2000
+    ) {
+      return;
+    }
+
     try {
       const profileCheck = await checkUserProfileComplete(userId);
       setProfileComplete(profileCheck.isComplete);
     } catch (error) {
+      console.error("Error checking profile status:", error);
       setProfileComplete(false);
     } finally {
       // Hide splash screen once we've determined the session state
@@ -218,9 +232,48 @@ export default function RootLayout() {
       }
     });
 
+    // Listen for profile updates to re-check profile completion status
+    const profileChannel = supabase
+      .channel("profile_completion_updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: "is_complete=eq.true",
+        },
+        async (payload) => {
+          if (!mounted) {
+            return;
+          }
+          // Use the realtime payload directly instead of re-querying
+          const currentSession = await supabase.auth.getSession();
+          if (
+            currentSession.data.session?.user?.id &&
+            currentSession.data.session.user.id === payload.new.id
+          ) {
+            // Use the payload data directly - no need to re-query!
+            const isComplete = !!payload.new.is_complete;
+
+            // Mark that we just received a realtime update to skip redundant queries
+            recentProfileUpdateRef.current = {
+              userId: payload.new.id,
+              timestamp: Date.now(),
+            };
+
+            setProfileComplete(isComplete);
+            setIsLoading(false);
+            await SplashScreen.hideAsync();
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      profileChannel.unsubscribe();
     };
   }, []);
 
