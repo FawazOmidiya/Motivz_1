@@ -561,15 +561,40 @@ export const fetchUserProfile = async (userId: string): Promise<any> => {
    * @returns A promise that resolves to the user's profile data.
    * @throws An error if the query fails.
    */
-
-  const { data, error, status } = await supabase
+  // Add timeout to prevent hanging
+  const queryPromise = supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)
     .single();
 
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(
+      () => reject(new Error("Query timeout after 10 seconds")),
+      10000
+    );
+  });
+
+  let data, error, status;
+  try {
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    data = result.data;
+    error = result.error;
+    status = result.status;
+  } catch (timeoutError: any) {
+    // If it's a timeout, return null instead of throwing
+    if (timeoutError?.message?.includes("timeout")) {
+      return null;
+    }
+    throw timeoutError;
+  }
+
   if (error && status !== 406) {
     throw new Error(error.message);
+  }
+
+  if (status === 406 || !data) {
+    return null;
   }
 
   // Filter out ended saved events

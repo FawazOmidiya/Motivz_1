@@ -157,6 +157,10 @@ function AppContent() {
 
 export default function RootLayout() {
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const recentProfileUpdateRef = React.useRef<{
+    userId: string;
+    timestamp: number;
+  } | null>(null);
 
   React.useEffect(() => {
     // Configure Google Sign-In

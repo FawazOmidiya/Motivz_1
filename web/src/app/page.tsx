@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +21,6 @@ import {
   Heart,
   ArrowRight,
   Download,
-  ExternalLink,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -83,10 +83,13 @@ export default function LandingPage() {
       <header className="container mx-auto px-4 py-6">
         <nav className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">M</span>
-            </div>
-            <span className="text-2xl font-bold text-white">MOTIVZ</span>
+            <Image
+              src="/app-icon.png"
+              alt="MOTIVZ Logo"
+              width={80}
+              height={80}
+              className="rounded-lg"
+            />
           </div>
           <div className="flex items-center space-x-4">
             <Link href="/review">
@@ -133,14 +136,6 @@ export default function LandingPage() {
                 <Download className="w-5 h-5 mr-2" />
                 Download App
               </a>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-purple-500 text-purple-300 hover:bg-purple-500 hover:text-white px-8 py-4"
-            >
-              <ExternalLink className="w-5 h-5 mr-2" />
-              Learn More
             </Button>
           </div>
         </div>
@@ -444,9 +439,13 @@ export default function LandingPage() {
       <footer className="container mx-auto px-4 py-12 border-t border-gray-700">
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center space-x-2 mb-4 md:mb-0">
-            <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">M</span>
-            </div>
+            <Image
+              src="/app-icon.png"
+              alt="MOTIVZ Logo"
+              width={32}
+              height={32}
+              className="rounded-lg"
+            />
             <span className="text-2xl font-bold text-white">MOTIVZ</span>
           </div>
           <div className="flex space-x-6">

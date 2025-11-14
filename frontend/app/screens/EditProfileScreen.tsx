@@ -531,7 +531,6 @@ export default function EditProfileScreen({
                 if (selectedDate) {
                   setDateOfBirth(selectedDate);
                 }
-                setShowDatePicker(false);
               }}
               maximumDate={new Date()}
               minimumDate={new Date(1900, 0, 1)}
