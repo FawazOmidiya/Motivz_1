@@ -21,7 +21,6 @@ import {
   Heart,
   ArrowRight,
   Download,
-  ExternalLink,
 } from "lucide-react";
 
 export default function LandingPage() {
