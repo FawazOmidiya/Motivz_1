@@ -14,7 +14,7 @@ import {
   Dimensions,
   ScrollView,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import React, {
   useState,
   useEffect,
@@ -25,8 +25,7 @@ import React, {
 import { Animated } from "react-native";
 import * as types from "@/app/utils/types";
 import { Club } from "@/app/utils/Club";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation"; // Import the types
+import { useTabNavigation } from "../utils/navigationHelpers";
 import {
   fetchClubs,
   isClubOpenDynamic,
@@ -49,12 +48,9 @@ import { useAppNotifications } from "../utils/notificationService";
 
 const { width } = Dimensions.get("window");
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "Home"
->;
-
 export default function HomeScreen() {
+  const router = useRouter();
+  const { clubPath } = useTabNavigation();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [trendingClubs, setTrendingClubs] = useState<Club[]>([]);
   const [regularClubs, setRegularClubs] = useState<Club[]>([]);
@@ -205,8 +201,6 @@ export default function HomeScreen() {
     await loadClubs();
     setRefreshing(false);
   }, []);
-
-  const navigation = useNavigation<HomeScreenNavigationProp>();
 
   async function searchItems() {
     Keyboard.dismiss();
@@ -489,9 +483,10 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate("ClubDetail", { club: item.toJSON() })
-              }
+              onPress={() => {
+                console.log("Item tags:", item.tags);
+                router.push(clubPath(item.id, item.toJSON()));
+              }}
               style={styles.clubCardContainer}
             >
               <Image source={{ uri: item.image }} style={styles.clubImage} />

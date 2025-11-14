@@ -2,7 +2,7 @@
   "expo": {
     "name": "Motivz",
     "slug": "frontend",
-    "version": "1.6.1",
+    "version": "1.6.3",
     "orientation": "portrait",
     "icon": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
     "scheme": "motivz",
@@ -11,8 +11,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fomidiya.frontend",
-      "buildNumber": "2",
+      "buildNumber": "6",
       "icon": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
+      "splash": {
+        "image": "./assets/images/splash-screen.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#000000"
+      },
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -26,7 +31,8 @@
         "aps-environment": "production"
       },
       "associatedDomains": [
-        "applinks:42P3N5W766.motivz-frontend.expo.app"
+        "applinks:fomidiya-frontend.expo.app",
+        "applinks:themotivz.com"
       ]
     },
     "android": {
@@ -39,7 +45,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/appstore.png"
     },
     "plugins": [
@@ -49,8 +55,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/AppIcons/Assets.xcassets/AppIcon.appiconset/1024.png",
-          "resizeMode": "cover"
+          "image": "./assets/images/splash-screen.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#000000",
+          "enableFullScreenImage_legacy": true,
+          "ios": {
+            "enableFullScreenImage_legacy": true
+          }
         }
       ],
       "expo-secure-store",
@@ -84,6 +95,10 @@
       "eas": {
         "projectId": "66836f2a-6d2a-490d-ad14-7624483fff56"
       }
+    },
+    "expo-router": {
+      "root": "./app",
+      "origin": false
     },
     "runtimeVersion": "1.0.0",
     "updates": {

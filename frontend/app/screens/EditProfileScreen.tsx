@@ -31,6 +31,7 @@ import {
   DRINKING_OPTIONS,
   SMOKING_OPTIONS,
 } from "@/constants/NightlifeConstants";
+import { router } from "expo-router";
 
 interface EditProfileScreenProps {
   navigation: any;
@@ -128,7 +129,7 @@ export default function EditProfileScreen({
       if (error) throw error;
 
       Alert.alert("Success", "Profile updated successfully!");
-      navigation.goBack();
+      router.back();
     } catch (error) {
       console.error("Error updating profile:", error);
       Alert.alert("Error", "Failed to update profile");
@@ -314,7 +315,7 @@ export default function EditProfileScreen({
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="close" size={24} color={Constants.whiteCOLOR} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>

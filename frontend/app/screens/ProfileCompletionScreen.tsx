@@ -16,14 +16,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "react-native-paper";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { supabase, storage } from "../utils/supabaseService";
+import { useSession, useProfile } from "@/components/SessionContext";
 import * as ImagePicker from "expo-image-picker";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../utils/types";
 import { decode } from "base64-arraybuffer";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
@@ -38,13 +37,9 @@ import {
   SMOKING_OPTIONS,
 } from "@/constants/NightlifeConstants";
 
-type ProfileCompletionScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "ProfileCompletion"
->;
-
+// Route params type for reference
 type RouteParams = {
-  signUpInfo: {
+  signUpInfo?: {
     username: string;
     email: string;
     password: string;
@@ -66,17 +61,55 @@ type RouteParams = {
 };
 
 export default function ProfileCompletionScreen() {
-  const navigation = useNavigation<ProfileCompletionScreenNavigationProp>();
-  const route = useRoute();
-  const params = route.params as RouteParams;
-  const signUpInfo = params?.signUpInfo || {
+  const router = useRouter();
+  const session = useSession();
+  const profile = useProfile();
+  const params = useLocalSearchParams<{
+    signUpInfo?: string;
+    googleUserData?: string;
+    googleTokens?: string;
+    appleUserData?: string;
+    appleTokens?: string;
+  }>();
+
+  const AUTO_SAVE_KEY = "profile_completion_draft";
+
+  // Parse signUpInfo if it's a JSON string
+  let signUpInfo: { username: string; email: string; password: string } = {
     username: "",
     email: "",
     password: "",
   };
-  const googleUserData = params?.googleUserData;
-  const googleTokens = params?.googleTokens;
-  const appleUserData = params?.appleUserData;
+  try {
+    if (params.signUpInfo) {
+      signUpInfo = JSON.parse(params.signUpInfo);
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+
+  // Parse other params if they're JSON strings
+  let googleUserData: RouteParams["googleUserData"] | undefined;
+  let googleTokens: RouteParams["googleTokens"] | undefined;
+  let appleUserData: RouteParams["appleUserData"] | undefined;
+  let appleTokens: { identityToken: string } | undefined;
+
+  try {
+    if (params.googleUserData) {
+      googleUserData = JSON.parse(params.googleUserData);
+    }
+    if (params.googleTokens) {
+      googleTokens = JSON.parse(params.googleTokens);
+    }
+    if (params.appleUserData) {
+      appleUserData = JSON.parse(params.appleUserData);
+    }
+    if (params.appleTokens) {
+      appleTokens = JSON.parse(params.appleTokens);
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
 
   const [firstName, setFirstName] = useState(
     googleUserData?.firstName || appleUserData?.firstName || ""
@@ -109,6 +142,121 @@ export default function ProfileCompletionScreen() {
   const budgetOptions = [...BUDGET_OPTIONS];
   const drinkingOptions = [...DRINKING_OPTIONS];
   const smokingOptions = [...SMOKING_OPTIONS];
+
+  // Guard: Redirect if profile is already complete
+  React.useEffect(() => {
+    if (session?.user && profile?.is_complete === true) {
+      // Profile is complete, redirect to home
+      router.replace("/(tabs)/home");
+    }
+  }, [session?.user?.id, profile?.is_complete, router]);
+
+  // Auto-save form data to AsyncStorage
+  const saveFormDraft = React.useCallback(async () => {
+    try {
+      const draft = {
+        firstName,
+        lastName,
+        username,
+        bio,
+        dateOfBirth: dateOfBirth?.toISOString() || null,
+        avatarUrl,
+        favoriteMusic,
+        crowdPreferences,
+        nightlifeGoals,
+        dressCode,
+        budget,
+        drinkingPreference,
+        smokingPreference,
+      };
+      await AsyncStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(draft));
+    } catch (error) {
+      console.error("Error saving form draft:", error);
+    }
+  }, [
+    firstName,
+    lastName,
+    username,
+    bio,
+    dateOfBirth,
+    avatarUrl,
+    favoriteMusic,
+    crowdPreferences,
+    nightlifeGoals,
+    dressCode,
+    budget,
+    drinkingPreference,
+    smokingPreference,
+  ]);
+
+  // Restore form data from AsyncStorage
+  const restoreFormDraft = React.useCallback(async () => {
+    try {
+      const draftJson = await AsyncStorage.getItem(AUTO_SAVE_KEY);
+      if (draftJson) {
+        const draft = JSON.parse(draftJson);
+        if (draft.firstName) setFirstName(draft.firstName);
+        if (draft.lastName) setLastName(draft.lastName);
+        if (draft.username) setUsername(draft.username);
+        if (draft.bio) setBio(draft.bio);
+        if (draft.dateOfBirth) {
+          setDateOfBirth(new Date(draft.dateOfBirth));
+        }
+        if (draft.avatarUrl) setAvatarUrl(draft.avatarUrl);
+        if (draft.favoriteMusic) setFavoriteMusic(draft.favoriteMusic);
+        if (draft.crowdPreferences) setCrowdPreferences(draft.crowdPreferences);
+        if (draft.nightlifeGoals) setNightlifeGoals(draft.nightlifeGoals);
+        if (draft.dressCode) setDressCode(draft.dressCode);
+        if (draft.budget) setBudget(draft.budget);
+        if (draft.drinkingPreference)
+          setDrinkingPreference(draft.drinkingPreference);
+        if (draft.smokingPreference)
+          setSmokingPreference(draft.smokingPreference);
+      }
+    } catch (error) {
+      console.error("Error restoring form draft:", error);
+    }
+  }, []);
+
+  // Auto-save on form changes (debounced)
+  React.useEffect(() => {
+    if (session?.user) {
+      const timeoutId = setTimeout(() => {
+        saveFormDraft();
+      }, 1000); // Save 1 second after last change
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [session?.user?.id, saveFormDraft]);
+
+  // Restore draft on mount
+  React.useEffect(() => {
+    if (session?.user) {
+      restoreFormDraft();
+    }
+  }, [session?.user?.id, restoreFormDraft]);
+
+  // Show loading while checking profile status
+  if (session?.user && profile === null) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // If profile is complete, show loading while redirecting
+  if (session?.user && profile?.is_complete === true) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Constants.purpleCOLOR} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Calculate age from date of birth
   const calculateAge = (dob: Date): number => {
@@ -235,7 +383,18 @@ export default function ProfileCompletionScreen() {
     try {
       let userId: string;
 
-      if (googleUserData && googleTokens) {
+      // FIRST: Check if user is already authenticated (most common case for OAuth)
+      // This handles Apple/Google users who signed in and were redirected to profile completion
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (currentUser) {
+        // User is already authenticated - use their ID
+        // This is the normal flow for Apple/Google sign-in users
+        userId = currentUser.id;
+      } else if (googleUserData && googleTokens) {
+        // Fallback: Google sign-in with tokens (if passed as params)
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: "google",
           token: googleTokens.idToken,
@@ -245,15 +404,19 @@ export default function ProfileCompletionScreen() {
         if (!data.user) throw new Error("Failed to authenticate with Google");
 
         userId = data.user.id;
-      } else if (googleUserData || appleUserData) {
-        // For both Google and Apple users, get the current authenticated user
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) throw new Error("No authenticated user found");
-        userId = user.id;
+      } else if (appleUserData && appleTokens) {
+        // Fallback: Apple sign-in with tokens (if passed as params)
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "apple",
+          token: appleTokens.identityToken,
+        });
+
+        if (error) throw error;
+        if (!data.user) throw new Error("Failed to authenticate with Apple");
+
+        userId = data.user.id;
       } else {
-        // Regular sign-up flow (email/password)
+        // Last resort: Regular email/password sign-up
         const { data: authData, error: authError } = await supabase.auth.signUp(
           {
             email: signUpInfo.email,
@@ -291,9 +454,13 @@ export default function ProfileCompletionScreen() {
         updated_at: new Date().toISOString(),
       });
 
-      if (profileError) {
-        throw profileError;
-      }
+      if (profileError) throw profileError;
+
+      // Clear draft after successful submission
+      await AsyncStorage.removeItem(AUTO_SAVE_KEY);
+
+      // Trigger a session refresh to update the profile status
+      const { data: refreshedSession } = await supabase.auth.refreshSession();
 
       // Don't call refreshSession() - it causes a race condition with queries
       // The realtime subscription will handle the update automatically
@@ -641,6 +808,12 @@ export default function ProfileCompletionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Constants.blackCOLOR,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: Constants.blackCOLOR,
   },
   header: {

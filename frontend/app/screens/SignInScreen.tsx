@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -11,28 +11,27 @@ import {
   StatusBar,
 } from "react-native";
 import { Button, TextInput, Text } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter, Redirect } from "expo-router";
 import GoogleSignInButton from "../utils/googleAuth/GoogleSignInButton";
 import { Auth } from "../utils/NativeAuth/Auth";
 import { Auth as NativeAuth } from "../utils/NativeAuth/Auth.native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Constants from "@/constants/Constants";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation";
 import { supabase } from "../utils/supabaseService";
-
-type SignInScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "SignIn"
->;
+import { useSession } from "@/components/SessionContext";
 
 export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const session = useSession();
+  const router = useRouter();
 
-  const navigation = useNavigation<SignInScreenNavigationProp>();
+  // Redirect to tabs if already authenticated
+  if (session) {
+    return <Redirect href="/(tabs)/home" />;
+  }
 
   async function signInWithEmail() {
     if (!email || !password) {
@@ -182,20 +181,11 @@ export default function SignInScreen() {
                 <View style={styles.signUpContainer}>
                   <Text style={styles.signUpText}>Don't have an account? </Text>
                   <TouchableOpacity
-                    onPress={() => navigation.navigate("SignUp")}
+                    onPress={() => router.push("/auth/sign-up")}
                   >
                     <Text style={styles.signUpLink}>Sign Up</Text>
                   </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("AnonymousHome")}
-                  style={styles.anonymousLinkContainer}
-                >
-                  <Text variant="bodyMedium" style={styles.anonymousLink}>
-                    Continue Without Account
-                  </Text>
-                </TouchableOpacity>
               </>
             )}
           </View>

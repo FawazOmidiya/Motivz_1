@@ -12,7 +12,7 @@ import { Button, TextInput, Text } from "react-native-paper";
 import { storage, supabase, deleteUserAccount } from "../utils/supabaseService";
 import * as ImagePicker from "expo-image-picker";
 import { useSession } from "@/components/SessionContext";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { signOut } from "../utils/supabaseService";
 import { decode } from "base64-arraybuffer";
 import {
@@ -31,7 +31,7 @@ import { Linking } from "react-native";
 
 export default function ProfileSettings() {
   const session = useSession();
-  const navigation = useNavigation();
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -229,7 +229,7 @@ export default function ProfileSettings() {
         .select();
       if (error) throw error;
       Alert.alert("Success", "Profile updated successfully.");
-      navigation.goBack();
+      router.back();
     } catch (error) {
       if (error instanceof Error) {
         Alert.alert("Update Error", error.message);
@@ -432,7 +432,7 @@ export default function ProfileSettings() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
 
-          <TouchableOpacity onPress={() => signOut()} style={styles.settingRow}>
+          <TouchableOpacity onPress={async () => await signOut()} style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Ionicons name="log-out" size={24} color="#FF6B6B" />
               <Text style={[styles.settingTitle, { color: "#FF6B6B" }]}>

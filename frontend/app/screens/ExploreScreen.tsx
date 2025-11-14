@@ -24,15 +24,13 @@ import {
   searchClubsByName,
   fetchEventsWithTrending,
 } from "../utils/supabaseService";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRouter } from "expo-router";
+import { useTabNavigation } from "../utils/navigationHelpers";
 import { Ionicons } from "@expo/vector-icons";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
 import EventItem from "@/components/EventItem";
 import { useSession } from "@/components/SessionContext";
-
-type NavigationProp = NativeStackNavigationProp<any, "UserProfile">;
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2; // 2 columns with padding
@@ -97,7 +95,8 @@ export default function SearchScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [trendingEvents, setTrendingEvents] = useState<types.Event[]>([]);
-  const navigation = useNavigation<NavigationProp>();
+  const router = useRouter();
+  const { clubPath, eventPath, userPath } = useTabNavigation();
   const session = useSession();
 
   // Fetch events on component mount
@@ -155,6 +154,11 @@ export default function SearchScreen() {
       setPage(pageNum + 1);
     } catch (error) {
       console.error("Error fetching events:", error);
+      // On error, ensure we still have some data or show empty state
+      if (isRefresh || pageNum === 0) {
+        setEvents([]);
+        setPage(0);
+      }
     } finally {
       setEventsLoading(false);
     }
@@ -256,21 +260,31 @@ export default function SearchScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setEventsLoading(true); // Show loading state during refresh
     try {
       // Clear search results if there's a query
       if (query.length > 0) {
         setResults([]);
       }
+      // Reset page and hasMore
+      setPage(0);
+      setHasMore(true);
       // Refresh events
       await fetchEvents(0, true);
-      // Reset scroll position to top
+      // Reset scroll position to top after a brief delay
       setTimeout(() => {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        if (flatListRef.current) {
+          flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        }
       }, 100);
     } catch (error) {
       console.error("Error refreshing:", error);
+      // Ensure loading states are reset even on error
+      setEventsLoading(false);
     } finally {
       setRefreshing(false);
+      // Ensure eventsLoading is reset
+      setEventsLoading(false);
     }
   };
 
@@ -391,7 +405,7 @@ export default function SearchScreen() {
       return (
         <TouchableOpacity
           style={styles.resultItem}
-          onPress={() => navigation.navigate("UserProfile", { user: item })}
+          onPress={() => router.push(userPath(item.id))}
         >
           <View style={styles.userInfoContainer}>
             {item.avatar_url ? (
@@ -417,12 +431,7 @@ export default function SearchScreen() {
       return (
         <TouchableOpacity
           style={styles.resultItem}
-          onPress={() =>
-            navigation.navigate("EventDetail", {
-              eventId: item.id,
-              event: item,
-            })
-          }
+          onPress={() => router.push(eventPath(item.id, item))}
         >
           <View style={styles.userInfoContainer}>
             {item.poster_url ? (
@@ -447,7 +456,7 @@ export default function SearchScreen() {
       return (
         <TouchableOpacity
           style={styles.resultItem}
-          onPress={() => navigation.navigate("ClubDetail", { club: item })}
+          onPress={() => router.push(clubPath(item.id, item))}
         >
           <View style={styles.userInfoContainer}>
             {item.Image ? (
@@ -471,10 +480,7 @@ export default function SearchScreen() {
   }
 
   const handleEventPress = (event: types.Event) => {
-    navigation.navigate("EventDetail", {
-      eventId: event.id,
-      event: event,
-    });
+    router.push(eventPath(event.id, event));
   };
 
   async function handleFocus() {

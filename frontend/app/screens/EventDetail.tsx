@@ -10,13 +10,14 @@ import {
   Dimensions,
   Modal,
   Linking,
-  Share,
   Animated,
 } from "react-native";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTabNavigation } from "../utils/navigationHelpers";
 import * as Constants from "../../constants/Constants";
 import * as types from "../utils/types";
 import {
@@ -144,32 +145,31 @@ const EventDetailSkeleton = () => {
   );
 };
 
-type EventDetailNavigationProp = NativeStackNavigationProp<
-  {
-    HomeMain: undefined;
-    ClubDetail: { club: types.Club };
-    EventDetail: { event_id: string };
-    GuestlistForm: { event: types.Event };
-    UserProfile: { user: types.UserProfile };
-  },
-  "EventDetail"
->;
-
-type EventDetailRouteProp = {
-  eventId: string;
-  event?: types.Event;
-  club?: types.Club;
-};
-
 export default function EventDetailScreen() {
-  const navigation = useNavigation<EventDetailNavigationProp>();
-  const route = useRoute();
-  const {
-    eventId,
-    event: preloadedEvent,
-    club: preloadedClub,
-  } = route.params as EventDetailRouteProp;
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    id: string;
+    event?: string;
+    club?: string;
+  }>();
+  const eventId = params.id;
+  const { clubPath, guestlistPath } = useTabNavigation();
   const session = useSession();
+
+  // Parse preloaded data if available
+  let preloadedEvent: types.Event | undefined;
+  let preloadedClub: types.Club | undefined;
+
+  try {
+    if (params.event) {
+      preloadedEvent = JSON.parse(params.event);
+    }
+    if (params.club) {
+      preloadedClub = JSON.parse(params.club);
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
 
   const [event, setEvent] = useState<types.Event>();
   const [club, setClub] = useState<types.Club | null>(null);
@@ -189,6 +189,7 @@ export default function EventDetailScreen() {
     loading: saveLoading,
   } = useSavedEvents();
   const [localSaveCount, setLocalSaveCount] = useState(0);
+  const [localShareCount, setLocalShareCount] = useState(0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -196,6 +197,7 @@ export default function EventDetailScreen() {
       const eventData = await fetchFullEvent(eventId);
       setEvent(eventData);
       setLocalSaveCount(eventData.save_count || 0);
+      setLocalShareCount(eventData.share_count || 0);
 
       // Use pre-loaded club data if available, otherwise fetch it
       if (preloadedClub) {
@@ -361,7 +363,7 @@ export default function EventDetailScreen() {
         await loadAttendanceData(displayEvent);
 
         // Navigate to guestlist form
-        navigation.navigate("GuestlistForm", { event: displayEvent });
+        router.push(guestlistPath(displayEvent.id, displayEvent));
       }
     } catch (error) {
       console.error("Error handling ticket purchase:", error);
@@ -430,38 +432,36 @@ export default function EventDetailScreen() {
     if (!displayEvent) return;
 
     try {
-      // Create deep link URL that opens the app directly
-      const deepLinkUrl = `motivz://event/${displayEvent.id}`;
+      // Use slug if available (format: {id}-{title-slug}), otherwise fallback to id
+      const slug = displayEvent.slug || displayEvent.id;
 
-      const shareContent = {
-        message: `🎉 Check out this event: ${
-          displayEvent.title
-        }\n\n📅 ${formatDate(displayEvent.start_date)} at ${formatTime(
-          displayEvent.start_date
-        )}\n📍 ${
-          displayClub?.Name || "Location TBD"
-        }\n\nDownload Motivz to view more events: ${deepLinkUrl}\n\nDiscover more events!`,
+      // Import shareService for image sharing support
+      const { shareEvent } = await import("../utils/shareService");
+
+      await shareEvent({
+        slug,
         title: displayEvent.title,
-      };
+        caption: displayEvent.caption,
+        imageUrl: displayEvent.poster_url || undefined,
+        eventId: displayEvent.id,
+      });
 
-      const result = await Share.share(shareContent);
+      // Update local share count immediately
+      setLocalShareCount((prev) => prev + 1);
 
-      if (result.action === Share.sharedAction) {
-        // Track the share event
-        if (session?.user?.id && displayEvent) {
-          await trackEventClick(
-            displayEvent.id,
-            session.user.id,
-            "share",
-            "event_detail",
-            {
-              event_title: displayEvent.title,
-              club_id: displayEvent.club_id,
-              share_method: "native_share",
-            }
-          );
-        }
-        console.log("Event shared successfully");
+      // Track the share event
+      if (session?.user?.id && displayEvent) {
+        await trackEventClick(
+          displayEvent.id,
+          session.user.id,
+          "share",
+          "event_detail",
+          {
+            event_title: displayEvent.title,
+            club_id: displayEvent.club_id,
+            share_method: "image_share",
+          }
+        );
       }
     } catch (error) {
       console.error("Error sharing event:", error);
@@ -517,7 +517,7 @@ export default function EventDetailScreen() {
         {/* Back Button */}
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -562,16 +562,26 @@ export default function EventDetailScreen() {
                 )}
               </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.shareButtonContent}
-              onPress={handleShare}
-            >
-              <Ionicons
-                name="share-outline"
-                size={20}
-                color={Constants.purpleCOLOR}
-              />
-            </TouchableOpacity>
+            <View style={styles.shareButtonContainer}>
+              <TouchableOpacity
+                style={styles.shareButtonContent}
+                onPress={handleShare}
+              >
+                <Ionicons
+                  name="share-outline"
+                  size={20}
+                  color={Constants.purpleCOLOR}
+                />
+                {/* Share Count Badge */}
+                {localShareCount > 0 && (
+                  <View style={styles.shareCountBadge}>
+                    <Text style={styles.shareCountBadgeText}>
+                      {localShareCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -596,9 +606,7 @@ export default function EventDetailScreen() {
           {displayClub && (
             <TouchableOpacity
               style={styles.infoRow}
-              onPress={() =>
-                navigation.navigate("ClubDetail", { club: displayClub })
-              }
+              onPress={() => router.push(clubPath(displayClub.id, displayClub))}
             >
               <Ionicons
                 name="location"
@@ -1099,6 +1107,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   saveCountBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  shareButtonContainer: {
+    alignItems: "center",
+  },
+  shareCountBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: Constants.purpleCOLOR,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  shareCountBadgeText: {
     color: "white",
     fontSize: 10,
     fontWeight: "600",

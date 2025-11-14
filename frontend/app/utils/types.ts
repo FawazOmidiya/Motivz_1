@@ -41,6 +41,7 @@ export type UserProfile = {
   events_count?: number; // Number of saved events
   date_of_birth?: Date | null; // Date object
   age?: number | null; // Calculated age from date_of_birth
+  is_complete?: boolean | null; // Whether the user profile is complete
   // add any additional fields you need
 };
 
@@ -213,6 +214,7 @@ export interface PostComment {
 
 export interface Event {
   id: string;
+  slug?: string; // Unique slug for Universal Links (e.g., "friday-night-vibes")
   club_id: string;
   title: string;
   caption?: string;
@@ -224,6 +226,7 @@ export interface Event {
   music_genres?: string[];
   attendees?: string[]; // Array of user IDs attending the event
   save_count?: number; // Number of times this event has been saved
+  share_count?: number; // Number of times this event has been shared
   trending?: boolean; // Marks events as trending to prioritize them in user feeds
   created_at: string;
   updated_at: string;

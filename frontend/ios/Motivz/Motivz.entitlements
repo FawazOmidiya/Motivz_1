@@ -10,7 +10,8 @@
     </array>
     <key>com.apple.developer.associated-domains</key>
     <array>
-      <string>applinks:42P3N5W766.motivz-frontend.expo.app</string>
+      <string>applinks:fomidiya-frontend.expo.app</string>
+      <string>applinks:themotivz.com</string>
     </array>
   </dict>
 </plist>

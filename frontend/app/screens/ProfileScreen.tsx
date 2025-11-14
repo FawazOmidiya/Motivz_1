@@ -42,6 +42,7 @@ import { decode } from "base64-arraybuffer";
 import { Video, ResizeMode } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
+import { router } from "expo-router";
 
 type ProfileScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
@@ -459,7 +460,7 @@ export default function Account() {
   const renderFavouriteClub = ({ item }: { item: types.Club }) => (
     <TouchableOpacity
       style={styles.favouriteClubItem}
-      onPress={() => navigation.navigate("ClubDetail", { club: item })}
+      onPress={() => router.push(`/club/${item.id}`)}
     >
       <Image source={{ uri: item.Image }} style={styles.favouriteClubImage} />
       <Text style={styles.favouriteClubName} numberOfLines={1}>
@@ -471,12 +472,7 @@ export default function Account() {
   const renderAttendingEvent = ({ item }: { item: types.Event }) => (
     <TouchableOpacity
       style={styles.favouriteClubItem}
-      onPress={() =>
-        navigation.navigate("EventDetail", {
-          eventId: item.id,
-          event: item,
-        })
-      }
+      onPress={() => router.push(`/event/${item.id}`)}
     >
       {item.poster_url ? (
         <Image
@@ -592,9 +588,7 @@ export default function Account() {
           {activeClub && (
             <TouchableOpacity
               style={styles.activeClubInfo}
-              onPress={() =>
-                navigation.navigate("ClubDetail", { club: activeClub })
-              }
+              onPress={() => router.push(`/club/${activeClub.id}`)}
             >
               <Ionicons
                 name="location-outline"
@@ -611,7 +605,7 @@ export default function Account() {
         <View style={styles.profileActions}>
           <TouchableOpacity
             style={styles.editButton}
-            onPress={() => navigation.navigate("EditProfile")}
+            onPress={() => router.push("/profile/edit")}
           >
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
@@ -624,7 +618,7 @@ export default function Account() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => navigation.navigate("ProfileSettings")}
+            onPress={() => router.push("/profile/settings")}
           >
             <Ionicons
               name="settings-outline"
@@ -635,7 +629,7 @@ export default function Account() {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() =>
-              navigation.navigate("FriendsList", { userId: profile?.id || "" })
+              router.push(`/profile/friends?userId=${profile?.id || ""}`)
             }
           >
             <Ionicons
@@ -709,7 +703,7 @@ export default function Account() {
                   <TouchableOpacity
                     key={club?.id}
                     style={styles.horizontalClubCard}
-                    onPress={() => navigation.navigate("ClubDetail", { club })}
+                    onPress={() => router.push(`/club/${club.id}`)}
                   >
                     <Image
                       source={{ uri: club?.Image }}
@@ -741,12 +735,7 @@ export default function Account() {
                   <TouchableOpacity
                     key={event?.id}
                     style={styles.verticalEventCard}
-                    onPress={() =>
-                      navigation.navigate("EventDetail", {
-                        eventId: event.id,
-                        event: event,
-                      })
-                    }
+                    onPress={() => router.push(`/event/${event.id}`)}
                   >
                     <Image
                       source={{ uri: event?.poster_url }}

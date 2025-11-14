@@ -18,7 +18,9 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-    const { title, body, userId, sendToAll } = await req.json();
+    const requestBody = await req.json();
+    console.log("Request body:", JSON.stringify(requestBody, null, 2));
+    const { title, body, userId, sendToAll, deepLink } = requestBody;
     if (!title || !body) {
       return new Response(
         JSON.stringify({
@@ -35,12 +37,17 @@ serve(async (req) => {
     }
     let users;
     if (sendToAll) {
-      // Get all users with push tokens (check both fields for backward compatibility)
+      console.log("=== Sending to all users ===");
+      // Get all users with push tokens
       const { data: allUsers, error: usersError } = await supabaseClient
         .from("profiles")
         .select("push_token")
-        .or(" push_token.not.is.null")
-        .or("push_token.neq.");
+        .not("push_token", "is", null)
+        .neq("push_token", "");
+      console.log("Users query result:", {
+        allUsers,
+        usersError,
+      });
       if (usersError) {
         throw new Error(`Failed to fetch users: ${usersError.message}`);
       }
@@ -77,10 +84,10 @@ serve(async (req) => {
       }
       const { data: user, error: userError } = await supabaseClient
         .from("profiles")
-        .select("push_token, push_token")
+        .select("push_token")
         .eq("id", userId)
-        .or("push_token.not.is.null, push_token.not.is.null")
-        .or("push_token.neq., push_token.neq.")
+        .not("push_token", "is", null)
+        .neq("push_token", "")
         .single();
       if (userError) {
         throw new Error(`Failed to fetch user: ${userError.message}`);
@@ -101,32 +108,28 @@ serve(async (req) => {
       }
       users = [user];
     }
-    const tokens = users
-      .map((u) => u.push_token || u.push_token)
-      .filter(Boolean);
-    console.log("Push tokens found:", tokens.length);
-    console.log("Tokens:", tokens);
-    // Log the actual token format for debugging
-    for (const token of tokens) {
-      console.log("Token format check:", {
-        token: token,
-        startsWithExponent: token.startsWith("ExponentPushToken["),
-        endsWithBracket: token.endsWith("]"),
-        length: token.length,
+    // Filter out invalid tokens (permission denied, errors, etc.)
+    const validTokens = users
+      .map((u) => u.push_token)
+      .filter((token) => {
+        if (!token) return false;
+        // Check if it's a valid Expo push token format
+        const isValidToken =
+          token.startsWith("ExponentPushToken[") && token.endsWith("]");
+        if (!isValidToken) {
+          console.log("Filtering out invalid token:", token);
+        }
+        return isValidToken;
       });
-    }
-    // Validate token format as per Expo docs
-    for (const token of tokens) {
-      if (!token.startsWith("ExponentPushToken[") || !token.endsWith("]")) {
-        console.error("Invalid push token format:", token);
-      } else {
-        console.log("Valid push token format:", token);
-      }
-    }
-    if (tokens.length === 0) {
+    console.log("Total users fetched:", users.length);
+    console.log("Valid push tokens found:", validTokens.length);
+    console.log("Valid tokens:", validTokens);
+    if (validTokens.length === 0) {
       return new Response(
         JSON.stringify({
           error: "No valid push tokens found",
+          details:
+            "All users either have notifications disabled or invalid tokens",
         }),
         {
           status: 400,
@@ -137,12 +140,14 @@ serve(async (req) => {
         }
       );
     }
-    // Create messages for Expo Push Service (matching working function structure)
-    const messages = tokens.map((token) => ({
+    // Create messages for Expo Push Service
+    // Include deepLink in data field if provided
+    const messages = validTokens.map((token) => ({
       to: token,
       title: title,
       sound: "default",
       body: body,
+      data: deepLink ? { url: deepLink } : {},
     }));
     // Send in chunks of 100 (Expo limit)
     const chunks = [];
@@ -153,12 +158,27 @@ serve(async (req) => {
     const results = [];
     // Send notifications to Expo Push Service
     for (const chunk of chunks) {
-      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      const expoAccessToken = Deno.env.get("EXPO_ACCESS_TOKEN");
+      console.log("Expo Access Token available:", !!expoAccessToken);
+      const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Accept-encoding": "gzip, deflate",
+      };
+      if (expoAccessToken) {
+        headers["Authorization"] = `Bearer ${expoAccessToken}`;
+        console.log("Using Expo Access Token for authentication");
+      } else {
+        console.log(
+          "No Expo Access Token found, using unauthenticated request"
+        );
+      }
+      // Use the correct Expo API endpoint
+      const apiUrl = "https://exp.host/--/api/v2/push/send";
+    
+      const response = await fetch(apiUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${Deno.env.get("EXPO_ACCESS_TOKEN")}`,
-        },
+        headers,
         body: JSON.stringify(chunk),
       });
       if (!response.ok) {
@@ -237,6 +257,7 @@ serve(async (req) => {
       JSON.stringify({
         error: "Failed to send notification",
         details: error instanceof Error ? error.message : "Unknown error",
+        type: typeof error,
       }),
       {
         status: 500,

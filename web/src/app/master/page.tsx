@@ -121,6 +121,7 @@ export default function MasterDashboard() {
   // const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState("");
   const [notificationBody, setNotificationBody] = useState("");
+  const [notificationDeepLink, setNotificationDeepLink] = useState("");
   const [sendingNotification, setSendingNotification] = useState(false);
   const [notificationResult, setNotificationResult] = useState<string | null>(
     null
@@ -595,6 +596,7 @@ export default function MasterDashboard() {
                   body: notificationBody,
                   userId: userId,
                   sendToAll: false,
+                  deepLink: notificationDeepLink.trim() || undefined,
                 },
               }
             );
@@ -640,6 +642,7 @@ export default function MasterDashboard() {
               body: notificationBody,
               userId: notificationType === "specific" ? specificUserId : null,
               sendToAll: notificationType === "all",
+              deepLink: notificationDeepLink.trim() || undefined,
             },
           }
         );
@@ -660,6 +663,7 @@ export default function MasterDashboard() {
       // Clear form
       setNotificationTitle("");
       setNotificationBody("");
+      setNotificationDeepLink("");
       setSpecificUserId("");
       setUserSearchResults([]);
       setSelectedMusicGenres([]);
@@ -2107,6 +2111,21 @@ export default function MasterDashboard() {
                     rows={4}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notification-deeplink">
+                    Deep Link (Optional)
+                  </Label>
+                  <Input
+                    id="notification-deeplink"
+                    placeholder="e.g., motivz://club/123 or https://themotivz.com/event/456"
+                    value={notificationDeepLink}
+                    onChange={(e) => setNotificationDeepLink(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">
+                    When users tap the notification, they'll be navigated to
+                    this link. Leave empty for no navigation.
+                  </p>
+                </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     onClick={(e) => {
@@ -2130,6 +2149,7 @@ export default function MasterDashboard() {
                     onClick={() => {
                       setNotificationTitle("");
                       setNotificationBody("");
+                      setNotificationDeepLink("");
                       setSpecificUserId("");
                       setUserSearchResults([]);
                       setSelectedMusicGenres([]);

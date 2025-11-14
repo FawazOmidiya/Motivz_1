@@ -10,24 +10,17 @@ import {
   Alert,
   Image,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../utils/supabaseService";
 import * as types from "@/app/utils/types";
 import * as Constants from "@/constants/Constants";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/Navigation";
-
-type AnonymousExploreScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "AnonymousExplore"
->;
 
 export default function AnonymousExploreScreen() {
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState<types.UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
-  const navigation = useNavigation<AnonymousExploreScreenNavigationProp>();
+  const router = useRouter();
 
   // Real-time search as user types
   const handleTextChange = async (text: string) => {
@@ -84,7 +77,10 @@ export default function AnonymousExploreScreen() {
   };
 
   const handleUserPress = (user: types.UserProfile) => {
-    navigation.navigate("AnonymousUserProfile", { user });
+    router.push({
+      pathname: "/user/[id]",
+      params: { id: user.id },
+    });
   };
 
   const handleSignUp = () => {
@@ -93,7 +89,7 @@ export default function AnonymousExploreScreen() {
       "Would you like to create an account to friend users and access all features?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Sign Up", onPress: () => navigation.navigate("SignUp") },
+        { text: "Sign Up", onPress: () => router.push("/auth/sign-up") },
       ]
     );
   };
